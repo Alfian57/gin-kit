@@ -38,7 +38,7 @@ func Execute() {
 }
 
 func init() {
-	root.Version = Version
+	root.Version = effectiveVersion()
 	root.AddCommand(newCommand(), generateCommand(), runCommand(), buildCommand(), dbCommand(), explainCommand(), doctorCommand(), checkCommand())
 }
 
