@@ -6,6 +6,8 @@ mode="${GINKIT_MODE:?GINKIT_MODE is required}"
 database="${GINKIT_DATABASE:?GINKIT_DATABASE is required}"
 orm="${GINKIT_ORM:?GINKIT_ORM is required}"
 auth="${GINKIT_AUTH:-false}"
+edition="${GINKIT_EDITION:-framework}"
+framework_version="${GINKIT_FRAMEWORK_VERSION:-0.3.0}"
 project_name="${GINKIT_PROJECT_NAME:-matrixapp}"
 runner_temp="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
 cli_path="${GINKIT_CLI_PATH:-$runner_temp/ginkit}"
@@ -29,6 +31,7 @@ args=(
   new "$project_name"
   --non-interactive
   --module "example.com/$project_name"
+  --edition "$edition"
   --mode "$mode"
   --database "$database"
   --orm "$orm"
@@ -36,6 +39,9 @@ args=(
 )
 if [[ "$auth" == "true" ]]; then
   args+=(--auth)
+fi
+if [[ "$edition" == "framework" ]]; then
+  args+=(--framework-version "$framework_version" --framework-replace "$repo_root")
 fi
 
 (cd "$workdir" && "$cli_path" "${args[@]}")

@@ -1,0 +1,23 @@
+package main
+
+import (
+	"context"
+	"log"
+	"os"
+	"os/signal"
+	"syscall"
+
+	"{{.Module}}/internal/app"
+)
+
+func main() {
+	application, err := app.New()
+	if err != nil {
+		log.Fatal(err)
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := application.Run(ctx); err != nil {
+		log.Fatal(err)
+	}
+}

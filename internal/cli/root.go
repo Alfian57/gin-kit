@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -14,20 +15,22 @@ import (
 )
 
 type Manifest struct {
-	Version  int    `yaml:"version"`
-	Module   string `yaml:"module"`
-	Project  string `yaml:"project"`
-	Mode     string `yaml:"mode"`
-	Database string `yaml:"database"`
-	ORM      string `yaml:"orm"`
-	Auth     bool   `yaml:"auth"`
-	Example  bool   `yaml:"example"`
-	Docker   bool   `yaml:"docker"`
+	Version          int    `yaml:"version"`
+	Edition          string `yaml:"edition"`
+	FrameworkVersion string `yaml:"framework_version,omitempty"`
+	Module           string `yaml:"module"`
+	Project          string `yaml:"project"`
+	Mode             string `yaml:"mode"`
+	Database         string `yaml:"database"`
+	ORM              string `yaml:"orm"`
+	Auth             bool   `yaml:"auth"`
+	Example          bool   `yaml:"example"`
+	Docker           bool   `yaml:"docker"`
 }
 
 var root = &cobra.Command{
 	Use:   "ginkit",
-	Short: "A learning-first Go project toolkit",
+	Short: "An opinionated application framework built on Gin",
 }
 
 func Execute() {
@@ -51,7 +54,21 @@ func projectRoot() (string, Manifest, error) {
 		data, readErr := os.ReadFile(filepath.Join(dir, ".ginkit.yaml"))
 		if readErr == nil {
 			var m Manifest
-			if err := yaml.Unmarshal(data, &m); err != nil {
+			decoder := yaml.NewDecoder(bytes.NewReader(data))
+			decoder.KnownFields(true)
+			if err := decoder.Decode(&m); err != nil {
+				return dir, m, err
+			}
+			if m.Version != 2 {
+				return dir, m, diagnostic(
+					"manifest_version_unsupported",
+					"read project manifest",
+					filepath.Join(dir, ".ginkit.yaml"),
+					fmt.Errorf("manifest version %d is not supported", m.Version),
+					"Migrate the project manifest to version 2: https://alfian57.github.io/ginkit/migration/manifest-v2/",
+				)
+			}
+			if err := validateManifest(m); err != nil {
 				return dir, m, err
 			}
 			return dir, m, nil
@@ -65,7 +82,7 @@ func projectRoot() (string, Manifest, error) {
 }
 
 func promptManifest(name string) (Manifest, error) {
-	m := Manifest{Version: 1, Project: name, Mode: "api", Database: "sqlite", ORM: "gorm"}
+	m := Manifest{Version: 2, Edition: "framework", Project: name, Mode: "api", Database: "sqlite", ORM: "gorm"}
 	if err := huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().Title("Go module path").Description("Example: github.com/you/"+name).Value(&m.Module).Validate(func(s string) error {
@@ -74,6 +91,10 @@ func promptManifest(name string) (Manifest, error) {
 				}
 				return nil
 			}),
+			huh.NewSelect[string]().Title("Project edition").Options(
+				huh.NewOption("Framework (recommended)", "framework"),
+				huh.NewOption("Starter (standalone learning project)", "starter"),
+			).Value(&m.Edition),
 			huh.NewSelect[string]().Title("Application mode").Options(
 				huh.NewOption("API (JSON REST)", "api"), huh.NewOption("UI (HTML + HTMX)", "ui"),
 			).Value(&m.Mode),
@@ -102,13 +123,6 @@ func writeManifest(dir string, m Manifest) error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(dir, ".ginkit.yaml"), data, 0o644)
-}
-
-func requireTool(name string) error {
-	if _, err := os.Stat(name); err == nil {
-		return nil
-	}
-	return nil
 }
 
 func platform() string { return runtime.GOOS + "/" + runtime.GOARCH }

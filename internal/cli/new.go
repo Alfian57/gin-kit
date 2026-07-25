@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -19,82 +20,134 @@ var templateFS embed.FS
 
 func newCommand() *cobra.Command {
 	var nonInteractive bool
-	var module, mode, database, orm string
+	var modulePath, edition, mode, database, orm, frameworkVersion, frameworkReplace string
 	var auth, example, docker bool
 	cmd := &cobra.Command{
 		Use:   "new <project>",
 		Short: "Create a new GinKit project",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			name := args[0]
-			m := Manifest{Version: 1, Project: name, Module: module, Mode: mode, Database: database, ORM: orm, Auth: auth, Example: example, Docker: docker}
+			target, err := filepath.Abs(filepath.Clean(args[0]))
+			if err != nil {
+				return diagnostic("target_invalid", "resolve project target", args[0], err, "Choose a valid directory path.")
+			}
+			name := filepath.Base(target)
+			if name == "." || name == string(filepath.Separator) || name == "" {
+				return diagnostic("target_invalid", "resolve project target", args[0], errors.New("target must name a project directory"), "Choose a path such as ./my-service.")
+			}
+			m := Manifest{Version: 2, Edition: edition, Project: name, Module: modulePath, Mode: mode, Database: database, ORM: orm, Auth: auth, Example: example, Docker: docker}
 			if !nonInteractive {
-				var err error
 				m, err = promptManifest(name)
 				if err != nil {
 					return err
 				}
 			} else if m.Module == "" || m.Mode == "" || m.Database == "" || m.ORM == "" {
-				return errors.New("non-interactive mode requires --module, --mode, --database and --orm")
+				return diagnostic("selection_required", "validate project options", target, errors.New("non-interactive mode requires --module, --mode, --database and --orm"), "Provide every required flag or remove --non-interactive.")
+			}
+			if m.Edition == "" {
+				m.Edition = "framework"
+			}
+			if m.Edition == "framework" {
+				m.FrameworkVersion = strings.TrimPrefix(frameworkVersion, "v")
+				if m.FrameworkVersion == "" {
+					m.FrameworkVersion = effectiveVersion()
+				}
+				if m.FrameworkVersion == "dev" && frameworkReplace == "" {
+					return diagnostic("framework_version_required", "resolve framework version", target, errors.New("development CLI builds do not identify a released framework version"), "Pass --framework-version <version>, or use --framework-replace <local-repository> while developing GinKit.")
+				}
 			}
 			if err := validateManifest(m); err != nil {
 				return err
 			}
-			target := filepath.Clean(name)
 			if _, err := os.Stat(target); err == nil {
-				return fmt.Errorf("target %s already exists", target)
+				return diagnostic("target_exists", "create project", target, errors.New("target already exists"), "Choose an empty target path or remove the existing directory.")
+			} else if !os.IsNotExist(err) {
+				return diagnostic("target_unavailable", "inspect project target", target, err, "Check the target permissions and try again.")
 			}
-			if err := scaffold(target, m); err != nil {
+			if err := scaffoldWithOptions(target, m, scaffoldOptions{FrameworkReplace: frameworkReplace}); err != nil {
 				return err
 			}
-			fmt.Printf("Created %s (%s, %s, %s).\nNext steps:\n  cd %s\n  ginkit run\n", name, m.Mode, m.Database, m.ORM, target)
+			fmt.Printf("Created %s (%s edition, %s, %s, %s).\nNext steps:\n  cd %s\n  ginkit run\n", name, m.Edition, m.Mode, m.Database, m.ORM, target)
 			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&nonInteractive, "non-interactive", false, "disable prompts")
-	cmd.Flags().StringVar(&module, "module", "", "Go module path")
+	cmd.Flags().StringVar(&modulePath, "module", "", "Go module path")
+	cmd.Flags().StringVar(&edition, "edition", "framework", "framework or starter")
 	cmd.Flags().StringVar(&mode, "mode", "", "api or ui")
 	cmd.Flags().StringVar(&database, "database", "", "sqlite, postgres, mysql, or mariadb")
 	cmd.Flags().StringVar(&orm, "orm", "", "gorm or sqlx")
 	cmd.Flags().BoolVar(&auth, "auth", false, "include authentication")
 	cmd.Flags().BoolVar(&example, "example", false, "include tasks example")
 	cmd.Flags().BoolVar(&docker, "docker", false, "include Docker files")
+	cmd.Flags().StringVar(&frameworkVersion, "framework-version", "", "GinKit framework version (defaults to the CLI release)")
+	cmd.Flags().StringVar(&frameworkReplace, "framework-replace", "", "local GinKit repository override for framework development")
 	return cmd
 }
 
 type templateData struct {
 	Manifest
-	Package string
+	Package          string
+	FrameworkRequire string
+	FrameworkReplace string
 }
 
 func scaffold(target string, m Manifest) error {
+	return scaffoldWithOptions(target, m, scaffoldOptions{})
+}
+
+type scaffoldOptions struct {
+	FrameworkReplace string
+}
+
+func scaffoldWithOptions(target string, m Manifest, options scaffoldOptions) error {
 	parent := filepath.Dir(target)
 	if err := os.MkdirAll(parent, 0o755); err != nil {
-		return err
+		return diagnostic("target_parent_failed", "create target parent", parent, err, "Check directory permissions and available disk space.")
 	}
 	staging, err := os.MkdirTemp(parent, ".ginkit-scaffold-*")
 	if err != nil {
-		return err
+		return diagnostic("staging_failed", "create scaffold staging directory", parent, err, "Check directory permissions and available disk space.")
 	}
-	if err := scaffoldInto(staging, m); err != nil {
+	if err := scaffoldIntoWithOptions(staging, m, options); err != nil {
 		_ = os.RemoveAll(staging)
 		return err
 	}
 	if err := os.Rename(staging, target); err != nil {
 		_ = os.RemoveAll(staging)
-		return err
+		return diagnostic("publish_failed", "publish scaffold", target, err, "Ensure the target does not exist and is on the same filesystem.")
 	}
 	return nil
 }
 
 func scaffoldInto(target string, m Manifest) error {
+	return scaffoldIntoWithOptions(target, m, scaffoldOptions{})
+}
+
+func scaffoldIntoWithOptions(target string, m Manifest, options scaffoldOptions) error {
 	if m.Module == "" {
 		m.Module = "example.com/" + m.Project
 	}
 	if err := os.MkdirAll(target, 0o755); err != nil {
 		return err
 	}
-	data := templateData{Manifest: m, Package: filepath.Base(m.Module)}
+	frameworkRequire := ""
+	frameworkReplace := ""
+	if m.Edition == "framework" {
+		version := strings.TrimPrefix(m.FrameworkVersion, "v")
+		if version == "" || version == "dev" {
+			version = "0.0.0"
+		}
+		frameworkRequire = "require github.com/Alfian57/ginkit v" + version
+		if options.FrameworkReplace != "" {
+			local, err := filepath.Abs(options.FrameworkReplace)
+			if err != nil {
+				return diagnostic("framework_replace_invalid", "resolve framework override", options.FrameworkReplace, err, "Pass a valid local GinKit repository path.")
+			}
+			frameworkReplace = "\nreplace github.com/Alfian57/ginkit => " + filepath.ToSlash(local)
+		}
+	}
+	data := templateData{Manifest: m, Package: filepath.Base(m.Module), FrameworkRequire: frameworkRequire, FrameworkReplace: frameworkReplace}
 	err := fs.WalkDir(templateFS, "templates", func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -102,7 +155,10 @@ func scaffoldInto(target string, m Manifest) error {
 		if entry.IsDir() {
 			return nil
 		}
-		rel := strings.TrimPrefix(path, "templates/")
+		rel, include := templateOutputPath(strings.TrimPrefix(path, "templates/"), m)
+		if !include {
+			return nil
+		}
 		if strings.HasSuffix(rel, ".tmpl") {
 			rel = strings.TrimSuffix(rel, ".tmpl")
 		}
@@ -156,15 +212,56 @@ func scaffoldInto(target string, m Manifest) error {
 	if err != nil {
 		return err
 	}
-	return writeManifest(target, m)
+	if err := writeManifest(target, m); err != nil {
+		return err
+	}
+	return formatGeneratedGo(target)
+}
+
+func formatGeneratedGo(root string) error {
+	var files []string
+	if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return walkErr
+		}
+		if !entry.IsDir() && filepath.Ext(path) == ".go" {
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			files = append(files, rel)
+		}
+		return nil
+	}); err != nil {
+		return diagnostic("format_inspection_failed", "format generated Go", root, err, "Inspect the staged scaffold and try again.")
+	}
+	if len(files) == 0 {
+		return nil
+	}
+	args := append([]string{"-w"}, files...)
+	command := exec.Command("gofmt", args...)
+	command.Dir = root
+	if output, err := command.CombinedOutput(); err != nil {
+		return diagnostic("format_failed", "format generated Go", root, fmt.Errorf("%w: %s", err, strings.TrimSpace(string(output))), "Install Go and retry the scaffold.")
+	}
+	return nil
 }
 
 func validateManifest(m Manifest) error {
-	if strings.TrimSpace(m.Project) == "" || strings.ContainsAny(m.Project, `/\`) {
-		return errors.New("project name must be non-empty and must not contain path separators")
+	if m.Version != 2 {
+		return diagnostic("manifest_version_invalid", "validate manifest", ".ginkit.yaml", fmt.Errorf("expected version 2, got %d", m.Version), "Use a version 2 manifest.")
 	}
-	if !regexp.MustCompile(`^[A-Za-z0-9._/~+-]+$`).MatchString(m.Module) {
-		return fmt.Errorf("invalid Go module path %q", m.Module)
+	if strings.TrimSpace(m.Project) == "" || strings.ContainsAny(m.Project, `/\`) || m.Project == "." || m.Project == ".." {
+		return diagnostic("project_name_invalid", "validate manifest", m.Project, errors.New("project name must be non-empty and must not contain path separators"), "Use a directory name such as orders-api.")
+	}
+	if err := checkModulePath(m.Module); err != nil {
+		return diagnostic("module_path_invalid", "validate manifest", m.Module, err, "Use a canonical Go module path such as example.com/team/service.")
+	}
+	if m.Edition != "framework" && m.Edition != "starter" {
+		return diagnostic("edition_invalid", "validate manifest", m.Edition, errors.New("edition must be framework or starter"), "Choose --edition framework or --edition starter.")
+	}
+	if m.Edition == "framework" && (m.FrameworkVersion == "" || !regexp.MustCompile(`^(dev|[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)$`).MatchString(strings.TrimPrefix(m.FrameworkVersion, "v"))) {
+		return diagnostic("framework_version_invalid", "validate manifest", m.FrameworkVersion, errors.New("framework version must be semantic"), "Use a version such as 0.3.0.")
 	}
 	if m.Mode != "api" && m.Mode != "ui" {
 		return fmt.Errorf("invalid mode %q: use api or ui", m.Mode)
@@ -178,4 +275,52 @@ func validateManifest(m Manifest) error {
 		return fmt.Errorf("invalid ORM %q: use gorm or sqlx", m.ORM)
 	}
 	return nil
+}
+
+func checkModulePath(path string) error {
+	if path == "" || strings.TrimSpace(path) != path || strings.ContainsAny(path, " \t\r\n") ||
+		strings.HasPrefix(path, "/") || strings.HasSuffix(path, "/") || strings.Contains(path, "//") {
+		return errors.New("module path must be a slash-separated path without whitespace")
+	}
+	if !regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._~-]*(/[A-Za-z0-9][A-Za-z0-9._~-]*)*$`).MatchString(path) {
+		return errors.New("module path contains an invalid path element")
+	}
+	for _, segment := range strings.Split(path, "/") {
+		if segment == "." || segment == ".." || strings.HasPrefix(segment, ".") {
+			return errors.New("module path elements cannot be relative or hidden")
+		}
+	}
+	return nil
+}
+
+func templateOutputPath(rel string, m Manifest) (string, bool) {
+	const frameworkPrefix = "framework/"
+	if strings.HasPrefix(rel, frameworkPrefix) {
+		if m.Edition != "framework" {
+			return "", false
+		}
+		return strings.TrimPrefix(rel, frameworkPrefix), true
+	}
+	if m.Edition == "framework" {
+		switch {
+		case rel == ".gitignore",
+			rel == ".env.example",
+			rel == "AGENTS.md",
+			rel == "CLAUDE.md",
+			rel == "GEMINI.md",
+			rel == ".github/copilot-instructions.md",
+			rel == ".github/skills/ginkit-development/SKILL.md",
+			rel == ".cursor/rules/ginkit.mdc",
+			rel == "cmd/migrate/main.go.tmpl",
+			rel == "migrations/00001_init.sql",
+			rel == "docker/docker-compose.yml.tmpl",
+			strings.HasPrefix(rel, "web/assets/"),
+			strings.HasPrefix(rel, "web/src/"),
+			strings.HasPrefix(rel, "web/templates/"):
+			return rel, true
+		default:
+			return "", false
+		}
+	}
+	return rel, true
 }

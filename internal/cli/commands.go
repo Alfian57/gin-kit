@@ -27,16 +27,29 @@ func runCommand() *cobra.Command {
 			return err
 		}
 		var child *exec.Cmd
+		var childDone chan error
 		start := func() {
 			if child != nil && child.Process != nil {
-				_ = child.Process.Kill()
+				_ = child.Process.Signal(os.Interrupt)
+				done := make(chan error, 1)
+				go func(old *exec.Cmd) { done <- old.Wait() }(child)
+				select {
+				case <-done:
+				case <-time.After(2 * time.Second):
+					_ = child.Process.Kill()
+					<-done
+				}
 			}
 			child = exec.Command("go", "run", "./cmd/server")
 			child.Dir = rootDir
 			child.Stdout, child.Stderr, child.Stdin = os.Stdout, os.Stderr, os.Stdin
 			if err := child.Start(); err != nil {
 				fmt.Fprintln(os.Stderr, "server:", err)
+				child = nil
+				return
 			}
+			childDone = make(chan error, 1)
+			go func(current *exec.Cmd, done chan<- error) { done <- current.Wait() }(child, childDone)
 		}
 		start()
 		ticker := time.NewTicker(300 * time.Millisecond)
@@ -46,9 +59,21 @@ func runCommand() *cobra.Command {
 			select {
 			case <-cmd.Context().Done():
 				if child != nil && child.Process != nil {
-					_ = child.Process.Kill()
+					_ = child.Process.Signal(os.Interrupt)
+					select {
+					case <-childDone:
+					case <-time.After(2 * time.Second):
+						_ = child.Process.Kill()
+						<-childDone
+					}
 				}
 				return nil
+			case err := <-childDone:
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "server stopped: %v (edit a Go file to restart)\n", err)
+				}
+				child = nil
+				childDone = nil
 			case event, ok := <-w.Events:
 				if !ok {
 					return nil
@@ -66,7 +91,11 @@ func runCommand() *cobra.Command {
 					pending = false
 					start()
 				}
-			case <-w.Errors:
+			case watcherErr, ok := <-w.Errors:
+				if ok && watcherErr != nil {
+					return fmt.Errorf("file watcher failed: %w", watcherErr)
+				}
+				return nil
 			}
 		}
 	}}

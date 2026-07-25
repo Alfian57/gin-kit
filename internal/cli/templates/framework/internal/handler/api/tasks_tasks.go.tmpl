@@ -1,0 +1,23 @@
+package api
+
+import (
+	"github.com/Alfian57/ginkit/framework/httpx"
+	"github.com/gin-gonic/gin"
+)
+
+type taskInput struct {
+	Title string `json:"title" validate:"required,max=255"`
+}
+
+func registerTasks(router *gin.Engine) {
+	router.POST("/api/v1/tasks", func(c *gin.Context) {
+		input, ok := httpx.BindJSON[taskInput](c)
+		if !ok {
+			return
+		}
+		httpx.Created(c, gin.H{"id": "example", "title": input.Title, "completed": false})
+	})
+	router.GET("/api/v1/tasks", func(c *gin.Context) {
+		httpx.OK(c, gin.H{"items": []string{}, "message": "Add your task service here."})
+	})
+}

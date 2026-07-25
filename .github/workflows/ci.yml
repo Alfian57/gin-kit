@@ -31,7 +31,7 @@ jobs:
       - name: Check formatting
         shell: bash
         run: |
-          test -z "$(gofmt -l cmd internal)"
+          test -z "$(gofmt -l cmd framework internal)"
 
       - name: Test
         run: go test -race ./...
@@ -43,7 +43,7 @@ jobs:
         run: go build -trimpath ./...
 
   scaffold-pr:
-    name: Generated project smoke (${{ matrix.mode }}, ${{ matrix.database }}, ${{ matrix.orm }})
+    name: Generated project smoke (${{ matrix.edition }}, ${{ matrix.mode }}, ${{ matrix.database }}, ${{ matrix.orm }})
     if: github.event_name == 'pull_request'
     needs: go-quality
     runs-on: ubuntu-latest
@@ -51,15 +51,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - mode: api
+          - edition: framework
+            mode: api
             database: sqlite
             orm: gorm
             auth: false
-          - mode: ui
+          - edition: framework
+            mode: ui
             database: sqlite
             orm: gorm
             auth: false
-          - mode: api
+          - edition: starter
+            mode: api
             database: sqlite
             orm: sqlx
             auth: true
@@ -82,6 +85,7 @@ jobs:
 
       - name: Run generated project smoke test
         env:
+          GINKIT_EDITION: ${{ matrix.edition }}
           GINKIT_MODE: ${{ matrix.mode }}
           GINKIT_DATABASE: ${{ matrix.database }}
           GINKIT_ORM: ${{ matrix.orm }}
@@ -90,7 +94,7 @@ jobs:
         run: .github/scripts/scaffold-smoke.sh
 
   scaffold-main:
-    name: Full generated matrix (${{ matrix.mode }}, ${{ matrix.database }}, ${{ matrix.orm }})
+    name: Full generated matrix (${{ matrix.edition }}, ${{ matrix.mode }}, ${{ matrix.database }}, ${{ matrix.orm }})
     if: github.event_name != 'pull_request'
     needs: go-quality
     runs-on: ubuntu-latest
@@ -98,11 +102,13 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
+        edition: [framework, starter]
         mode: [api, ui]
         database: [sqlite, postgres, mysql, mariadb]
         orm: [gorm, sqlx]
         include:
-          - mode: api
+          - edition: framework
+            mode: api
             database: postgres
             orm: sqlx
             auth: true
@@ -125,6 +131,7 @@ jobs:
 
       - name: Run generated project smoke test
         env:
+          GINKIT_EDITION: ${{ matrix.edition }}
           GINKIT_MODE: ${{ matrix.mode }}
           GINKIT_DATABASE: ${{ matrix.database }}
           GINKIT_ORM: ${{ matrix.orm }}
