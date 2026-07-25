@@ -312,6 +312,7 @@ func templateOutputPath(rel string, m Manifest) (string, bool) {
 			rel == ".github/skills/ginkit-development/SKILL.md",
 			rel == ".cursor/rules/ginkit.mdc",
 			rel == "cmd/migrate/main.go.tmpl",
+			rel == "package.json.tmpl",
 			rel == "migrations/00001_init.sql",
 			rel == "docker/docker-compose.yml.tmpl",
 			strings.HasPrefix(rel, "web/assets/"),

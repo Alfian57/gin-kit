@@ -130,3 +130,20 @@ func TestFrameworkReplaceAddsLocalOverride(t *testing.T) {
 		t.Fatalf("expected local framework replace:\n%s", data)
 	}
 }
+
+func TestFrameworkUIIncludesAssetTooling(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "portal")
+	m := Manifest{
+		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+		Project: "portal", Module: "example.com/portal",
+		Mode: "ui", Database: "sqlite", ORM: "gorm",
+	}
+	if err := scaffold(dir, m); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{"package.json", "web/src/input.css", "web/templates/index.html"} {
+		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
+			t.Fatalf("framework UI edition missing %s: %v", rel, err)
+		}
+	}
+}
