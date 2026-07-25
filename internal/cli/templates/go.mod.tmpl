@@ -1,0 +1,24 @@
+module {{.Module}}
+
+go 1.26
+
+require (
+	github.com/gin-gonic/gin v1.12.0
+	github.com/google/uuid v1.6.0
+	github.com/golang-jwt/jwt/v5 v5.3.1
+	github.com/pressly/goose/v3 v3.27.3
+	golang.org/x/crypto v0.50.0
+)
+
+{{if eq .ORM "gorm"}}require (
+	gorm.io/gorm v1.31.2
+	{{if eq .Database "mysql"}}gorm.io/driver/mysql v1.6.0{{end}}
+	{{if eq .Database "mariadb"}}gorm.io/driver/mysql v1.6.0{{end}}
+	{{if eq .Database "postgres"}}gorm.io/driver/postgres v1.6.0{{end}}
+	{{if eq .Database "sqlite"}}gorm.io/driver/sqlite v1.6.0{{end}}
+){{else}}require github.com/jmoiron/sqlx v1.4.0{{end}}
+
+{{if eq .Database "mysql"}}require github.com/go-sql-driver/mysql v1.10.0{{end}}
+{{if eq .Database "mariadb"}}require github.com/go-sql-driver/mysql v1.10.0{{end}}
+{{if eq .Database "postgres"}}require github.com/jackc/pgx/v5 v5.9.2{{end}}
+{{if eq .Database "sqlite"}}require github.com/mattn/go-sqlite3 v1.14.48{{end}}

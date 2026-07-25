@@ -1,0 +1,29 @@
+package main
+
+import (
+	"log"
+	"net/http"
+	"os"
+	"time"
+
+	"{{.Module}}/internal/app"
+)
+
+func main() {
+	server, cleanup, err := app.New()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer cleanup()
+
+	httpServer := &http.Server{
+		Addr:              ":8080",
+		Handler:           server,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	log.Println("{{.Project}} listening on http://localhost:8080")
+	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatal(err)
+	}
+	_ = os.Stdout
+}

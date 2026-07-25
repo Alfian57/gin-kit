@@ -1,0 +1,11 @@
+package web
+
+import "github.com/gin-gonic/gin"
+
+func Register(r *gin.Engine) {
+	r.LoadHTMLGlob("web/templates/*.html")
+	r.Static("/assets", "web/assets")
+	r.GET("/", func(c *gin.Context) {
+		c.HTML(200, "index.html", gin.H{"project": "{{.Project}}", "module": "{{.Module}}"})
+	})
+}

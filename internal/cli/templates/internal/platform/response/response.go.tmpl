@@ -1,0 +1,17 @@
+package response
+
+import "github.com/gin-gonic/gin"
+
+type ErrorBody struct {
+	Code      string `json:"code"`
+	Message   string `json:"message"`
+	RequestID string `json:"request_id,omitempty"`
+}
+
+func OK(c *gin.Context, data any) {
+	c.JSON(200, gin.H{"data": data})
+}
+
+func Error(c *gin.Context, status int, code, message string) {
+	c.JSON(status, gin.H{"error": ErrorBody{Code: code, Message: message, RequestID: c.GetString("request_id")}})
+}

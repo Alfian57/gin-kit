@@ -1,0 +1,19 @@
+{
+  "name": "{{.Project}}-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev:css": "tailwindcss -i ./web/src/input.css -o ./web/assets/tailwind.css --watch",
+    "build:css": "tailwindcss -i ./web/src/input.css -o ./web/assets/tailwind.css --minify",
+    "build": "npm run build:css",
+    "check": "npm run build:css"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.11",
+    "tailwindcss": "^4.1.11"
+  },
+  "dependencies": {
+    "alpinejs": "^3.14.9",
+    "htmx.org": "^2.0.10"
+  }
+}

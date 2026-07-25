@@ -1,0 +1,46 @@
+package password
+
+import (
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/base64"
+	"fmt"
+	"strings"
+
+	"golang.org/x/crypto/argon2"
+)
+
+const (
+	memory      = 19 * 1024
+	iterations  = 2
+	parallelism = 1
+	keyLength   = 32
+	saltLength  = 16
+)
+
+func Hash(plain string) (string, error) {
+	salt := make([]byte, saltLength)
+	if _, err := rand.Read(salt); err != nil {
+		return "", err
+	}
+	sum := argon2.IDKey([]byte(plain), salt, iterations, memory, parallelism, keyLength)
+	return fmt.Sprintf("$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s",
+		memory, iterations, parallelism,
+		base64.RawStdEncoding.EncodeToString(salt),
+		base64.RawStdEncoding.EncodeToString(sum),
+	), nil
+}
+
+func Compare(plain, encoded string) bool {
+	parts := strings.Split(encoded, "$")
+	if len(parts) != 6 || parts[1] != "argon2id" {
+		return false
+	}
+	salt, err1 := base64.RawStdEncoding.DecodeString(parts[4])
+	expected, err2 := base64.RawStdEncoding.DecodeString(parts[5])
+	if err1 != nil || err2 != nil {
+		return false
+	}
+	actual := argon2.IDKey([]byte(plain), salt, iterations, memory, parallelism, uint32(len(expected)))
+	return subtle.ConstantTimeCompare(actual, expected) == 1
+}

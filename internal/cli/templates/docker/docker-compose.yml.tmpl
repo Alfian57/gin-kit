@@ -1,0 +1,36 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+{{if eq .Database "postgres"}}    depends_on:
+      - database
+  database:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: {{.Project}}
+    ports:
+      - "${GINKIT_DB_PORT:-5432}:5432"
+{{else if eq .Database "mysql"}}    depends_on:
+      - database
+  database:
+    image: mysql:8
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: {{.Project}}
+    ports:
+      - "${GINKIT_DB_PORT:-3306}:3306"
+{{else if eq .Database "mariadb"}}    depends_on:
+      - database
+  database:
+    image: mariadb:11
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: {{.Project}}
+    ports:
+      - "${GINKIT_DB_PORT:-3306}:3306"
+{{end}}

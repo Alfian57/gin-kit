@@ -1,0 +1,18 @@
+package api
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+)
+
+func Register(r *gin.Engine) {
+	r.StaticFile("/openapi.yaml", "api/openapi.yaml")
+	r.GET("/docs", func(c *gin.Context) {
+		c.Data(200, "text/html; charset=utf-8", []byte(`<!doctype html><html><head><title>API Docs</title><link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css"></head><body><div id="swagger-ui"></div><script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script><script>window.onload=()=>SwaggerUIBundle({url:"/openapi.yaml",dom_id:"#swagger-ui"})</script></body></html>`))
+	})
+	v1 := r.Group("/api/v1")
+	v1.GET("/ping", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"data": gin.H{"message": "pong"}})
+	})
+}

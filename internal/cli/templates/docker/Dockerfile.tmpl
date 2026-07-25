@@ -1,0 +1,13 @@
+FROM golang:1.26 AS build
+WORKDIR /src
+COPY . .
+RUN CGO_ENABLED={{if eq .Database "sqlite"}}1{{else}}0{{end}} go build -trimpath -o /out/server ./cmd/server
+RUN CGO_ENABLED={{if eq .Database "sqlite"}}1{{else}}0{{end}} go build -trimpath -o /out/migrate ./cmd/migrate
+
+FROM debian:bookworm-slim
+WORKDIR /app
+COPY --from=build /out/server /app/server
+COPY --from=build /out/migrate /app/migrate
+COPY migrations /app/migrations
+EXPOSE 8080
+CMD ["/app/server"]

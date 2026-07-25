@@ -1,0 +1,6 @@
+.env
+/bin/
+*.db
+*.db-*
+node_modules/
+web/dist/
