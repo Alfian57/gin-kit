@@ -7,7 +7,15 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-No unreleased changes.
+### Added
+
+- Opinionated framework runtime on Gin with lifecycle, security, rate limiting,
+  SQL/GORM/sqlx adapters, authentication, password hashing, and extension
+  hooks.
+- Detailed field-level validation errors and a canonical response envelope.
+- Framework and standalone starter editions with module-aware scaffolding,
+  transactional generators, diagnostics, and local runtime replacement support.
+- English Astro/Starlight documentation deployed through GitHub Pages.
 
 ## [0.2.0] - 2026-07-26
 

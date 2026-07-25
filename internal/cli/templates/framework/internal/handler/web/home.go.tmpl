@@ -1,0 +1,25 @@
+package web
+
+import (
+	"net/http"
+	"os"
+
+	"github.com/gin-gonic/gin"
+)
+
+// Register installs the initial application-owned UI route.
+func Register(router *gin.Engine) {
+	if _, err := os.Stat("web/templates/index.html"); err == nil {
+		router.LoadHTMLGlob("web/templates/*.html")
+		router.Static("/assets", "web/assets")
+		router.GET("/", func(c *gin.Context) {
+			c.HTML(http.StatusOK, "index.html", gin.H{"project": "{{.Project}}"})
+		})
+		return
+	}
+	router.GET("/", func(c *gin.Context) {
+		c.String(http.StatusOK, "Welcome to {{.Project}}")
+	})
+{{if .Example}}	registerTasks(router)
+{{end}}
+}

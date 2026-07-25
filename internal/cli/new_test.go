@@ -10,7 +10,7 @@ import (
 func TestScaffoldAPIPreservesSelections(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "sample")
 	m := Manifest{
-		Version: 1, Project: "sample", Module: "example.com/sample",
+		Version: 2, Edition: "starter", Project: "sample", Module: "example.com/sample",
 		Mode: "api", Database: "postgres", ORM: "sqlx", Auth: false, Example: false, Docker: true,
 	}
 	if err := scaffold(dir, m); err != nil {
@@ -45,7 +45,7 @@ func TestScaffoldAPIPreservesSelections(t *testing.T) {
 
 func TestScaffoldUIHasEnglishLandingPage(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "webapp")
-	m := Manifest{Version: 1, Project: "webapp", Module: "example.com/webapp", Mode: "ui", Database: "sqlite", ORM: "gorm"}
+	m := Manifest{Version: 2, Edition: "starter", Project: "webapp", Module: "example.com/webapp", Mode: "ui", Database: "sqlite", ORM: "gorm"}
 	if err := scaffold(dir, m); err != nil {
 		t.Fatal(err)
 	}
@@ -62,7 +62,7 @@ func TestScaffoldUIHasEnglishLandingPage(t *testing.T) {
 }
 
 func TestValidateManifestRejectsInvalidSelections(t *testing.T) {
-	base := Manifest{Project: "sample", Module: "example.com/sample", Mode: "api", Database: "sqlite", ORM: "gorm"}
+	base := Manifest{Version: 2, Edition: "starter", Project: "sample", Module: "example.com/sample", Mode: "api", Database: "sqlite", ORM: "gorm"}
 	for name, mutate := range map[string]func(*Manifest){
 		"mode":         func(m *Manifest) { m.Mode = "desktop" },
 		"database":     func(m *Manifest) { m.Database = "redis" },
@@ -76,5 +76,74 @@ func TestValidateManifestRejectsInvalidSelections(t *testing.T) {
 				t.Fatal("expected invalid manifest to be rejected")
 			}
 		})
+	}
+}
+
+func TestValidateManifestRejectsVersionOneWithMigrationHint(t *testing.T) {
+	err := validateManifest(Manifest{Version: 1, Project: "sample", Module: "example.com/sample", Edition: "starter", Mode: "api", Database: "sqlite", ORM: "gorm"})
+	if err == nil {
+		t.Fatal("expected manifest version one to be rejected")
+	}
+}
+
+func TestFrameworkScaffoldIsThinAndPinsRuntime(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "services", "orders")
+	m := Manifest{
+		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+		Project: "orders", Module: "example.com/acme/orders",
+		Mode: "api", Database: "sqlite", ORM: "gorm",
+	}
+	if err := scaffold(dir, m); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "module example.com/acme/orders") ||
+		!strings.Contains(string(data), "github.com/Alfian57/ginkit v0.3.0") {
+		t.Fatalf("framework go.mod did not preserve module/runtime:\n%s", data)
+	}
+	for _, rel := range []string{"internal/app/app.go", "cmd/server/main.go"} {
+		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
+			t.Fatalf("framework edition missing %s: %v", rel, err)
+		}
+	}
+	for _, rel := range []string{"internal/platform/config/config.go", "internal/middleware/security.go"} {
+		if _, err := os.Stat(filepath.Join(dir, rel)); err == nil {
+			t.Fatalf("framework edition copied generic core %s", rel)
+		}
+	}
+}
+
+func TestFrameworkReplaceAddsLocalOverride(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "app")
+	m := Manifest{Version: 2, Edition: "framework", FrameworkVersion: "0.3.0", Project: "app", Module: "example.com/app", Mode: "api", Database: "sqlite", ORM: "gorm"}
+	if err := scaffoldWithOptions(dir, m, scaffoldOptions{FrameworkReplace: t.TempDir()}); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "replace github.com/Alfian57/ginkit =>") {
+		t.Fatalf("expected local framework replace:\n%s", data)
+	}
+}
+
+func TestFrameworkUIIncludesAssetTooling(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "portal")
+	m := Manifest{
+		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+		Project: "portal", Module: "example.com/portal",
+		Mode: "ui", Database: "sqlite", ORM: "gorm",
+	}
+	if err := scaffold(dir, m); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{"package.json", "web/src/input.css", "web/templates/index.html"} {
+		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
+			t.Fatalf("framework UI edition missing %s: %v", rel, err)
+		}
 	}
 }

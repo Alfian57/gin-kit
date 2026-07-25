@@ -1,0 +1,44 @@
+package main
+
+import (
+	"database/sql"
+	"fmt"
+	"log"
+	"os"
+
+	_ "{{if eq .Database "postgres"}}github.com/jackc/pgx/v5/stdlib{{else if eq .Database "sqlite"}}github.com/mattn/go-sqlite3{{else}}github.com/go-sql-driver/mysql{{end}}"
+	"github.com/pressly/goose/v3"
+)
+
+func main() {
+	if len(os.Args) < 2 {
+		log.Fatal("usage: migrate up|down|status")
+	}
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+{{if eq .Database "sqlite"}}		dsn = "file:{{.Project}}.sqlite?_busy_timeout=5000"
+{{else}}		log.Fatal("DATABASE_URL is required for {{.Database}}")
+{{end}}	}
+	db, err := sql.Open("{{if eq .Database "postgres"}}pgx{{else if eq .Database "sqlite"}}sqlite3{{else}}mysql{{end}}", dsn)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+	if err := goose.SetDialect("{{if eq .Database "postgres"}}postgres{{else if eq .Database "sqlite"}}sqlite3{{else}}mysql{{end}}"); err != nil {
+		log.Fatal(err)
+	}
+	var runErr error
+	switch os.Args[1] {
+	case "up":
+		runErr = goose.Up(db, "migrations")
+	case "down":
+		runErr = goose.Down(db, "migrations")
+	case "status":
+		runErr = goose.Status(db, "migrations")
+	default:
+		runErr = fmt.Errorf("unknown migration command %q", os.Args[1])
+	}
+	if runErr != nil {
+		log.Fatal(runErr)
+	}
+}

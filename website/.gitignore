@@ -1,0 +1,5 @@
+.astro/
+.npm-cache/
+.tmp/
+dist/
+node_modules/

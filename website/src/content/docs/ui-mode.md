@@ -1,0 +1,16 @@
+---
+title: UI mode
+description: Generate a small GinKit server-rendered UI.
+---
+
+Choose `--mode ui` to generate server-rendered HTML with a distinct landing
+page, static assets, and the same application lifecycle as API mode:
+
+```bash
+ginkit new ./portal --module example.com/acme/portal \
+  --mode ui --database sqlite --orm gorm
+```
+
+Templates and assets are application-owned and can be replaced with your
+preferred design system. Use the raw Gin router for streaming, WebSockets, or
+additional content types.

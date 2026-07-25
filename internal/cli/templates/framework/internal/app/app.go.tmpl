@@ -1,0 +1,55 @@
+package app
+
+import (
+{{if ne .Database "sqlite"}}	"fmt"
+{{end}}
+	"os"
+
+	"github.com/Alfian57/ginkit/framework"
+	"github.com/Alfian57/ginkit/framework/database"
+	"github.com/gin-gonic/gin"
+
+{{if eq .Mode "ui"}}	"{{.Module}}/internal/handler/web"
+{{else}}	"{{.Module}}/internal/handler/api"
+{{end}}
+)
+
+// New composes the opinionated GinKit runtime. Application behavior remains
+// in this project: add routes and middleware through Configure.
+func New() (*framework.Application, error) {
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+{{if eq .Database "sqlite"}}		dsn = "file:{{.Project}}.sqlite?_busy_timeout=5000"
+{{else}}		return nil, fmt.Errorf("DATABASE_URL is required for {{.Database}}")
+{{end}}	}
+	connectionConfig := database.Config{
+		Dialect: database.{{if eq .Database "postgres"}}Postgres{{else if eq .Database "sqlite"}}SQLite{{else if eq .Database "mariadb"}}MariaDB{{else}}MySQL{{end}},
+		DSN:     dsn,
+		ORM:     database.{{if eq .ORM "gorm"}}GORM{{else}}SQLX{{end}},
+	}
+	application, err := framework.New(framework.Options{
+		HTTP: framework.HTTPOptions{
+			Address: env("PORT", ":8080"),
+			UI:      {{if eq .Mode "ui"}}true{{else}}false{{end}},
+		},
+		Database: &connectionConfig,
+	})
+	if err != nil {
+		return nil, err
+	}
+	var router *gin.Engine = application.Router()
+{{if eq .Mode "ui"}}	web.Register(router)
+{{else}}	api.Register(router)
+{{end}}
+	return application, nil
+}
+
+func env(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		if key == "PORT" && value[0] != ':' {
+			return ":" + value
+		}
+		return value
+	}
+	return fallback
+}

@@ -2,14 +2,18 @@
 
 `AGENTS.md` is the canonical repository instruction file. The repository also includes adapters for Claude, Gemini, GitHub Copilot, Cursor, and Aider.
 
-The GinKit skill is available at `.github/skills/ginkit-development/SKILL.md`. It describes the generated architecture, safe migration workflow, and scaffold validation.
+The GinKit skill is available at
+`.github/skills/ginkit-development/SKILL.md`. It describes the framework
+runtime, both generated editions, safe migration workflow, and scaffold
+validation.
 
 When an agent changes a template:
 
 1. Read the relevant `.tmpl` file and `.ginkit.yaml` behavior.
-2. Scaffold an API and a UI project.
+2. Scaffold framework and starter API/UI projects.
 3. Run `go test ./...` and `go build ./...` in the generated projects.
-4. Update English documentation and tests.
+4. Preserve the canonical response envelope and field-level validation errors.
+5. Update English documentation and tests.
 
 ## CI and release safety
 
