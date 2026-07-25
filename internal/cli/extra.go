@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -74,11 +75,14 @@ func checkCommand() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		steps := [][]string{{"gofmt", "-w", "."}, {"go", "test", "./..."}, {"go", "vet", "./..."}}
+		steps := [][]string{{"gofmt", "-l", "."}, {"go", "test", "./..."}, {"go", "vet", "./..."}}
 		for _, step := range steps {
 			c := exec.Command(step[0], step[1:]...)
 			c.Dir, c.Stdout, c.Stderr = rootDir, os.Stdout, os.Stderr
 			if err := c.Run(); err != nil {
+				if step[0] == "gofmt" {
+					return fmt.Errorf("files need formatting; run gofmt -w . locally")
+				}
 				return err
 			}
 		}
@@ -103,7 +107,14 @@ func generateCommand() *cobra.Command {
 				snake := snakeCase(name)
 				switch k {
 				case "migration":
-					path := filepath.Join(rootDir, "migrations", fmt.Sprintf("%d_%s.sql", os.Getpid(), snake))
+					stamp := time.Now().UTC().Format("20060102150405")
+					path := filepath.Join(rootDir, "migrations", fmt.Sprintf("%s_%s.sql", stamp, snake))
+					for i := 1; ; i++ {
+						if _, statErr := os.Stat(path); os.IsNotExist(statErr) {
+							break
+						}
+						path = filepath.Join(rootDir, "migrations", fmt.Sprintf("%s_%s_%d.sql", stamp, snake, i))
+					}
 					return os.WriteFile(path, []byte("-- +goose Up\n\n-- +goose Down\n"), 0o644)
 				case "resource":
 					return generateResource(rootDir, m, name)

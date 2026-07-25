@@ -5,8 +5,14 @@ services:
       - "8080:8080"
     env_file:
       - .env
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health/live"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 {{if eq .Database "postgres"}}    depends_on:
-      - database
+      database:
+        condition: service_healthy
   database:
     image: postgres:17
     environment:
@@ -15,8 +21,14 @@ services:
       POSTGRES_DB: {{.Project}}
     ports:
       - "${GINKIT_DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d {{.Project}}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 {{else if eq .Database "mysql"}}    depends_on:
-      - database
+      database:
+        condition: service_healthy
   database:
     image: mysql:8
     environment:
@@ -24,8 +36,14 @@ services:
       MYSQL_DATABASE: {{.Project}}
     ports:
       - "${GINKIT_DB_PORT:-3306}:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 {{else if eq .Database "mariadb"}}    depends_on:
-      - database
+      database:
+        condition: service_healthy
   database:
     image: mariadb:11
     environment:
@@ -33,4 +51,9 @@ services:
       MARIADB_DATABASE: {{.Project}}
     ports:
       - "${GINKIT_DB_PORT:-3306}:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 {{end}}

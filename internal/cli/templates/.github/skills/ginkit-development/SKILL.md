@@ -1,7 +1,17 @@
----
-name: ginkit-development
-description: Work safely on this GinKit-generated Go project, its explicit layers, migrations, auth, and API or UI templates.
-license: MIT
----
+# GinKit Development Skill
 
-Read `AGENTS.md` first. Keep the flow router → handler → service → repository → database. Use `ginkit generate ...` for new building blocks, keep migrations versioned SQL, and run `ginkit check` before finishing.
+## Workflow
+
+Read `AGENTS.md` before changing generated code. Keep the explicit
+router-to-database flow and pass `context.Context` through every boundary.
+
+## Safety defaults
+
+Keep request IDs, security headers, trusted proxy configuration, body limits,
+readiness checks, and rate-limit middleware enabled. Never trust forwarded
+client IP headers without configuring trusted proxy CIDRs.
+
+## Validation
+
+Run `ginkit check`, exercise the selected database migration, and test the
+affected handler or service. Do not put secrets in source files or migrations.

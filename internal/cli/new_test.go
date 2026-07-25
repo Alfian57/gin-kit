@@ -8,7 +8,7 @@ import (
 )
 
 func TestScaffoldAPIPreservesSelections(t *testing.T) {
-	dir := t.TempDir()
+	dir := filepath.Join(t.TempDir(), "sample")
 	m := Manifest{
 		Version: 1, Project: "sample", Module: "example.com/sample",
 		Mode: "api", Database: "postgres", ORM: "sqlx", Auth: false, Example: false, Docker: true,
@@ -44,7 +44,7 @@ func TestScaffoldAPIPreservesSelections(t *testing.T) {
 }
 
 func TestScaffoldUIHasEnglishLandingPage(t *testing.T) {
-	dir := t.TempDir()
+	dir := filepath.Join(t.TempDir(), "webapp")
 	m := Manifest{Version: 1, Project: "webapp", Module: "example.com/webapp", Mode: "ui", Database: "sqlite", ORM: "gorm"}
 	if err := scaffold(dir, m); err != nil {
 		t.Fatal(err)
@@ -58,5 +58,23 @@ func TestScaffoldUIHasEnglishLandingPage(t *testing.T) {
 		if !strings.Contains(content, phrase) {
 			t.Fatalf("landing page missing %q", phrase)
 		}
+	}
+}
+
+func TestValidateManifestRejectsInvalidSelections(t *testing.T) {
+	base := Manifest{Project: "sample", Module: "example.com/sample", Mode: "api", Database: "sqlite", ORM: "gorm"}
+	for name, mutate := range map[string]func(*Manifest){
+		"mode":         func(m *Manifest) { m.Mode = "desktop" },
+		"database":     func(m *Manifest) { m.Database = "redis" },
+		"orm":          func(m *Manifest) { m.ORM = "raw" },
+		"project path": func(m *Manifest) { m.Project = "../escape" },
+	} {
+		t.Run(name, func(t *testing.T) {
+			m := base
+			mutate(&m)
+			if err := validateManifest(m); err == nil {
+				t.Fatal("expected invalid manifest to be rejected")
+			}
+		})
 	}
 }

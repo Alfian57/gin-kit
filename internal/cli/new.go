@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"text/template"
 
@@ -36,6 +37,9 @@ func newCommand() *cobra.Command {
 			} else if m.Module == "" || m.Mode == "" || m.Database == "" || m.ORM == "" {
 				return errors.New("non-interactive mode requires --module, --mode, --database and --orm")
 			}
+			if err := validateManifest(m); err != nil {
+				return err
+			}
 			target := filepath.Clean(name)
 			if _, err := os.Stat(target); err == nil {
 				return fmt.Errorf("target %s already exists", target)
@@ -64,6 +68,26 @@ type templateData struct {
 }
 
 func scaffold(target string, m Manifest) error {
+	parent := filepath.Dir(target)
+	if err := os.MkdirAll(parent, 0o755); err != nil {
+		return err
+	}
+	staging, err := os.MkdirTemp(parent, ".ginkit-scaffold-*")
+	if err != nil {
+		return err
+	}
+	if err := scaffoldInto(staging, m); err != nil {
+		_ = os.RemoveAll(staging)
+		return err
+	}
+	if err := os.Rename(staging, target); err != nil {
+		_ = os.RemoveAll(staging)
+		return err
+	}
+	return nil
+}
+
+func scaffoldInto(target string, m Manifest) error {
 	if m.Module == "" {
 		m.Module = "example.com/" + m.Project
 	}
@@ -133,4 +157,25 @@ func scaffold(target string, m Manifest) error {
 		return err
 	}
 	return writeManifest(target, m)
+}
+
+func validateManifest(m Manifest) error {
+	if strings.TrimSpace(m.Project) == "" || strings.ContainsAny(m.Project, `/\`) {
+		return errors.New("project name must be non-empty and must not contain path separators")
+	}
+	if !regexp.MustCompile(`^[A-Za-z0-9._/~+-]+$`).MatchString(m.Module) {
+		return fmt.Errorf("invalid Go module path %q", m.Module)
+	}
+	if m.Mode != "api" && m.Mode != "ui" {
+		return fmt.Errorf("invalid mode %q: use api or ui", m.Mode)
+	}
+	switch m.Database {
+	case "sqlite", "postgres", "mysql", "mariadb":
+	default:
+		return fmt.Errorf("invalid database %q", m.Database)
+	}
+	if m.ORM != "gorm" && m.ORM != "sqlx" {
+		return fmt.Errorf("invalid ORM %q: use gorm or sqlx", m.ORM)
+	}
+	return nil
 }
