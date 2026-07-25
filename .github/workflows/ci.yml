@@ -1,0 +1,186 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  go-quality:
+    name: Go quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: "1.26.x"
+          cache: true
+
+      - name: Check formatting
+        shell: bash
+        run: |
+          test -z "$(gofmt -l cmd internal)"
+
+      - name: Test
+        run: go test -race ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build -trimpath ./...
+
+  scaffold-pr:
+    name: Generated project smoke (${{ matrix.mode }}, ${{ matrix.database }}, ${{ matrix.orm }})
+    if: github.event_name == 'pull_request'
+    needs: go-quality
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - mode: api
+            database: sqlite
+            orm: gorm
+            auth: false
+          - mode: ui
+            database: sqlite
+            orm: gorm
+            auth: false
+          - mode: api
+            database: sqlite
+            orm: sqlx
+            auth: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: "1.26.x"
+          cache: true
+
+      - name: Set up Node.js
+        if: matrix.mode == 'ui'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24.x"
+          package-manager-cache: false
+
+      - name: Run generated project smoke test
+        env:
+          GINKIT_MODE: ${{ matrix.mode }}
+          GINKIT_DATABASE: ${{ matrix.database }}
+          GINKIT_ORM: ${{ matrix.orm }}
+          GINKIT_AUTH: ${{ matrix.auth }}
+          GINKIT_CLI_PATH: ${{ runner.temp }}/ginkit
+        run: .github/scripts/scaffold-smoke.sh
+
+  scaffold-main:
+    name: Full generated matrix (${{ matrix.mode }}, ${{ matrix.database }}, ${{ matrix.orm }})
+    if: github.event_name != 'pull_request'
+    needs: go-quality
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        mode: [api, ui]
+        database: [sqlite, postgres, mysql, mariadb]
+        orm: [gorm, sqlx]
+        include:
+          - mode: api
+            database: postgres
+            orm: sqlx
+            auth: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: "1.26.x"
+          cache: true
+
+      - name: Set up Node.js
+        if: matrix.mode == 'ui'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "24.x"
+          package-manager-cache: false
+
+      - name: Run generated project smoke test
+        env:
+          GINKIT_MODE: ${{ matrix.mode }}
+          GINKIT_DATABASE: ${{ matrix.database }}
+          GINKIT_ORM: ${{ matrix.orm }}
+          GINKIT_AUTH: ${{ matrix.auth || false }}
+          GINKIT_CLI_PATH: ${{ runner.temp }}/ginkit
+        run: .github/scripts/scaffold-smoke.sh
+
+  release-snapshot:
+    name: Release snapshot
+    needs: go-quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: "1.26.x"
+          cache: true
+
+      - name: Build release snapshot
+        uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94 # v7
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: release --snapshot --clean
+
+  ci-gate:
+    name: CI gate
+    if: always()
+    needs:
+      - go-quality
+      - scaffold-pr
+      - scaffold-main
+      - release-snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the relevant CI jobs
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          GO_QUALITY: ${{ needs.go-quality.result }}
+          SCAFFOLD_PR: ${{ needs.scaffold-pr.result }}
+          SCAFFOLD_MAIN: ${{ needs.scaffold-main.result }}
+          RELEASE_SNAPSHOT: ${{ needs.release-snapshot.result }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "$GO_QUALITY" == "success" ]]
+          [[ "$RELEASE_SNAPSHOT" == "success" ]]
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            [[ "$SCAFFOLD_PR" == "success" ]]
+            [[ "$SCAFFOLD_MAIN" == "skipped" ]]
+          else
+            [[ "$SCAFFOLD_PR" == "skipped" ]]
+            [[ "$SCAFFOLD_MAIN" == "success" ]]
+          fi
