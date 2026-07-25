@@ -1,6 +1,14 @@
 # GinKit
 
-GinKit is a learning-first Go project toolkit built on [Gin](https://gin-gonic.com/). It creates standalone API or server-rendered UI projects with explicit wiring, practical defaults, and no hidden dependency container.
+GinKit is an opinionated Go framework built on
+[Gin](https://gin-gonic.com/). It provides a versioned runtime, an interactive
+project CLI, consistent HTTP contracts, SQL integrations, and explicit
+application architecture without a reflection-based dependency container.
+
+The default framework edition keeps generic infrastructure in the GinKit
+module while leaving your routes, handlers, services, domains, repositories,
+configuration, migrations, and UI fully editable. A standalone starter edition
+preserves the source-visible learning experience.
 
 [![CI](https://github.com/Alfian57/ginkit/actions/workflows/ci.yml/badge.svg)](https://github.com/Alfian57/ginkit/actions/workflows/ci.yml)
 [![Security](https://github.com/Alfian57/ginkit/actions/workflows/security.yml/badge.svg)](https://github.com/Alfian57/ginkit/actions/workflows/security.yml)
@@ -37,28 +45,33 @@ ginkit --version
 ginkit new my-project
 ```
 
-The interactive installer asks for the application mode, database, data-access layer, authentication, guided example, and Docker support.
+The interactive installer asks for the edition, application mode, database,
+data-access layer, authentication, guided example, and Docker support.
 
-Every generated application starts with production-aware HTTP defaults:
-request IDs, security headers, trusted-proxy handling, request body limits,
-graceful shutdown, database-backed readiness checks, and endpoint-class rate
-limiting. These features stay visible in the generated source so beginners can
-inspect and change them.
+Choose the default `framework` edition for a thin application backed by the
+versioned GinKit runtime. Choose `starter` when you want a standalone project
+with the infrastructure source included:
 
-Choose the guided Tasks example when you want a complete learning path from
-request to database. API projects receive CRUD routes under `/api/v1/tasks`;
-UI projects receive a server-rendered `/tasks` page.
+```bash
+ginkit new my-project --edition starter
+```
 
 For scripts, provide complete choices:
 
 ```bash
 ginkit new my-project \
   --non-interactive \
+  --edition framework \
   --module example.com/my-project \
   --mode api \
   --database sqlite \
   --orm gorm
 ```
+
+Every application starts with request IDs, secure recovery, security headers,
+trusted-proxy handling, body limits, graceful shutdown, database-backed
+readiness checks, and endpoint-class rate limiting. API responses use one
+stable envelope, including detailed field-level validation errors.
 
 ## Project workflow
 
@@ -71,15 +84,27 @@ ginkit db up
 ginkit explain architecture
 ```
 
-Generated projects remain standalone. The source can be built directly with `go run ./cmd/server` and migrations can be run with `go run ./cmd/migrate up`.
+The generated server can be built directly with `go run ./cmd/server`, and
+migrations can be run with `go run ./cmd/migrate up`. Starter projects are
+standalone; framework projects pin their GinKit runtime version and can be built
+without the GinKit CLI installed.
 
 ## Design principles
 
-- Keep Gin visible and understandable.
+- Keep Gin and standard Go types accessible.
 - Prefer constructors and explicit dependencies over magic.
+- Hide generic framework plumbing, not application behavior.
+- Provide stable response and validation contracts by default.
 - Keep SQL schema changes versioned and reviewable.
-- Make generated code easy to delete, change, and learn from.
+- Make application-owned generated code easy to delete or change.
 - Treat AI agents as collaborators that must follow the same architecture and tests.
+
+## Documentation
+
+The documentation site tracks the next GinKit release from `main`:
+[alfian57.github.io/ginkit](https://alfian57.github.io/ginkit/).
+Until the next framework release is tagged, the latest GitHub release remains
+the stable CLI.
 
 ## Contributing
 

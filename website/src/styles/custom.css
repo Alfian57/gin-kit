@@ -1,0 +1,96 @@
+:root {
+  --sl-color-accent-low: #e8f8b9;
+  --sl-color-accent: #4b7000;
+  --sl-color-accent-high: #254000;
+  --sl-color-white: #121713;
+  --sl-color-gray-1: #2a302c;
+  --sl-color-gray-2: #555c56;
+  --sl-color-gray-3: #747b75;
+  --sl-color-gray-4: #aab0aa;
+  --sl-color-gray-5: #d5d8d1;
+  --sl-color-gray-6: #eeefe9;
+  --sl-color-gray-7: #f6f3ea;
+  --sl-color-black: #f6f3ea;
+  --ginkit-ink: #121713;
+  --ginkit-teal: #0b6b5b;
+  --ginkit-lime: #b9f53d;
+  --ginkit-paper: #f6f3ea;
+  --sl-font: "Inter", "Avenir Next", ui-sans-serif, system-ui, sans-serif;
+  --sl-font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+:root[data-theme='dark'] {
+  --sl-color-accent-low: #293b08;
+  --sl-color-accent: #b9f53d;
+  --sl-color-accent-high: #e8f8b9;
+  --sl-color-white: #f6f3ea;
+  --sl-color-gray-1: #e7e9e2;
+  --sl-color-gray-2: #bfc4bc;
+  --sl-color-gray-3: #8f978f;
+  --sl-color-gray-4: #697169;
+  --sl-color-gray-5: #454c45;
+  --sl-color-gray-6: #293029;
+  --sl-color-gray-7: #1a211b;
+  --sl-color-black: #121713;
+}
+
+body {
+  background-color: var(--sl-color-black);
+  background-image: linear-gradient(rgba(18, 23, 19, .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(18, 23, 19, .045) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.sl-markdown-content, .sl-markdown-content :is(p, li) { letter-spacing: -.01em; }
+.sl-markdown-content h1, .sl-markdown-content h2, .sl-markdown-content h3,
+.hero h1, .site-title { letter-spacing: -.045em; font-weight: 800; }
+.sl-markdown-content h1 { font-size: clamp(2.5rem, 6vw, 4.3rem); line-height: .98; }
+.sl-markdown-content h2 { margin-top: 2.6rem; }
+.sl-markdown-content a { text-decoration-thickness: .1em; text-underline-offset: .16em; }
+.sl-markdown-content pre { border: 1px solid color-mix(in srgb, var(--sl-color-gray-4), transparent 55%); border-radius: 8px; }
+.sl-markdown-content blockquote { border-inline-start: 4px solid var(--ginkit-lime); background: color-mix(in srgb, var(--ginkit-lime), transparent 84%); }
+.hero { border-bottom: 1px solid color-mix(in srgb, var(--sl-color-gray-4), transparent 50%); }
+.hero h1 { max-width: 12ch; }
+.hero .tagline { max-width: 42rem; font-size: 1.18rem; }
+.hero .action.primary { background: var(--ginkit-lime); color: var(--ginkit-ink); border-color: var(--ginkit-ink); box-shadow: 3px 3px 0 var(--ginkit-ink); }
+.hero .action.primary:hover { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--ginkit-ink); }
+.sl-link-button { border-radius: 8px; }
+.sidebar-content a[aria-current='page'] { border-inline-start: 3px solid var(--ginkit-lime); }
+.site-title { font-size: 1.35rem; }
+.main-pane { background: color-mix(in srgb, var(--sl-color-black), transparent 4%); }
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 1rem calc(50% - 50vw) 4rem;
+  border-block: 1px solid color-mix(in srgb, var(--sl-color-gray-4), transparent 45%);
+}
+.sl-link-card {
+  display: flex;
+  gap: 1rem;
+  min-height: 12rem;
+  padding: 2rem clamp(1rem, 4vw, 3rem);
+  border-inline-end: 1px solid color-mix(in srgb, var(--sl-color-gray-4), transparent 45%);
+  align-items: flex-start;
+}
+.sl-link-card:last-child { border-inline-end: 0; }
+.sl-link-card strong { display: inline-block; margin-bottom: .6rem; font-size: 1.15rem; letter-spacing: -.03em; }
+.sl-link-card .icon {
+  display: grid;
+  flex: 0 0 2.8rem;
+  min-height: 2.8rem;
+  place-items: center;
+  border: 1px solid var(--sl-color-accent);
+  border-radius: 8px;
+  color: var(--sl-color-accent);
+  font-family: var(--sl-font-mono);
+  font-weight: 700;
+}
+
+@media (max-width: 50rem) {
+  body { background-size: 24px 24px; }
+  .hero h1 { max-width: 15ch; font-size: clamp(2.7rem, 13vw, 4rem); }
+  .hero .tagline { font-size: 1rem; }
+  .card-grid { grid-template-columns: 1fr; margin-inline: 0; }
+  .sl-link-card { min-height: auto; border-inline-end: 0; border-block-end: 1px solid color-mix(in srgb, var(--sl-color-gray-4), transparent 45%); }
+  .sl-link-card:last-child { border-block-end: 0; }
+}

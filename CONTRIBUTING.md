@@ -1,6 +1,7 @@
 # Contributing to GinKit
 
-Thank you for helping make Go more approachable. GinKit is intentionally open to contributions that improve the generated code, the learning experience, or the reliability of the CLI.
+Thank you for helping improve GinKit. Contributions may target the framework
+runtime, CLI, generated editions, documentation, or delivery pipeline.
 
 ## Development setup
 
@@ -8,7 +9,7 @@ Requirements:
 
 - Go 1.26 or newer;
 - Git;
-- Node.js 20+ only when working on the UI template;
+- Node.js 20+ when working on the UI template or documentation site;
 - a C compiler when running SQLite integration tests.
 
 Useful commands:
@@ -17,11 +18,15 @@ Useful commands:
 go test ./...
 go test -race ./...
 go vet ./...
-test -z "$(gofmt -l cmd internal)"
-go run ./cmd/ginkit new /tmp/ginkit-check --non-interactive --module example.com/check --mode api --database sqlite --orm gorm
+test -z "$(gofmt -l cmd framework internal)"
+go run ./cmd/ginkit new /tmp/ginkit-check --non-interactive --edition starter --module example.com/check --mode api --database sqlite --orm gorm
+cd website && npm ci && npm run check && npm run build
 ```
 
-The pull request workflow also validates generated API and UI projects. Template changes must pass the complete database/ORM matrix on `main`, including migration smoke tests for PostgreSQL, MySQL, MariaDB, and SQLite.
+The pull request workflow validates the runtime, documentation, and generated
+framework/starter projects. Template changes must pass the complete
+database/ORM matrix on `main`, including migration smoke tests for PostgreSQL,
+MySQL, MariaDB, and SQLite.
 
 ## Pull requests
 
@@ -35,7 +40,10 @@ Pull requests must pass the Go quality, generated-project smoke, release snapsho
 
 ## Template changes
 
-The template tree is embedded into the CLI. Any template change must be checked by scaffolding at least one API project and one UI project. Changes to database or ORM templates should be tested against every supported database and ORM combination.
+The template tree is embedded into the CLI. Any template change must be checked
+with framework and starter projects in API and UI modes. Changes to database or
+ORM templates should be tested against every supported database and ORM
+combination.
 
 ## New generators and databases
 
