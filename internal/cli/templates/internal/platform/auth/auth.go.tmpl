@@ -1,17 +1,30 @@
 package auth
 
 import (
+	"errors"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
+
+const MinimumSecretLength = 32
 
 type Claims struct {
 	UserID string `json:"sub"`
 	jwt.RegisteredClaims
 }
 
+func ValidateSecret(secret []byte) error {
+	if len(secret) < MinimumSecretLength {
+		return errors.New("authentication secret must contain at least 32 bytes")
+	}
+	return nil
+}
+
 func Issue(userID string, secret []byte, ttl time.Duration) (string, error) {
+	if err := ValidateSecret(secret); err != nil {
+		return "", err
+	}
 	now := time.Now()
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		UserID: userID,
@@ -25,6 +38,9 @@ func Issue(userID string, secret []byte, ttl time.Duration) (string, error) {
 }
 
 func Parse(tokenString string, secret []byte) (*Claims, error) {
+	if err := ValidateSecret(secret); err != nil {
+		return nil, err
+	}
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (any, error) {
 		if token.Method != jwt.SigningMethodHS256 {
 			return nil, jwt.ErrTokenSignatureInvalid

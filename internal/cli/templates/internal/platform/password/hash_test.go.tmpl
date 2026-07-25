@@ -1,0 +1,16 @@
+package password
+
+import "testing"
+
+func TestHashAndCompare(t *testing.T) {
+	hash, err := Hash("correct horse battery staple")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !Compare("correct horse battery staple", hash) {
+		t.Fatal("correct password was rejected")
+	}
+	if Compare("wrong password", hash) {
+		t.Fatal("wrong password was accepted")
+	}
+}
