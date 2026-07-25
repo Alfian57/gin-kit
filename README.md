@@ -45,6 +45,10 @@ graceful shutdown, database-backed readiness checks, and endpoint-class rate
 limiting. These features stay visible in the generated source so beginners can
 inspect and change them.
 
+Choose the guided Tasks example when you want a complete learning path from
+request to database. API projects receive CRUD routes under `/api/v1/tasks`;
+UI projects receive a server-rendered `/tasks` page.
+
 For scripts, provide complete choices:
 
 ```bash

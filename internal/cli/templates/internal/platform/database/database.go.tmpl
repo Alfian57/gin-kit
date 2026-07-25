@@ -11,9 +11,22 @@ import (
 {{else if eq .Database "sqlite"}}	_ "github.com/mattn/go-sqlite3"
 {{else}}	_ "github.com/go-sql-driver/mysql"
 {{end}}
+{{if eq .ORM "gorm"}}	"gorm.io/gorm"
+{{if eq .Database "postgres"}}	"gorm.io/driver/postgres"
+{{else if eq .Database "sqlite"}}	"gorm.io/driver/sqlite"
+{{else}}	"gorm.io/driver/mysql"
+{{end}}{{else}}	"github.com/jmoiron/sqlx"
+{{end}}
 )
 
-func Open(cfg config.Config) (*sql.DB, func(), error) {
+type Connection struct {
+	SQL *sql.DB
+{{if eq .ORM "gorm"}}	GORM *gorm.DB
+{{else}}	SQLX *sqlx.DB
+{{end}}
+}
+
+func Open(cfg config.Config) (*Connection, func(), error) {
 	if cfg.DatabaseURL == "" && cfg.IsDevelopment() {
 		cfg.DatabaseURL = "{{if eq .Database "sqlite"}}file:{{.Project}}.sqlite?_busy_timeout=5000{{else}}{{.Database}}://development:development@127.0.0.1/{{.Project}}{{end}}"
 	}
@@ -32,5 +45,17 @@ func Open(cfg config.Config) (*sql.DB, func(), error) {
 		cleanup()
 		return nil, nil, fmt.Errorf("ping database: %w", err)
 	}
-	return db, cleanup, nil
+	connection := &Connection{SQL: db}
+{{if eq .ORM "gorm"}}	var dialector gorm.Dialector
+{{if eq .Database "postgres"}}	dialector = postgres.New(postgres.Config{Conn: db})
+{{else if eq .Database "sqlite"}}	dialector = sqlite.Dialector{Conn: db}
+{{else}}	dialector = mysql.New(mysql.Config{Conn: db, SkipInitializeWithVersion: true})
+{{end}}	gormDB, err := gorm.Open(dialector, &gorm.Config{})
+	if err != nil {
+		cleanup()
+		return nil, nil, fmt.Errorf("initialize gorm: %w", err)
+	}
+	connection.GORM = gormDB
+{{else}}	connection.SQLX = sqlx.NewDb(db, driver)
+{{end}}	return connection, cleanup, nil
 }

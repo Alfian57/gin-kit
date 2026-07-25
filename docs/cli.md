@@ -11,6 +11,10 @@ ginkit doctor
 ginkit explain <topic>
 ```
 
+Use `--example` to include the runnable Tasks vertical slice. Generated
+projects expose the same domain/service/repository boundaries regardless of
+whether GORM or sqlx is selected.
+
 ## Generation
 
 ```text
@@ -32,6 +36,9 @@ ginkit db status
 ```
 
 The command tree intentionally uses Go-native verbs and nouns. It does not implement Laravel's `make:*` or Artisan conventions.
+
+`ginkit check` is read-only: it reports files that need formatting, then runs
+tests and vet. It never rewrites source files.
 
 ## Generated runtime configuration
 

@@ -1,0 +1,26 @@
+package web
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"{{.Module}}/internal/platform/database"
+	"{{.Module}}/internal/repository"
+	"{{.Module}}/internal/service"
+)
+
+func registerTasks(r *gin.Engine, db *database.Connection) {
+	tasks := service.NewTaskService(repository.NewTaskRepository(db))
+	r.GET("/tasks", func(c *gin.Context) {
+		items, _, err := tasks.List(c.Request.Context(), 100, 0)
+		if err != nil { c.String(http.StatusInternalServerError, "Unable to load tasks"); return }
+		c.HTML(http.StatusOK, "tasks.html", gin.H{"tasks": items})
+	})
+	r.POST("/tasks", func(c *gin.Context) {
+		if _, err := tasks.Create(c.Request.Context(), c.PostForm("title")); err != nil {
+			c.String(http.StatusBadRequest, err.Error())
+			return
+		}
+		c.Redirect(http.StatusSeeOther, "/tasks")
+	})
+}

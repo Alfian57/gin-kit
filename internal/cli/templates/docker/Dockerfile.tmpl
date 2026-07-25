@@ -5,9 +5,14 @@ RUN CGO_ENABLED={{if eq .Database "sqlite"}}1{{else}}0{{end}} go build -trimpath
 RUN CGO_ENABLED={{if eq .Database "sqlite"}}1{{else}}0{{end}} go build -trimpath -o /out/migrate ./cmd/migrate
 
 FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends wget && rm -rf /var/lib/apt/lists/*
+RUN useradd --system --create-home --uid 10001 appuser
 WORKDIR /app
 COPY --from=build /out/server /app/server
 COPY --from=build /out/migrate /app/migrate
 COPY migrations /app/migrations
+COPY --chown=appuser:appuser .env.example /app/.env.example
+USER appuser
 EXPOSE 8080
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s CMD ["/bin/sh", "-c", "wget -qO- http://127.0.0.1:8080/health/live >/dev/null || exit 1"]
 CMD ["/app/server"]

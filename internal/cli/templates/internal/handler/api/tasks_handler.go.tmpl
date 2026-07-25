@@ -1,0 +1,64 @@
+package api
+
+import (
+	"errors"
+	"net/http"
+	"strconv"
+
+	"github.com/gin-gonic/gin"
+	"{{.Module}}/internal/domain"
+	"{{.Module}}/internal/platform/database"
+	"{{.Module}}/internal/platform/response"
+	"{{.Module}}/internal/repository"
+	"{{.Module}}/internal/service"
+)
+
+type taskInput struct {
+	Title string `json:"title" binding:"required,max=255"`
+	Completed bool `json:"completed"`
+}
+
+func registerTasks(group *gin.RouterGroup, db *database.Connection) {
+	tasks := service.NewTaskService(repository.NewTaskRepository(db))
+	group.POST("/tasks", func(c *gin.Context) {
+		var input taskInput
+		if err := c.ShouldBindJSON(&input); err != nil { response.Error(c, http.StatusBadRequest, "validation_failed", "Request validation failed"); return }
+		task, err := tasks.Create(c.Request.Context(), input.Title)
+		if err != nil { taskError(c, err); return }
+		c.JSON(http.StatusCreated, gin.H{"data": task})
+	})
+	group.GET("/tasks", func(c *gin.Context) {
+		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+		offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+		items, total, err := tasks.List(c.Request.Context(), limit, offset)
+		if err != nil { taskError(c, err); return }
+		c.JSON(http.StatusOK, gin.H{"data": items, "meta": gin.H{"total": total, "limit": limit, "offset": offset}})
+	})
+	group.GET("/tasks/:id", func(c *gin.Context) {
+		task, err := tasks.Get(c.Request.Context(), c.Param("id"))
+		if err != nil { taskError(c, err); return }
+		response.OK(c, task)
+	})
+	group.PUT("/tasks/:id", func(c *gin.Context) {
+		var input taskInput
+		if err := c.ShouldBindJSON(&input); err != nil { response.Error(c, http.StatusBadRequest, "validation_failed", "Request validation failed"); return }
+		task, err := tasks.Update(c.Request.Context(), c.Param("id"), input.Title, input.Completed)
+		if err != nil { taskError(c, err); return }
+		response.OK(c, task)
+	})
+	group.DELETE("/tasks/:id", func(c *gin.Context) {
+		if err := tasks.Delete(c.Request.Context(), c.Param("id")); err != nil { taskError(c, err); return }
+		c.Status(http.StatusNoContent)
+	})
+}
+
+func taskError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, domain.ErrTaskNotFound):
+		response.Error(c, http.StatusNotFound, "task_not_found", "Task not found")
+	case errors.Is(err, service.ErrInvalidTask):
+		response.Error(c, http.StatusBadRequest, "validation_failed", err.Error())
+	default:
+		response.Error(c, http.StatusInternalServerError, "internal_error", "An internal error occurred")
+	}
+}

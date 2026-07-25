@@ -1,0 +1,26 @@
+{{if eq .Database "sqlite"}}package app
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+)
+
+func TestHealthEndpoints(t *testing.T) {
+	previous := os.Getenv("DATABASE_URL")
+	t.Cleanup(func() { _ = os.Setenv("DATABASE_URL", previous) })
+	_ = os.Setenv("DATABASE_URL", "file:app-test.sqlite?_busy_timeout=5000")
+	router, cleanup, err := New()
+	if err != nil { t.Fatal(err) }
+	t.Cleanup(cleanup)
+
+	live := httptest.NewRecorder()
+	router.ServeHTTP(live, httptest.NewRequest(http.MethodGet, "/health/live", nil))
+	if live.Code != http.StatusOK { t.Fatalf("live status = %d", live.Code) }
+	ready := httptest.NewRecorder()
+	router.ServeHTTP(ready, httptest.NewRequest(http.MethodGet, "/health/ready", nil))
+	if ready.Code != http.StatusOK { t.Fatalf("ready status = %d", ready.Code) }
+}
+{{else}}package app
+{{end}}
