@@ -1,0 +1,88 @@
+package repository
+
+import (
+	"context"
+{{if ne .ORM "gorm"}}	"database/sql"
+{{end}}
+	"errors"
+
+	"{{.Module}}/internal/domain"
+	"{{.Module}}/internal/platform/database"
+{{if eq .ORM "gorm"}}	"gorm.io/gorm"
+{{end}}
+)
+
+type taskRepository struct {
+{{if eq .ORM "gorm"}}	db *gorm.DB
+{{else}}	db interface {
+		Rebind(string) string
+		ExecContext(context.Context, string, ...any) (sql.Result, error)
+		GetContext(context.Context, any, string, ...any) error
+		SelectContext(context.Context, any, string, ...any) error
+	}
+{{end}}
+}
+
+func NewTaskRepository(connection *database.Connection) domain.TaskRepository {
+{{if eq .ORM "gorm"}}	return &taskRepository{db: connection.GORM}
+{{else}}	return &taskRepository{db: connection.SQLX}
+{{end}}
+}
+
+func (r *taskRepository) Create(ctx context.Context, task *domain.Task) error {
+{{if eq .ORM "gorm"}}	return r.db.WithContext(ctx).Create(task).Error
+{{else}}	query := r.db.Rebind("INSERT INTO tasks (id, title, completed, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
+	_, err := r.db.ExecContext(ctx, query, task.ID, task.Title, task.Completed, task.CreatedAt, task.UpdatedAt)
+	return err
+{{end}}
+}
+
+func (r *taskRepository) List(ctx context.Context, limit, offset int) ([]domain.Task, int, error) {
+{{if eq .ORM "gorm"}}	var tasks []domain.Task
+	var total int64
+	if err := r.db.WithContext(ctx).Model(&domain.Task{}).Count(&total).Error; err != nil { return nil, 0, err }
+	if err := r.db.WithContext(ctx).Order("created_at DESC").Limit(limit).Offset(offset).Find(&tasks).Error; err != nil { return nil, 0, err }
+	return tasks, int(total), nil
+{{else}}	var total int
+	if err := r.db.GetContext(ctx, &total, "SELECT COUNT(*) FROM tasks"); err != nil { return nil, 0, err }
+	var tasks []domain.Task
+	query := r.db.Rebind("SELECT id, title, completed, created_at, updated_at FROM tasks ORDER BY created_at DESC LIMIT ? OFFSET ?")
+	if err := r.db.SelectContext(ctx, &tasks, query, limit, offset); err != nil { return nil, 0, err }
+	return tasks, total, nil
+{{end}}
+}
+
+func (r *taskRepository) Get(ctx context.Context, id string) (domain.Task, error) {
+	var task domain.Task
+{{if eq .ORM "gorm"}}	err := r.db.WithContext(ctx).First(&task, "id = ?", id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) { return task, domain.ErrTaskNotFound }
+{{else}}	err := r.db.GetContext(ctx, &task, r.db.Rebind("SELECT id, title, completed, created_at, updated_at FROM tasks WHERE id = ?"), id)
+	if errors.Is(err, sql.ErrNoRows) { return task, domain.ErrTaskNotFound }
+{{end}}	return task, err
+}
+
+func (r *taskRepository) Update(ctx context.Context, task *domain.Task) error {
+{{if eq .ORM "gorm"}}	result := r.db.WithContext(ctx).Model(&domain.Task{}).Where("id = ?", task.ID).Updates(map[string]any{"title": task.Title, "completed": task.Completed, "updated_at": task.UpdatedAt})
+	if result.Error != nil { return result.Error }
+	if result.RowsAffected == 0 { return domain.ErrTaskNotFound }
+	return nil
+{{else}}	query := r.db.Rebind("UPDATE tasks SET title = ?, completed = ?, updated_at = ? WHERE id = ?")
+	result, err := r.db.ExecContext(ctx, query, task.Title, task.Completed, task.UpdatedAt, task.ID)
+	if err != nil { return err }
+	n, err := result.RowsAffected()
+	if err == nil && n == 0 { return domain.ErrTaskNotFound }
+	return err
+{{end}}
+}
+
+func (r *taskRepository) Delete(ctx context.Context, id string) error {
+{{if eq .ORM "gorm"}}	result := r.db.WithContext(ctx).Delete(&domain.Task{}, "id = ?", id)
+	if result.Error != nil { return result.Error }
+	n := result.RowsAffected
+{{else}}	result, err := r.db.ExecContext(ctx, r.db.Rebind("DELETE FROM tasks WHERE id = ?"), id)
+	if err != nil { return err }
+	n, err := result.RowsAffected()
+	if err != nil { return err }
+{{end}}	if n == 0 { return domain.ErrTaskNotFound }
+	return nil
+}

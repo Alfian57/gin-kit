@@ -1,0 +1,27 @@
+package domain
+
+import (
+	"context"
+	"errors"
+	"time"
+)
+
+var ErrTaskNotFound = errors.New("task not found")
+
+type Task struct {
+	ID        string    `json:"id" db:"id" gorm:"primaryKey;size:36"`
+	Title     string    `json:"title" db:"title" gorm:"size:255;not null"`
+	Completed bool      `json:"completed" db:"completed" gorm:"not null"`
+	CreatedAt time.Time `json:"created_at" db:"created_at" gorm:"not null"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at" gorm:"not null"`
+}
+
+func (Task) TableName() string { return "tasks" }
+
+type TaskRepository interface {
+	Create(context.Context, *Task) error
+	List(context.Context, int, int) ([]Task, int, error)
+	Get(context.Context, string) (Task, error)
+	Update(context.Context, *Task) error
+	Delete(context.Context, string) error
+}

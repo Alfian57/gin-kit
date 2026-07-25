@@ -1,11 +1,17 @@
 package web
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+{{if .Example}}	"{{.Module}}/internal/platform/database"
+{{end}}
+)
 
-func Register(r *gin.Engine) {
+func Register(r *gin.Engine{{if .Example}}, db *database.Connection{{end}}) {
 	r.LoadHTMLGlob("web/templates/*.html")
 	r.Static("/assets", "web/assets")
 	r.GET("/", func(c *gin.Context) {
 		c.HTML(200, "index.html", gin.H{"project": "{{.Project}}", "module": "{{.Module}}"})
 	})
+{{if .Example}}	registerTasks(r, db)
+{{end}}
 }
