@@ -51,7 +51,19 @@ else
 fi
 
 if [[ "$database" != "sqlite" ]]; then
-  (cd "$project_dir" && docker compose -f docker/docker-compose.yml up -d database)
+  cp "$project_dir/.env.example" "$project_dir/.env"
+  started=false
+  for attempt in 1 2 3; do
+    if (cd "$project_dir" && docker compose -f docker/docker-compose.yml up -d database); then
+      started=true
+      break
+    fi
+    sleep $((attempt * 10))
+  done
+  if [[ "$started" != "true" ]]; then
+    echo "database container failed to start after retries" >&2
+    exit 1
+  fi
   for _ in {1..60}; do
     if (echo >/dev/tcp/127.0.0.1/"$GINKIT_DB_PORT") >/dev/null 2>&1; then
       break
