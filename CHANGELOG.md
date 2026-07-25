@@ -7,9 +7,23 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+No unreleased changes.
+
+## [0.2.0] - 2026-07-26
+
 ### Added
 
-- Automated CI, security scanning, and cross-platform release workflows.
+- Secure generated runtime defaults: request IDs, security headers, body limits, trusted proxies, CORS, rate limiting, graceful shutdown, and database readiness.
+- Typed environment configuration with production fail-fast validation.
+- Runtime GORM and sqlx database adapters across SQLite, PostgreSQL, MySQL, and MariaDB.
+- Runnable Tasks CRUD vertical slice for API and UI projects.
+- Generated middleware, authentication, password, application, and rate-limit tests.
+- Atomic scaffolding, stronger CLI validation, read-only `ginkit check`, AI development skill guidance, and safer Docker defaults.
+
+### Security
+
+- Added Argon2id parameter-aware password verification and refresh-token hashing primitives.
+- Added bounded database-container retries to generated-project CI smoke tests.
 
 ## [0.1.0] - 2026-07-26
 
