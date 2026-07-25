@@ -1,0 +1,29 @@
+package middleware
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/gin-gonic/gin"
+)
+
+func TestSecurityMiddlewareAddsHeadersAndRequestID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(RequestID(), SecurityHeaders(true))
+	router.GET("/", func(c *gin.Context) { c.Status(http.StatusNoContent) })
+
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if response.Header().Get("X-Request-ID") == "" {
+		t.Fatal("X-Request-ID is missing")
+	}
+	if response.Header().Get("Content-Security-Policy") == "" {
+		t.Fatal("Content-Security-Policy is missing")
+	}
+	if response.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatal("X-Content-Type-Options is not secure")
+	}
+}

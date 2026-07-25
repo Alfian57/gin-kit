@@ -1,0 +1,78 @@
+package middleware
+
+import (
+	"crypto/rand"
+	"encoding/hex"
+	"net/http"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+	"{{.Module}}/internal/platform/response"
+)
+
+func RequestID() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		id := c.GetHeader("X-Request-ID")
+		if len(id) == 0 || len(id) > 128 || strings.ContainsAny(id, "\r\n") {
+			raw := make([]byte, 16)
+			if _, err := rand.Read(raw); err != nil {
+				id = "unknown"
+			} else {
+				id = hex.EncodeToString(raw)
+			}
+		}
+		c.Set("request_id", id)
+		c.Header("X-Request-ID", id)
+		c.Next()
+	}
+}
+
+func SecurityHeaders(ui bool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("X-Frame-Options", "DENY")
+		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
+		if ui {
+			c.Header("Content-Security-Policy", "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'")
+		}
+		c.Next()
+	}
+}
+
+func BodyLimit(maxBytes int64) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBytes)
+		c.Next()
+	}
+}
+
+func CORS(origins []string, development bool) gin.HandlerFunc {
+	allowed := make(map[string]struct{}, len(origins))
+	for _, origin := range origins { allowed[origin] = struct{}{} }
+	return func(c *gin.Context) {
+		origin := c.GetHeader("Origin")
+		if development && origin == "" {
+			c.Next()
+			return
+		}
+		if _, ok := allowed[origin]; ok {
+			c.Header("Access-Control-Allow-Origin", origin)
+			c.Header("Access-Control-Allow-Credentials", "true")
+			c.Header("Vary", "Origin")
+		}
+		if c.Request.Method == http.MethodOptions {
+			c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS")
+			c.Header("Access-Control-Allow-Headers", "Authorization, Content-Type, X-Request-ID, X-CSRF-Token")
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		c.Next()
+	}
+}
+
+func JSONError(status int, code, message string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		response.Error(c, status, code, message)
+		c.Abort()
+	}
+}

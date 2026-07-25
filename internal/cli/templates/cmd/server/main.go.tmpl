@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"{{.Module}}/internal/app"
+	"{{.Module}}/internal/platform/config"
 )
 
 func main() {
@@ -16,12 +20,27 @@ func main() {
 	}
 	defer cleanup()
 
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
 	httpServer := &http.Server{
-		Addr:              ":8080",
+		Addr:              ":" + cfg.Port,
 		Handler:           server,
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
-	log.Println("{{.Project}} listening on http://localhost:8080")
+	log.Println("{{.Project}} listening on http://localhost:" + cfg.Port)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	go func() {
+		<-ctx.Done()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.ShutdownTimeout())
+		defer cancel()
+		_ = httpServer.Shutdown(shutdownCtx)
+	}()
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}

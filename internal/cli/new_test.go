@@ -31,6 +31,16 @@ func TestScaffoldAPIPreservesSelections(t *testing.T) {
 	if !strings.Contains(string(data), "example.com/sample") || !strings.Contains(string(data), "github.com/jmoiron/sqlx") {
 		t.Fatalf("generated go.mod did not preserve module or ORM:\n%s", data)
 	}
+	for _, rel := range []string{
+		"internal/platform/config/config.go",
+		"internal/platform/database/database.go",
+		"internal/middleware/security.go",
+		"internal/middleware/ratelimit.go",
+	} {
+		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
+			t.Fatalf("expected runtime foundation %s: %v", rel, err)
+		}
+	}
 }
 
 func TestScaffoldUIHasEnglishLandingPage(t *testing.T) {
