@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"golang.org/x/crypto/argon2"
@@ -36,11 +37,32 @@ func Compare(plain, encoded string) bool {
 	if len(parts) != 6 || parts[1] != "argon2id" {
 		return false
 	}
-	salt, err1 := base64.RawStdEncoding.DecodeString(parts[4])
-	expected, err2 := base64.RawStdEncoding.DecodeString(parts[5])
-	if err1 != nil || err2 != nil {
+	var version int
+	if _, err := fmt.Sscanf(parts[2], "v=%d", &version); err != nil || version != argon2.Version {
 		return false
 	}
-	actual := argon2.IDKey([]byte(plain), salt, iterations, memory, parallelism, uint32(len(expected)))
+	params := strings.Split(parts[3], ",")
+	if len(params) != 3 {
+		return false
+	}
+	parse := func(value, prefix string) (uint64, bool) {
+		if !strings.HasPrefix(value, prefix) {
+			return 0, false
+		}
+		n, err := strconv.ParseUint(strings.TrimPrefix(value, prefix), 10, 32)
+		return n, err == nil
+	}
+	m, okM := parse(params[0], "m=")
+	t, okT := parse(params[1], "t=")
+	p, okP := parse(params[2], "p=")
+	if !okM || !okT || !okP || m == 0 || t == 0 || p == 0 {
+		return false
+	}
+	salt, err1 := base64.RawStdEncoding.DecodeString(parts[4])
+	expected, err2 := base64.RawStdEncoding.DecodeString(parts[5])
+	if err1 != nil || err2 != nil || len(salt) < 8 || len(expected) < 16 {
+		return false
+	}
+	actual := argon2.IDKey([]byte(plain), salt, uint32(t), uint32(m), uint8(p), uint32(len(expected)))
 	return subtle.ConstantTimeCompare(actual, expected) == 1
 }

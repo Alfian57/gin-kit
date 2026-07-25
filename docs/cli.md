@@ -32,3 +32,13 @@ ginkit db status
 ```
 
 The command tree intentionally uses Go-native verbs and nouns. It does not implement Laravel's `make:*` or Artisan conventions.
+
+## Generated runtime configuration
+
+Generated projects read configuration from environment variables. Development
+uses local defaults where safe. Staging and production fail startup when
+database, CORS, or enabled-authentication secrets are missing or invalid.
+
+Rate limiting is enabled by default and exposes separate per-minute settings
+for general, authentication, and expensive endpoint classes. Forwarded client
+IP headers are trusted only when `TRUSTED_PROXY_CIDRS` is configured.

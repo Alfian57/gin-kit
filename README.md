@@ -39,6 +39,12 @@ ginkit new my-project
 
 The interactive installer asks for the application mode, database, data-access layer, authentication, guided example, and Docker support.
 
+Every generated application starts with production-aware HTTP defaults:
+request IDs, security headers, trusted-proxy handling, request body limits,
+graceful shutdown, database-backed readiness checks, and endpoint-class rate
+limiting. These features stay visible in the generated source so beginners can
+inspect and change them.
+
 For scripts, provide complete choices:
 
 ```bash

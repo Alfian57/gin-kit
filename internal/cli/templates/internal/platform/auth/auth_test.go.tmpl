@@ -1,0 +1,31 @@
+package auth
+
+import (
+	"testing"
+	"time"
+)
+
+func TestIssueAndParse(t *testing.T) {
+	secret := []byte("01234567890123456789012345678901")
+	token, err := Issue("user-1", secret, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claims, err := Parse(token, secret)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if claims.UserID != "user-1" {
+		t.Fatalf("user ID = %q", claims.UserID)
+	}
+}
+
+func TestRefreshTokensAreHashed(t *testing.T) {
+	plain, hash, err := NewRefreshToken()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plain == hash || HashRefreshToken(plain) != hash {
+		t.Fatal("refresh token hash mismatch")
+	}
+}

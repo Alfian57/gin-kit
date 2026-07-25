@@ -1,0 +1,67 @@
+package middleware
+
+import (
+	"net/http"
+	"sync"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"golang.org/x/time/rate"
+	"{{.Module}}/internal/platform/response"
+)
+
+type RateClass string
+
+const (
+	RateGeneral RateClass = "general"
+	RateAuth RateClass = "auth"
+	RateExpensive RateClass = "expensive"
+)
+
+type RateLimiter struct {
+	mu sync.Mutex
+	clients map[string]*client
+	limits map[RateClass]rate.Limit
+	burst map[RateClass]int
+}
+
+type client struct {
+	limiter *rate.Limiter
+	lastSeen time.Time
+}
+
+func NewRateLimiter(general, auth, expensive int) *RateLimiter {
+	return &RateLimiter{
+		clients: make(map[string]*client),
+		limits: map[RateClass]rate.Limit{
+			RateGeneral: rate.Limit(float64(general) / 60),
+			RateAuth: rate.Limit(float64(auth) / 60),
+			RateExpensive: rate.Limit(float64(expensive) / 60),
+		},
+		burst: map[RateClass]int{RateGeneral: general / 3, RateAuth: auth / 2, RateExpensive: expensive / 2},
+	}
+}
+
+func (l *RateLimiter) Middleware(class RateClass) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		key := c.ClientIP() + ":" + string(class)
+		l.mu.Lock()
+		entry := l.clients[key]
+		if entry == nil {
+			burst := l.burst[class]
+			if burst < 1 { burst = 1 }
+			entry = &client{limiter: rate.NewLimiter(l.limits[class], burst)}
+			l.clients[key] = entry
+		}
+		entry.lastSeen = time.Now()
+		allowed := entry.limiter.Allow()
+		l.mu.Unlock()
+		if !allowed {
+			c.Header("Retry-After", "60")
+			response.Error(c, http.StatusTooManyRequests, "rate_limited", "Too many requests")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
