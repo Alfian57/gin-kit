@@ -1,7 +1,8 @@
 package app
 
 import (
-	"fmt"
+{{if ne .Database "sqlite"}}	"fmt"
+{{end}}
 	"os"
 
 	"github.com/Alfian57/ginkit/framework"
