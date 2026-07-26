@@ -452,6 +452,50 @@ func TestQueueRedisDriverRegistersReadiness(t *testing.T) {
 	}
 }
 
+func TestCloseRunsHooksExactlyOnce(t *testing.T) {
+	app, err := New(Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var calls int
+	app.OnShutdown(func(context.Context) error {
+		calls++
+		return nil
+	})
+	if err := app.Close(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Close(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("hooks ran %d times", calls)
+	}
+}
+
+func TestCloseAfterRunIsNoop(t *testing.T) {
+	app, err := New(Options{HTTP: HTTPOptions{Address: "127.0.0.1:0", ShutdownTimeout: time.Second}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var calls int
+	app.OnShutdown(func(context.Context) error {
+		calls++
+		return nil
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := app.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if err := app.Close(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("hooks ran %d times after Run+Close", calls)
+	}
+}
+
 func TestRunReturnsServerError(t *testing.T) {
 	app, err := New(Options{HTTP: HTTPOptions{Address: "bad address", ShutdownTimeout: time.Millisecond}})
 	if err != nil {

@@ -105,6 +105,7 @@ type Application struct {
 	shutdownTimeout time.Duration
 	hooksMu         sync.Mutex
 	shutdownHooks   []func(context.Context) error
+	hooksRan        bool
 	runnersMu       sync.Mutex
 	runners         []runner
 	started         bool
@@ -459,8 +460,20 @@ func waitForGroup(ctx context.Context, group *errgroup.Group) error {
 	}
 }
 
+// Close releases application resources without serving: shutdown hooks run
+// in reverse registration order, exactly once across Close and Run. Intended
+// for tests and short-lived binaries that never call Run.
+func (a *Application) Close(ctx context.Context) error {
+	return a.runShutdownHooks(ctx)
+}
+
 func (a *Application) runShutdownHooks(ctx context.Context) error {
 	a.hooksMu.Lock()
+	if a.hooksRan {
+		a.hooksMu.Unlock()
+		return nil
+	}
+	a.hooksRan = true
 	hooks := append([]func(context.Context) error(nil), a.shutdownHooks...)
 	a.hooksMu.Unlock()
 	var result error

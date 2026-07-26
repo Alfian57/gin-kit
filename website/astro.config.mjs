@@ -55,6 +55,7 @@ export default defineConfig({
             { label: 'Customizing the runtime', slug: 'customization' },
             { label: 'UI mode', slug: 'ui-mode' },
             { label: 'Sessions and CSRF', slug: 'sessions' },
+            { label: 'Testing', slug: 'testing' },
             { label: 'Deployment', slug: 'deployment' },
           ],
         },

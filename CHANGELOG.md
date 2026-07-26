@@ -9,6 +9,25 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `framework/apptest` v2: PATCH, request options (`WithHeader`, `WithBearer`,
+  `WithCookie`), form/multipart/raw bodies, `Meta`/`JSON` decoders, and a
+  cookie-jar `Client` with a `CSRFToken` helper for session flows; apps built
+  with `apptest.New` now close automatically via `t.Cleanup`. New integration
+  helpers run repositories against unique in-memory SQLite databases:
+  `OpenSQLite`, `Migrate` (goose), and `Seed`.
+- `framework.Application.Close(ctx)`: runs shutdown hooks exactly once
+  without serving, for tests and short-lived binaries.
+- `framework/browsertest`: Playwright helpers (`Launch`, `NewPage`,
+  `StartServer`, `Install`) that skip cleanly when browsers are absent;
+  framework-edition UI projects scaffold an `e2e/` browser test, and
+  `generate resource` now also emits a repository integration test in
+  framework-edition projects.
+
+### Changed
+
+- `apptest.Do` takes request options instead of an `http.Header` parameter
+  (breaking within the pre-1.0 test helper API).
+
 - `framework/factory`: generic, ORM-agnostic model factories
   (`factory.Define`, `Make`, `MakeMany`, `Create`, `CreateMany`, deterministic
   `Seeded`) backed by gofakeit. `gin-kit generate factory` emits a per-model
