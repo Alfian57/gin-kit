@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"time"
+
+	"{{.Module}}/internal/platform/query"
 )
 
 var ErrTaskNotFound = errors.New("task not found")
@@ -20,7 +22,7 @@ func (Task) TableName() string { return "tasks" }
 
 type TaskRepository interface {
 	Create(context.Context, *Task) error
-	List(context.Context, int, int) ([]Task, int, error)
+	List(context.Context, query.Result) ([]Task, int64, error)
 	Get(context.Context, string) (Task, error)
 	Update(context.Context, *Task) error
 	Delete(context.Context, string) error

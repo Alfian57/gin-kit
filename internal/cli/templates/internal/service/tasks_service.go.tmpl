@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"{{.Module}}/internal/domain"
+	"{{.Module}}/internal/platform/query"
 )
 
 var ErrInvalidTask = errors.New("task title must contain between 1 and 255 characters")
@@ -27,11 +28,8 @@ func (s *TaskService) Create(ctx context.Context, title string) (domain.Task, er
 	return task, nil
 }
 
-func (s *TaskService) List(ctx context.Context, limit, offset int) ([]domain.Task, int, error) {
-	if limit < 1 { limit = 20 }
-	if limit > 100 { limit = 100 }
-	if offset < 0 { offset = 0 }
-	return s.repository.List(ctx, limit, offset)
+func (s *TaskService) List(ctx context.Context, q query.Result) ([]domain.Task, int64, error) {
+	return s.repository.List(ctx, q)
 }
 
 func (s *TaskService) Get(ctx context.Context, id string) (domain.Task, error) {

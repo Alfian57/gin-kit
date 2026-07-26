@@ -52,6 +52,13 @@ malformed input; `BindURI` binds through `uri` tags and answers
 `400 invalid_path`. Both validate with the same rules and never echo submitted
 values.
 
+List endpoints respond with the standard pagination metadata produced by the
+[query builder](/gin-kit/querying/):
+
+```json
+{ "data": [...], "meta": { "page": 2, "per_page": 25, "total": 101, "total_pages": 5 } }
+```
+
 ### Safe by default
 
 Responses never include submitted values, tokens, database errors, or stack

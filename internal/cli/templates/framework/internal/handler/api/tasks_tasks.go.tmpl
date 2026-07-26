@@ -1,12 +1,29 @@
 package api
 
 import (
+	"strings"
+
 	"github.com/Alfian57/gin-kit/framework/httpx"
+	"github.com/Alfian57/gin-kit/framework/query"
 	"github.com/gin-gonic/gin"
 )
 
 type taskInput struct {
 	Title string `json:"title" validate:"required,max=255"`
+}
+
+type taskItem struct {
+	ID        string `json:"id"`
+	Title     string `json:"title"`
+	Completed bool   `json:"completed"`
+}
+
+// sampleTasks stands in for your repository; replace it with a service backed
+// by the application database.
+var sampleTasks = []taskItem{
+	{ID: "1", Title: "Write the report", Completed: true},
+	{ID: "2", Title: "Review the report", Completed: false},
+	{ID: "3", Title: "Ship the release", Completed: false},
 }
 
 func registerTasks(router *gin.Engine) {
@@ -18,6 +35,39 @@ func registerTasks(router *gin.Engine) {
 		httpx.Created(c, gin.H{"id": "example", "title": input.Title, "completed": false})
 	})
 	router.GET("/api/v1/tasks", func(c *gin.Context) {
-		httpx.OK(c, gin.H{"items": []string{}, "message": "Add your task service here."})
+		result, err := query.Parse(c, query.Options{
+			AllowedFilters: []query.Filter{query.Exact("completed").Bool(), query.Partial("title")},
+			AllowedSorts:   []query.Sort{query.SortBy("id"), query.SortBy("title")},
+			DefaultSort:    "id",
+		})
+		if err != nil {
+			httpx.Handle(c, nil, err)
+			return
+		}
+		// In-memory filtering demonstrates the parsed query; with a database,
+		// use result.ApplyGORM or result.BuildSQL instead.
+		items := make([]taskItem, 0, len(sampleTasks))
+		for _, item := range sampleTasks {
+			if matches(item, result.Filters) {
+				items = append(items, item)
+			}
+		}
+		httpx.List(c, items, result.Meta(int64(len(items))))
 	})
+}
+
+func matches(item taskItem, filters []query.FilterValue) bool {
+	for _, filter := range filters {
+		switch filter.Name {
+		case "completed":
+			if (filter.Values[0] == "true") != item.Completed {
+				return false
+			}
+		case "title":
+			if !strings.Contains(strings.ToLower(item.Title), strings.ToLower(filter.Values[0])) {
+				return false
+			}
+		}
+	}
+	return true
 }

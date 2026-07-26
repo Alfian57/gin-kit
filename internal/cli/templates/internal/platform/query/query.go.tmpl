@@ -1,0 +1,404 @@
+// Package query provides allowlist-based filtering, sorting, and pagination
+// for list endpoints:
+//
+//	GET /tasks?filter[completed]=true&filter[title]=report
+//	          &filter[created_at][gte]=2026-01-01
+//	          &sort=-created_at,title&page=2&per_page=25
+//
+// Column names reach SQL exclusively from the developer-declared allowlist;
+// user values only ever bind as arguments. Unknown names, unsupported
+// operators, and malformed pagination values return an error suitable for a
+// 400 invalid_query response.
+package query
+
+import (
+	"fmt"
+	"math"
+	"regexp"
+	"strconv"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+{{if eq .ORM "gorm"}}
+	"gorm.io/gorm"
+{{end}}
+)
+
+type Op string
+
+const (
+	OpEq   Op = "eq"
+	OpLike Op = "like"
+	OpIn   Op = "in"
+	OpGte  Op = "gte"
+	OpLte  Op = "lte"
+	OpGt   Op = "gt"
+	OpLt   Op = "lt"
+)
+
+type filterKind int
+
+const (
+	kindExact filterKind = iota
+	kindPartial
+	kindIn
+	kindCompare
+)
+
+const maxInValues = 100
+
+type Filter struct {
+	name      string
+	column    string
+	kind      filterKind
+	boolValue bool
+}
+
+func Exact(name string) Filter   { return Filter{name: name, column: name, kind: kindExact} }
+func Partial(name string) Filter { return Filter{name: name, column: name, kind: kindPartial} }
+func In(name string) Filter      { return Filter{name: name, column: name, kind: kindIn} }
+func Compare(name string) Filter { return Filter{name: name, column: name, kind: kindCompare} }
+
+func (f Filter) Column(column string) Filter { f.column = column; return f }
+
+// Bool declares the value as boolean so it binds natively and compares
+// correctly against boolean columns on every supported database.
+func (f Filter) Bool() Filter { f.boolValue = true; return f }
+
+type Sort struct {
+	name   string
+	column string
+}
+
+func SortBy(name string) Sort              { return Sort{name: name, column: name} }
+func (s Sort) Column(column string) Sort   { s.column = column; return s }
+
+type Options struct {
+	AllowedFilters []Filter
+	AllowedSorts   []Sort
+	DefaultSort    string
+	DefaultPerPage int // defaults to 25
+	MaxPerPage     int // defaults to 100
+}
+
+type FilterValue struct {
+	Name   string
+	Column string
+	Op     Op
+	Values []string
+	Bool   bool
+}
+
+func (f FilterValue) arg(value string) any {
+	if f.Bool {
+		parsed, _ := strconv.ParseBool(value)
+		return parsed
+	}
+	return value
+}
+
+type SortValue struct {
+	Column string
+	Desc   bool
+}
+
+type Result struct {
+	Filters []FilterValue
+	Sorts   []SortValue
+	Page    int
+	PerPage int
+}
+
+func (r Result) Offset() int { return (r.Page - 1) * r.PerPage }
+
+type Meta struct {
+	Page       int   `json:"page"`
+	PerPage    int   `json:"per_page"`
+	Total      int64 `json:"total"`
+	TotalPages int64 `json:"total_pages"`
+}
+
+func (r Result) Meta(total int64) Meta {
+	pages := int64(0)
+	if total > 0 {
+		pages = int64(math.Ceil(float64(total) / float64(r.PerPage)))
+	}
+	return Meta{Page: r.Page, PerPage: r.PerPage, Total: total, TotalPages: pages}
+}
+
+var (
+	identifierPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.]*$`)
+	filterKeyPattern  = regexp.MustCompile(`^filter\[([^\[\]]+)\](?:\[([^\[\]]+)\])?$`)
+)
+
+// Parse validates the request's filter, sort, page, and per_page parameters.
+// Errors report the offending parameters and map to 400 invalid_query.
+func Parse(c *gin.Context, options Options) (Result, error) {
+	if options.DefaultPerPage < 1 {
+		options.DefaultPerPage = 25
+	}
+	if options.MaxPerPage < 1 {
+		options.MaxPerPage = 100
+	}
+	filters := make(map[string]Filter, len(options.AllowedFilters))
+	for _, filter := range options.AllowedFilters {
+		if !identifierPattern.MatchString(filter.column) {
+			return Result{}, fmt.Errorf("query configuration: filter %q maps to invalid column %q", filter.name, filter.column)
+		}
+		filters[filter.name] = filter
+	}
+	sorts := make(map[string]Sort, len(options.AllowedSorts))
+	for _, sort := range options.AllowedSorts {
+		if !identifierPattern.MatchString(sort.column) {
+			return Result{}, fmt.Errorf("query configuration: sort %q maps to invalid column %q", sort.name, sort.column)
+		}
+		sorts[sort.name] = sort
+	}
+
+	result := Result{Page: 1, PerPage: options.DefaultPerPage}
+	var invalid []string
+
+	for key, keyValues := range c.Request.URL.Query() {
+		if key != "filter" && !strings.HasPrefix(key, "filter[") {
+			continue
+		}
+		match := filterKeyPattern.FindStringSubmatch(key)
+		if match == nil {
+			invalid = append(invalid, key)
+			continue
+		}
+		filter, allowed := filters[match[1]]
+		if !allowed {
+			invalid = append(invalid, key)
+			continue
+		}
+		if keyValues[0] == "" {
+			continue
+		}
+		filterValue, err := buildFilterValue(filter, match[2], keyValues[0])
+		if err != nil {
+			invalid = append(invalid, key)
+			continue
+		}
+		result.Filters = append(result.Filters, filterValue)
+	}
+
+	sortParameter := c.Query("sort")
+	if sortParameter == "" {
+		sortParameter = options.DefaultSort
+	}
+	for _, field := range splitNonEmpty(sortParameter) {
+		desc := strings.HasPrefix(field, "-")
+		sort, allowed := sorts[strings.TrimPrefix(field, "-")]
+		if !allowed {
+			if c.Query("sort") == "" {
+				return Result{}, fmt.Errorf("query configuration: default sort %q is not an allowed sort", field)
+			}
+			invalid = append(invalid, "sort="+field)
+			continue
+		}
+		result.Sorts = append(result.Sorts, SortValue{Column: sort.column, Desc: desc})
+	}
+
+	if raw := c.Query("page"); raw != "" {
+		page, err := strconv.Atoi(raw)
+		if err != nil || page < 1 {
+			invalid = append(invalid, "page")
+		} else {
+			result.Page = page
+		}
+	}
+	if raw := c.Query("per_page"); raw != "" {
+		perPage, err := strconv.Atoi(raw)
+		if err != nil || perPage < 1 {
+			invalid = append(invalid, "per_page")
+		} else {
+			result.PerPage = min(perPage, options.MaxPerPage)
+		}
+	}
+
+	if len(invalid) > 0 {
+		return Result{}, fmt.Errorf("invalid query parameters: %s", strings.Join(invalid, ", "))
+	}
+	return result, nil
+}
+
+func buildFilterValue(filter Filter, operator, value string) (FilterValue, error) {
+	filterValue := FilterValue{Name: filter.name, Column: filter.column, Bool: filter.boolValue}
+	switch filter.kind {
+	case kindExact, kindPartial, kindIn:
+		if operator != "" {
+			return FilterValue{}, fmt.Errorf("operator %q not supported", operator)
+		}
+	case kindCompare:
+		switch Op(operator) {
+		case "", OpGte, OpLte, OpGt, OpLt:
+		default:
+			return FilterValue{}, fmt.Errorf("operator %q not supported", operator)
+		}
+	}
+	switch filter.kind {
+	case kindExact:
+		filterValue.Op = OpEq
+		filterValue.Values = []string{value}
+	case kindPartial:
+		filterValue.Op = OpLike
+		filterValue.Values = []string{value}
+	case kindIn:
+		filterValue.Op = OpIn
+		filterValue.Values = splitNonEmpty(value)
+		if len(filterValue.Values) == 0 || len(filterValue.Values) > maxInValues {
+			return FilterValue{}, fmt.Errorf("in list must contain between 1 and %d values", maxInValues)
+		}
+	case kindCompare:
+		filterValue.Op = OpEq
+		if operator != "" {
+			filterValue.Op = Op(operator)
+		}
+		filterValue.Values = []string{value}
+	}
+	if filter.boolValue {
+		for _, item := range filterValue.Values {
+			if _, err := strconv.ParseBool(item); err != nil {
+				return FilterValue{}, fmt.Errorf("value %q is not a boolean", item)
+			}
+		}
+	}
+	return filterValue, nil
+}
+
+func splitNonEmpty(value string) []string {
+	var items []string
+	for _, item := range strings.Split(value, ",") {
+		if trimmed := strings.TrimSpace(item); trimmed != "" {
+			items = append(items, trimmed)
+		}
+	}
+	return items
+}
+
+// likeEscaper escapes LIKE wildcards with '!', the one escape character that
+// behaves identically across MySQL, MariaDB, PostgreSQL, and SQLite.
+var likeEscaper = strings.NewReplacer("!", "!!", "%", "!%", "_", "!_")
+
+func comparison(op Op) string {
+	switch op {
+	case OpGte:
+		return ">="
+	case OpLte:
+		return "<="
+	case OpGt:
+		return ">"
+	default:
+		return "<"
+	}
+}
+{{if eq .ORM "gorm"}}
+// FiltersGORM applies only the filters, for count queries or custom chains.
+func (r Result) FiltersGORM(db *gorm.DB) *gorm.DB {
+	for _, filter := range r.Filters {
+		switch filter.Op {
+		case OpEq:
+			db = db.Where(filter.Column+" = ?", filter.arg(filter.Values[0]))
+		case OpLike:
+			db = db.Where(filter.Column+" LIKE ? ESCAPE '!'", "%"+likeEscaper.Replace(filter.Values[0])+"%")
+		case OpIn:
+			args := make([]any, len(filter.Values))
+			for index, value := range filter.Values {
+				args[index] = filter.arg(value)
+			}
+			db = db.Where(filter.Column+" IN ?", args)
+		case OpGte, OpLte, OpGt, OpLt:
+			db = db.Where(filter.Column+" "+comparison(filter.Op)+" ?", filter.arg(filter.Values[0]))
+		}
+	}
+	return db
+}
+
+// ApplyGORM applies filters, sorts, and pagination to a GORM chain.
+func (r Result) ApplyGORM(db *gorm.DB) *gorm.DB {
+	db = r.FiltersGORM(db)
+	for _, sort := range r.Sorts {
+		direction := " ASC"
+		if sort.Desc {
+			direction = " DESC"
+		}
+		db = db.Order(sort.Column + direction)
+	}
+	return db.Limit(r.PerPage).Offset(r.Offset())
+}
+
+// CountGORM counts matching rows in an isolated session, so the caller's
+// chain can still receive ApplyGORM afterwards.
+func (r Result) CountGORM(db *gorm.DB) (int64, error) {
+	var total int64
+	err := r.FiltersGORM(db.Session(&gorm.Session{})).Count(&total).Error
+	return total, err
+}
+{{else}}
+// WhereSQL renders the filters as a parameterized condition with '?'
+// placeholders; pass the final statement through Rebind for the dialect.
+func (r Result) WhereSQL() (string, []any) {
+	if len(r.Filters) == 0 {
+		return "", nil
+	}
+	conditions := make([]string, 0, len(r.Filters))
+	var args []any
+	for _, filter := range r.Filters {
+		switch filter.Op {
+		case OpEq:
+			conditions = append(conditions, filter.Column+" = ?")
+			args = append(args, filter.arg(filter.Values[0]))
+		case OpLike:
+			conditions = append(conditions, filter.Column+" LIKE ? ESCAPE '!'")
+			args = append(args, "%"+likeEscaper.Replace(filter.Values[0])+"%")
+		case OpIn:
+			placeholders := strings.TrimSuffix(strings.Repeat("?, ", len(filter.Values)), ", ")
+			conditions = append(conditions, filter.Column+" IN ("+placeholders+")")
+			for _, value := range filter.Values {
+				args = append(args, filter.arg(value))
+			}
+		case OpGte, OpLte, OpGt, OpLt:
+			conditions = append(conditions, filter.Column+" "+comparison(filter.Op)+" ?")
+			args = append(args, filter.arg(filter.Values[0]))
+		}
+	}
+	return strings.Join(conditions, " AND "), args
+}
+
+// OrderSQL renders "ORDER BY ..." for the accepted sorts, or "".
+func (r Result) OrderSQL() string {
+	if len(r.Sorts) == 0 {
+		return ""
+	}
+	fields := make([]string, 0, len(r.Sorts))
+	for _, sort := range r.Sorts {
+		direction := " ASC"
+		if sort.Desc {
+			direction = " DESC"
+		}
+		fields = append(fields, sort.Column+direction)
+	}
+	return "ORDER BY " + strings.Join(fields, ", ")
+}
+
+// BuildSQL appends WHERE, ORDER BY, LIMIT, and OFFSET to a base statement.
+func (r Result) BuildSQL(base string) (string, []any) {
+	statement, args := r.BuildCountSQL(base)
+	if order := r.OrderSQL(); order != "" {
+		statement += " " + order
+	}
+	statement += " LIMIT ? OFFSET ?"
+	args = append(args, r.PerPage, r.Offset())
+	return statement, args
+}
+
+// BuildCountSQL appends only WHERE to a base statement.
+func (r Result) BuildCountSQL(base string) (string, []any) {
+	where, args := r.WhereSQL()
+	if where != "" {
+		base += " WHERE " + where
+	}
+	return base, args
+}
+{{end}}

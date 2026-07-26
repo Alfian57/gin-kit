@@ -37,6 +37,7 @@ export default defineConfig({
           items: [
             { label: 'Architecture', slug: 'architecture' },
             { label: 'Responses and validation', slug: 'responses-validation' },
+            { label: 'Filtering and pagination', slug: 'querying' },
             { label: 'Middleware and errors', slug: 'error-handling' },
             { label: 'Configuration', slug: 'configuration' },
           ],

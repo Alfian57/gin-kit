@@ -34,6 +34,7 @@ func TestScaffoldAPIPreservesSelections(t *testing.T) {
 	for _, rel := range []string{
 		"internal/platform/config/config.go",
 		"internal/platform/database/database.go",
+		"internal/platform/query/query.go",
 		"internal/middleware/security.go",
 		"internal/middleware/ratelimit.go",
 	} {

@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"{{.Module}}/internal/platform/database"
+	"{{.Module}}/internal/platform/query"
 	"{{.Module}}/internal/repository"
 	"{{.Module}}/internal/service"
 )
@@ -12,7 +13,8 @@ import (
 func registerTasks(r *gin.Engine, db *database.Connection) {
 	tasks := service.NewTaskService(repository.NewTaskRepository(db))
 	r.GET("/tasks", func(c *gin.Context) {
-		items, _, err := tasks.List(c.Request.Context(), 100, 0)
+		listQuery := query.Result{Page: 1, PerPage: 100, Sorts: []query.SortValue{{"{{"}}Column: "created_at", Desc: true{{"}}"}}}
+		items, _, err := tasks.List(c.Request.Context(), listQuery)
 		if err != nil { c.String(http.StatusInternalServerError, "Unable to load tasks"); return }
 		c.HTML(http.StatusOK, "tasks.html", gin.H{"tasks": items})
 	})
