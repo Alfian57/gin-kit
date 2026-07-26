@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Alfian57/gin-kit/framework/httpx"
+	"github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
 )
 
@@ -337,6 +338,65 @@ func TestGoAfterRunIsDropped(t *testing.T) {
 	}
 	if lateRan {
 		t.Fatal("runner registered after Run was executed")
+	}
+}
+
+func TestCacheDefaultsToMemory(t *testing.T) {
+	app, err := New(Options{HTTP: HTTPOptions{Address: "127.0.0.1:0", ShutdownTimeout: time.Second}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := app.Cache()
+	if store == nil {
+		t.Fatal("cache accessor returned nil")
+	}
+	ctx := context.Background()
+	if err := store.Set(ctx, "greeting", "hello", 0); err != nil {
+		t.Fatal(err)
+	}
+	if value, ok, _ := store.Get(ctx, "greeting"); !ok || value != "hello" {
+		t.Fatalf("memory cache round trip failed: %q %v", value, ok)
+	}
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := app.Run(canceled); err != nil {
+		t.Fatalf("shutdown with cache failed: %v", err)
+	}
+}
+
+func TestRedisCacheRegistersReadiness(t *testing.T) {
+	server := miniredis.RunT(t)
+	app, err := New(Options{Cache: CacheOptions{Driver: "redis", RedisURL: "redis://" + server.Addr()}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ready := httptest.NewRecorder()
+	app.Router().ServeHTTP(ready, httptest.NewRequest(http.MethodGet, "/health/ready", nil))
+	if ready.Code != http.StatusOK {
+		t.Fatalf("readiness with live redis: %d %s", ready.Code, ready.Body)
+	}
+	server.Close()
+	notReady := httptest.NewRecorder()
+	app.Router().ServeHTTP(notReady, httptest.NewRequest(http.MethodGet, "/health/ready", nil))
+	if notReady.Code != http.StatusServiceUnavailable || !strings.Contains(notReady.Body.String(), "redis") {
+		t.Fatalf("readiness with dead redis: %d %s", notReady.Code, notReady.Body)
+	}
+}
+
+func TestNewRejectsInvalidCacheConfiguration(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		options CacheOptions
+	}{
+		{"unknown driver", CacheOptions{Driver: "memcached"}},
+		{"redis without url", CacheOptions{Driver: "redis"}},
+		{"redis with bad url", CacheOptions{Driver: "redis", RedisURL: "http://wrong"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := New(Options{Cache: test.options}); err == nil {
+				t.Fatal("expected constructor error")
+			}
+		})
 	}
 }
 

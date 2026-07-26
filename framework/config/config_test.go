@@ -14,6 +14,7 @@ func clearEnv(t *testing.T) {
 		"PORT", "APP_ENV", "DATABASE_URL", "JWT_SECRET", "TRUSTED_PROXY_CIDRS",
 		"CORS_ALLOWED_ORIGINS", "RATE_LIMIT_ENABLED", "RATE_LIMIT_PER_MINUTE",
 		"RATE_LIMIT_BURST", "MAX_BODY_BYTES", "METRICS_ENABLED", "PPROF_ENABLED",
+		"CACHE_DRIVER", "REDIS_URL",
 		"READ_TIMEOUT", "WRITE_TIMEOUT", "IDLE_TIMEOUT", "SHUTDOWN_TIMEOUT",
 	} {
 		t.Setenv(key, "")
@@ -69,6 +70,8 @@ func TestLoadRejectsMalformedValues(t *testing.T) {
 		value string
 		want  string
 	}{
+		{"CACHE_DRIVER", "memcached", "CACHE_DRIVER"},
+		{"REDIS_URL", "http://not-redis", "REDIS_URL"},
 		{"RATE_LIMIT_ENABLED", "maybe", "RATE_LIMIT_ENABLED"},
 		{"RATE_LIMIT_PER_MINUTE", "sixty", "RATE_LIMIT_PER_MINUTE"},
 		{"MAX_BODY_BYTES", "-1", "MAX_BODY_BYTES"},
@@ -151,5 +154,31 @@ func TestOptionsMapsAllFields(t *testing.T) {
 	}
 	if !options.Metrics.Enabled || options.PProf.Enabled {
 		t.Fatalf("unexpected observability options: %+v %+v", options.Metrics, options.PProf)
+	}
+}
+
+func TestLoadCacheConfiguration(t *testing.T) {
+	clearEnv(t)
+	cfg, err := Load()
+	if err != nil || cfg.CacheDriver != "memory" {
+		t.Fatalf("cache defaults: %+v err=%v", cfg.CacheDriver, err)
+	}
+
+	clearEnv(t)
+	t.Setenv("CACHE_DRIVER", "redis")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "REDIS_URL") {
+		t.Fatalf("redis driver without URL accepted: %v", err)
+	}
+
+	clearEnv(t)
+	t.Setenv("CACHE_DRIVER", "redis")
+	t.Setenv("REDIS_URL", "redis://localhost:6379/0")
+	cfg, err = Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	options := cfg.Options()
+	if options.Cache.Driver != "redis" || options.Cache.RedisURL != "redis://localhost:6379/0" {
+		t.Fatalf("cache options not mapped: %+v", options.Cache)
 	}
 }

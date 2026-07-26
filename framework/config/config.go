@@ -28,6 +28,8 @@ type Config struct {
 	RateLimitPerMinute int           // RATE_LIMIT_PER_MINUTE, defaults to 60
 	RateLimitBurst     int           // RATE_LIMIT_BURST, 0 lets the framework derive it
 	MaxBodyBytes       int64         // MAX_BODY_BYTES, defaults to 1 MiB
+	CacheDriver        string        // CACHE_DRIVER, "memory" (default) or "redis"
+	RedisURL           string        // REDIS_URL, e.g. redis://localhost:6379/0
 	MetricsEnabled     bool          // METRICS_ENABLED, defaults to false
 	PProfEnabled       bool          // PPROF_ENABLED, defaults to false; never expose publicly
 	ReadTimeout        time.Duration // READ_TIMEOUT, Go duration syntax such as 10s
@@ -46,6 +48,8 @@ func Load() (Config, error) {
 		JWTSecret:          []byte(os.Getenv("JWT_SECRET")),
 		TrustedProxyCIDRs:  splitCSV(os.Getenv("TRUSTED_PROXY_CIDRS")),
 		CORSAllowedOrigins: splitCSV(os.Getenv("CORS_ALLOWED_ORIGINS")),
+		CacheDriver:        stringValue("CACHE_DRIVER", "memory"),
+		RedisURL:           os.Getenv("REDIS_URL"),
 	}
 	var err error
 	if cfg.RateLimitEnabled, err = boolValue("RATE_LIMIT_ENABLED", true); err != nil {
@@ -109,6 +113,26 @@ func (c Config) validate() error {
 	if c.RateLimitBurst < 0 {
 		return errors.New("RATE_LIMIT_BURST must not be negative")
 	}
+	switch c.CacheDriver {
+	case "memory":
+	case "redis":
+		if c.RedisURL == "" {
+			return errors.New("REDIS_URL is required when CACHE_DRIVER is redis")
+		}
+	default:
+		return fmt.Errorf("CACHE_DRIVER must be memory or redis, got %q", c.CacheDriver)
+	}
+	if c.RedisURL != "" {
+		parsed, err := url.Parse(c.RedisURL)
+		if err != nil {
+			return fmt.Errorf("invalid REDIS_URL: %w", err)
+		}
+		switch parsed.Scheme {
+		case "redis", "rediss", "unix":
+		default:
+			return fmt.Errorf("REDIS_URL must use the redis, rediss, or unix scheme, got %q", parsed.Scheme)
+		}
+	}
 	for _, timeout := range []struct {
 		name  string
 		value time.Duration
@@ -150,6 +174,7 @@ func (c Config) Options() framework.Options {
 		},
 		Metrics: framework.MetricsOptions{Enabled: c.MetricsEnabled},
 		PProf:   framework.PProfOptions{Enabled: c.PProfEnabled},
+		Cache:   framework.CacheOptions{Driver: c.CacheDriver, RedisURL: c.RedisURL},
 	}
 }
 

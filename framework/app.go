@@ -12,12 +12,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Alfian57/gin-kit/framework/cache"
 	frameworkdb "github.com/Alfian57/gin-kit/framework/database"
 	"github.com/Alfian57/gin-kit/framework/httpx"
 	"github.com/Alfian57/gin-kit/framework/metrics"
 	"github.com/Alfian57/gin-kit/framework/validation"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -48,6 +50,15 @@ type MetricsOptions struct {
 	Registry *prometheus.Registry
 }
 
+type CacheOptions struct {
+	// Driver selects the cache store: "memory" (default) or "redis".
+	Driver string
+	// Prefix is prepended to every cache key on shared stores.
+	Prefix string
+	// RedisURL configures the redis driver, e.g. redis://localhost:6379/0.
+	RedisURL string
+}
+
 type PProfOptions struct {
 	Enabled bool
 	// Prefix is the mount point, defaulting to /debug/pprof. The endpoints
@@ -65,6 +76,7 @@ type Options struct {
 	Database    *frameworkdb.Config
 	Metrics     MetricsOptions
 	PProf       PProfOptions
+	Cache       CacheOptions
 }
 
 type Application struct {
@@ -76,6 +88,7 @@ type Application struct {
 	readiness       map[string]Check
 	database        *frameworkdb.Connection
 	metrics         *metrics.Metrics
+	cache           cache.Store
 	shutdownTimeout time.Duration
 	hooksMu         sync.Mutex
 	shutdownHooks   []func(context.Context) error
@@ -115,6 +128,10 @@ func New(options Options) (*Application, error) {
 			return nil, fmt.Errorf("framework: metrics: %w", err)
 		}
 	}
+	redisOptions, err := resolveRedisOptions(&options)
+	if err != nil {
+		return nil, err
+	}
 	var connection *frameworkdb.Connection
 	if options.Database != nil {
 		var err error
@@ -143,6 +160,10 @@ func New(options Options) (*Application, error) {
 	}
 	if connection != nil {
 		app.OnShutdown(func(context.Context) error { return connection.Close() })
+	}
+	if err := app.installCache(options, redisOptions); err != nil {
+		hookErr := app.runShutdownHooks(context.Background())
+		return nil, errors.Join(err, hookErr)
 	}
 	app.server = &http.Server{
 		Addr:         options.HTTP.Address,
@@ -181,6 +202,53 @@ func New(options Options) (*Application, error) {
 		httpx.Fail(c, httpx.NewError(http.StatusMethodNotAllowed, "method_not_allowed", "The requested method is not allowed."))
 	})
 	return app, nil
+}
+
+// resolveRedisOptions validates the Redis configuration up front, before any
+// connection is opened, so a bad URL fails fast without leaking resources.
+func resolveRedisOptions(options *Options) (*redis.Options, error) {
+	switch options.Cache.Driver {
+	case "", "memory":
+		return nil, nil
+	case "redis":
+	default:
+		return nil, fmt.Errorf("framework: unknown cache driver %q", options.Cache.Driver)
+	}
+	if options.Cache.RedisURL == "" {
+		return nil, errors.New("framework: the redis cache driver requires a Redis URL")
+	}
+	parsed, err := redis.ParseURL(options.Cache.RedisURL)
+	if err != nil {
+		return nil, fmt.Errorf("framework: invalid Redis URL: %w", err)
+	}
+	return parsed, nil
+}
+
+// installCache builds the cache store and, when Redis is used, the shared
+// Redis client with its readiness check. Hook order matters: the client's
+// close hook registers before the store's, so LIFO shutdown closes consumers
+// before their connection.
+func (a *Application) installCache(options Options, redisOptions *redis.Options) error {
+	if redisOptions == nil {
+		a.cache = cache.NewMemory(cache.MemoryOptions{})
+		a.OnShutdown(func(context.Context) error { return a.cache.Close() })
+		return nil
+	}
+	client := redis.NewClient(redisOptions)
+	if a.readiness == nil {
+		a.readiness = make(map[string]Check)
+	}
+	a.readiness["redis"] = func(ctx context.Context) error {
+		return client.Ping(ctx).Err()
+	}
+	a.OnShutdown(func(context.Context) error { return client.Close() })
+	store, err := cache.NewRedis(cache.RedisOptions{Client: client, Prefix: options.Cache.Prefix})
+	if err != nil {
+		return err
+	}
+	a.cache = store
+	a.OnShutdown(func(context.Context) error { return a.cache.Close() })
+	return nil
 }
 
 func applyDefaults(options *Options) {
@@ -238,6 +306,10 @@ func (a *Application) Database() *frameworkdb.Connection { return a.database }
 // Metrics returns the Prometheus instrumentation, or nil when disabled. Use
 // its Registry to register custom application metrics.
 func (a *Application) Metrics() *metrics.Metrics { return a.metrics }
+
+// Cache returns the application cache store. It is never nil: without
+// configuration an in-memory store is used, and CacheOptions selects Redis.
+func (a *Application) Cache() cache.Store { return a.cache }
 
 // Logger returns the application's base structured logger. Handlers should
 // prefer the request-scoped httpx.Logger(c).

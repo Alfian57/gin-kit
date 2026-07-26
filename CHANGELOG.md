@@ -9,6 +9,17 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `framework/cache`: Laravel-style cache with in-memory (default) and Redis
+  drivers behind one interface, a JSON `Remember` helper, key prefixes,
+  increments and TTLs; configured with `CACHE_DRIVER`/`REDIS_URL`, with an
+  automatic `redis` readiness check and shutdown-managed cleanup.
+  `app.Cache()` is always available.
+- `framework/events`: dependency-free in-process typed event bus (`On`/`Emit`)
+  with synchronous ordered dispatch, joined handler errors, panic recovery,
+  and unsubscribe.
+- Framework-edition Docker Compose now includes a Redis service
+  (`GIN_KIT_REDIS_PORT` override supported).
+
 - Supervised background runners: `Application.Go(name, runner)` runs
   long-lived goroutines under `Run` with shared cancellation; a runner error
   or panic triggers graceful HTTP shutdown, runners drain before shutdown
