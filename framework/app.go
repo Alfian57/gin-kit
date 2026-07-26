@@ -18,6 +18,7 @@ import (
 	"github.com/Alfian57/gin-kit/framework/validation"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/sync/errgroup"
 )
 
 type Check func(context.Context) error
@@ -78,6 +79,15 @@ type Application struct {
 	shutdownTimeout time.Duration
 	hooksMu         sync.Mutex
 	shutdownHooks   []func(context.Context) error
+	runnersMu       sync.Mutex
+	runners         []runner
+	started         bool
+}
+
+// runner is a named long-running goroutine supervised by Run.
+type runner struct {
+	name string
+	run  func(context.Context) error
 }
 
 func New(options Options) (*Application, error) {
@@ -233,6 +243,24 @@ func (a *Application) Metrics() *metrics.Metrics { return a.metrics }
 // prefer the request-scoped httpx.Logger(c).
 func (a *Application) Logger() *slog.Logger { return a.logger }
 
+// Go registers a named background runner that Run supervises alongside the
+// HTTP server: all runners share cancellation, and a runner error triggers a
+// graceful application shutdown. Runners must return promptly once their
+// context is canceled. Register runners before calling Run; later
+// registrations are dropped with a warning.
+func (a *Application) Go(name string, run func(context.Context) error) {
+	if name == "" || run == nil {
+		return
+	}
+	a.runnersMu.Lock()
+	defer a.runnersMu.Unlock()
+	if a.started {
+		a.logger.Warn("runner registered after Run; ignored", "runner", name)
+		return
+	}
+	a.runners = append(a.runners, runner{name: name, run: run})
+}
+
 func (a *Application) OnShutdown(hook func(context.Context) error) {
 	if hook == nil {
 		return
@@ -242,29 +270,63 @@ func (a *Application) OnShutdown(hook func(context.Context) error) {
 	a.hooksMu.Unlock()
 }
 
-// Run serves until the context is canceled or the server fails, then performs
-// graceful shutdown and invokes hooks in reverse registration order.
+// Run serves until the context is canceled, the server fails, or a runner
+// fails, then performs graceful shutdown: the HTTP server stops, runners are
+// waited on, and hooks execute in reverse registration order.
 func (a *Application) Run(ctx context.Context) error {
-	serverErrors := make(chan error, 1)
-	go func() {
+	a.runnersMu.Lock()
+	a.started = true
+	runners := append([]runner(nil), a.runners...)
+	a.runnersMu.Unlock()
+
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.Go(func() error {
 		err := a.server.ListenAndServe()
 		if errors.Is(err, http.ErrServerClosed) {
-			err = nil
+			return nil
 		}
-		serverErrors <- err
-	}()
-
-	var serveErr error
-	select {
-	case <-ctx.Done():
-	case serveErr = <-serverErrors:
+		return err
+	})
+	for _, item := range runners {
+		group.Go(func() error {
+			err := runRunner(groupCtx, item.run)
+			if err != nil && !errors.Is(err, context.Canceled) {
+				return fmt.Errorf("framework: runner %q: %w", item.name, err)
+			}
+			return nil
+		})
 	}
+
+	<-groupCtx.Done()
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), a.shutdownTimeout)
 	defer cancel()
 	shutdownErr := a.server.Shutdown(shutdownCtx)
+	waitErr := waitForGroup(shutdownCtx, group)
 	hooksErr := a.runShutdownHooks(shutdownCtx)
-	return errors.Join(serveErr, shutdownErr, hooksErr)
+	return errors.Join(waitErr, shutdownErr, hooksErr)
+}
+
+// runRunner converts runner panics into errors so one failing runner triggers
+// a graceful shutdown instead of crashing the process.
+func runRunner(ctx context.Context, run func(context.Context) error) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = fmt.Errorf("panic: %v", recovered)
+		}
+	}()
+	return run(ctx)
+}
+
+func waitForGroup(ctx context.Context, group *errgroup.Group) error {
+	done := make(chan error, 1)
+	go func() { done <- group.Wait() }()
+	select {
+	case err := <-done:
+		return err
+	case <-ctx.Done():
+		return errors.New("framework: runners did not exit before the shutdown timeout")
+	}
 }
 
 func (a *Application) runShutdownHooks(ctx context.Context) error {
