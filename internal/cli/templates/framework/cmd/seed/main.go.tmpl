@@ -2,14 +2,12 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"log"
 	"os"
 
 	"github.com/Alfian57/gin-kit/framework/config"
+	"github.com/Alfian57/gin-kit/framework/database"
 	"{{.Module}}/internal/database/seeders"
-
-	_ "{{if eq .Database "postgres"}}github.com/jackc/pgx/v5/stdlib{{else if eq .Database "sqlite"}}github.com/mattn/go-sqlite3{{else}}github.com/go-sql-driver/mysql{{end}}"
 )
 
 func main() {
@@ -21,13 +19,17 @@ func main() {
 {{if eq .Database "sqlite"}}		dsn = "file:{{.Project}}.sqlite?_busy_timeout=5000"
 {{else}}		log.Fatal("DATABASE_URL is required for {{.Database}}")
 {{end}}	}
-	db, err := sql.Open("{{if eq .Database "postgres"}}pgx{{else if eq .Database "sqlite"}}sqlite3{{else}}mysql{{end}}", dsn)
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.Config{
+		Dialect: database.{{if eq .Database "postgres"}}Postgres{{else if eq .Database "sqlite"}}SQLite{{else if eq .Database "mariadb"}}MariaDB{{else}}MySQL{{end}},
+		DSN:     dsn,
+		ORM:     database.{{if eq .ORM "gorm"}}GORM{{else}}SQLX{{end}},
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
-	ctx := context.Background()
 	for _, seeder := range seeders.All() {
 		log.Printf("seeding %s", seeder.Name)
 		if err := seeder.Run(ctx, db); err != nil {

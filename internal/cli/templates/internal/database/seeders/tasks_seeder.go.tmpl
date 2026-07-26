@@ -2,16 +2,17 @@ package seeders
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"time"
+
+	"{{.Module}}/internal/platform/database"
 )
 
 // SeedTasks inserts sample tasks when the table is empty, so re-running the
 // seeder is safe.
-func SeedTasks(ctx context.Context, db *sql.DB) error {
+func SeedTasks(ctx context.Context, db *database.Connection) error {
 	var count int
-	if err := db.QueryRowContext(ctx, "SELECT COUNT(*) FROM tasks").Scan(&count); err != nil {
+	if err := db.SQL.QueryRowContext(ctx, "SELECT COUNT(*) FROM tasks").Scan(&count); err != nil {
 		return err
 	}
 	if count > 0 {
@@ -20,7 +21,7 @@ func SeedTasks(ctx context.Context, db *sql.DB) error {
 	now := time.Now().UTC()
 	titles := []string{"Explore the generated project", "Run gin-kit routes", "Ship something"}
 	for index, title := range titles {
-		_, err := db.ExecContext(ctx,
+		_, err := db.SQL.ExecContext(ctx,
 			"INSERT INTO tasks (id, title, completed, created_at, updated_at) VALUES ({{if eq .Database "postgres"}}$1, $2, $3, $4, $5{{else}}?, ?, ?, ?, ?{{end}})",
 			fmt.Sprintf("seed-task-%d", index+1), title, index == 0, now, now,
 		)

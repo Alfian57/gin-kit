@@ -2,30 +2,26 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"log"
-	"os"
 
 	"{{.Module}}/internal/database/seeders"
 	"{{.Module}}/internal/platform/config"
-
-	_ "{{if eq .Database "postgres"}}github.com/jackc/pgx/v5/stdlib{{else if eq .Database "sqlite"}}github.com/mattn/go-sqlite3{{else}}github.com/go-sql-driver/mysql{{end}}"
+	"{{.Module}}/internal/platform/database"
 )
 
 func main() {
 	if err := config.LoadDotenv(".env"); err != nil {
 		log.Fatal(err)
 	}
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-{{if eq .Database "sqlite"}}		dsn = "file:{{.Project}}.sqlite?_busy_timeout=5000"
-{{else}}		log.Fatal("DATABASE_URL is required for {{.Database}}")
-{{end}}	}
-	db, err := sql.Open("{{if eq .Database "postgres"}}pgx{{else if eq .Database "sqlite"}}sqlite3{{else}}mysql{{end}}", dsn)
+	cfg, err := config.Load()
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
+	db, cleanup, err := database.Open(cfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer cleanup()
 
 	ctx := context.Background()
 	for _, seeder := range seeders.All() {

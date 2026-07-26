@@ -1,0 +1,93 @@
+// Package factory provides Laravel-style model factories: define how a model
+// is built once, then Make in-memory instances or Create persisted ones in
+// tests and seeders. Factories are ORM-agnostic — persistence goes through a
+// caller-supplied function, typically a repository's Create method.
+package factory
+
+import (
+	"context"
+	"fmt"
+	"sync"
+
+	"github.com/brianvoe/gofakeit/v7"
+)
+
+// F is the per-factory faker handed to build functions. It embeds the full
+// gofakeit API (f.Email(), f.Name(), f.UUID(), ...) and adds a sequence
+// counter for unique values.
+type F struct {
+	*gofakeit.Faker
+	seq uint64
+}
+
+// Seq returns 1, 2, 3, ... across builds of the same factory.
+func (f *F) Seq() int { return int(f.seq) }
+
+// Seqf renders format with the current sequence number, e.g.
+// f.Seqf("user-%d@example.com").
+func (f *F) Seqf(format string) string { return fmt.Sprintf(format, f.seq) }
+
+// Factory builds instances of T.
+type Factory[T any] struct {
+	mu    sync.Mutex
+	build func(*F) T
+	faker *F
+}
+
+// Define creates a factory with a randomly seeded faker.
+func Define[T any](build func(f *F) T) *Factory[T] {
+	return &Factory[T]{build: build, faker: &F{Faker: gofakeit.New(0)}}
+}
+
+// Seeded returns a new factory sharing the build function but with a
+// deterministic faker and a reset sequence, for reproducible tests.
+func (fa *Factory[T]) Seeded(seed uint64) *Factory[T] {
+	return &Factory[T]{build: fa.build, faker: &F{Faker: gofakeit.New(seed)}}
+}
+
+// Make builds one instance, applying overrides in order after the build
+// function.
+func (fa *Factory[T]) Make(overrides ...func(*T)) T {
+	fa.mu.Lock()
+	defer fa.mu.Unlock()
+	fa.faker.seq++
+	value := fa.build(fa.faker)
+	for _, override := range overrides {
+		override(&value)
+	}
+	return value
+}
+
+// MakeMany builds n instances.
+func (fa *Factory[T]) MakeMany(n int, overrides ...func(*T)) []T {
+	values := make([]T, 0, n)
+	for i := 0; i < n; i++ {
+		values = append(values, fa.Make(overrides...))
+	}
+	return values
+}
+
+// Create builds one instance and persists it, typically with a repository:
+//
+//	ticket, err := factories.NewTicketFactory().Create(ctx, repo.Create)
+func (fa *Factory[T]) Create(ctx context.Context, persist func(context.Context, *T) error, overrides ...func(*T)) (T, error) {
+	value := fa.Make(overrides...)
+	if err := persist(ctx, &value); err != nil {
+		return value, err
+	}
+	return value, nil
+}
+
+// CreateMany builds and persists n instances, stopping at the first error
+// and returning the instances persisted so far alongside it.
+func (fa *Factory[T]) CreateMany(ctx context.Context, n int, persist func(context.Context, *T) error, overrides ...func(*T)) ([]T, error) {
+	values := make([]T, 0, n)
+	for i := 0; i < n; i++ {
+		value, err := fa.Create(ctx, persist, overrides...)
+		if err != nil {
+			return values, err
+		}
+		values = append(values, value)
+	}
+	return values, nil
+}

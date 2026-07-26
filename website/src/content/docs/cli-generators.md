@@ -11,7 +11,8 @@ gin-kit check
 gin-kit doctor
 gin-kit explain <topic>
 gin-kit generate resource <Name> --fields "title:string,done:bool,price:float64"
-gin-kit generate domain|repository|handler|service|middleware|migration <Name>
+gin-kit generate factory <Name> --fields "email:string,age:int"
+gin-kit generate domain|repository|handler|service|middleware|seeder|migration <Name>
 gin-kit db up|down|status
 ```
 
