@@ -31,14 +31,28 @@ gin-kit new ./services/orders --non-interactive \
 ## Generation
 
 ```text
-gin-kit generate handler <name>
-gin-kit generate service <name>
-gin-kit generate domain <name>
-gin-kit generate repository <name>
-gin-kit generate middleware <name>
+gin-kit generate resource <Name> --fields "title:string,done:bool" [--table name]
+gin-kit generate domain <Name> [--fields ...]
+gin-kit generate repository <Name> [--fields ...]
+gin-kit generate handler <Name>
+gin-kit generate service <Name>
+gin-kit generate middleware <Name>
 gin-kit generate migration <name>
-gin-kit generate resource <name>
 ```
+
+`generate resource` renders a complete vertical slice from real,
+manifest-aware templates: domain model with a repository interface, a GORM or
+sqlx repository (per the project manifest), a service with typed inputs and
+validation, an HTTP handler with query filtering/sorting/pagination, tests
+with in-memory repository fakes, and a timestamped goose migration with
+dialect-mapped column types.
+
+The `--fields` grammar is `name:type` pairs separated by commas, with types
+`string`, `text`, `int`, `int64`, `float64`, `bool`, and `time` (aliases:
+`float`, `datetime`, `timestamp`); a trailing `?` makes a field nullable.
+`id`, `created_at`, and `updated_at` are always generated. String fields get
+partial-match filters, booleans exact boolean filters, and numeric/time
+fields comparison filters.
 
 ## Database
 
@@ -48,8 +62,10 @@ gin-kit db down
 gin-kit db status
 ```
 
-The command tree intentionally uses Go-native verbs and nouns. It does not
-implement Laravel's `make:*` or Artisan conventions.
+The command tree uses Go-native verbs and nouns while delivering
+Artisan-level generator coverage. Routes are never registered automatically:
+each generator prints the exact wiring snippet to paste, keeping application
+wiring explicit and reviewable.
 
 `gin-kit check` is read-only: it reports files that need formatting, then runs
 tests and vet. It never rewrites source files.

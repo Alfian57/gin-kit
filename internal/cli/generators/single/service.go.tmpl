@@ -1,0 +1,9 @@
+package service
+
+// {{.Name}}Service holds the business rules for {{.PluralCamel}}. Inject its
+// dependencies (repositories, mailers, queues) through the constructor.
+type {{.Name}}Service struct{}
+
+func New{{.Name}}Service() *{{.Name}}Service {
+	return &{{.Name}}Service{}
+}

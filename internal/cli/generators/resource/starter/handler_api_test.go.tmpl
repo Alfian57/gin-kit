@@ -1,0 +1,108 @@
+package api
+
+import (
+	"context"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
+	"testing"
+
+	"github.com/gin-gonic/gin"
+	"{{.Module}}/internal/domain"
+	"{{.Module}}/internal/platform/query"
+	"{{.Module}}/internal/service"
+)
+
+type fake{{.Name}}Repository struct {
+	mu    sync.Mutex
+	items map[string]domain.{{.Name}}
+}
+
+func (f *fake{{.Name}}Repository) Create(_ context.Context, entity *domain.{{.Name}}) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.items[entity.ID] = *entity
+	return nil
+}
+
+func (f *fake{{.Name}}Repository) List(_ context.Context, _ query.Result) ([]domain.{{.Name}}, int64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	items := make([]domain.{{.Name}}, 0, len(f.items))
+	for _, item := range f.items {
+		items = append(items, item)
+	}
+	return items, int64(len(items)), nil
+}
+
+func (f *fake{{.Name}}Repository) Get(_ context.Context, id string) (domain.{{.Name}}, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	item, ok := f.items[id]
+	if !ok {
+		return domain.{{.Name}}{}, domain.Err{{.Name}}NotFound
+	}
+	return item, nil
+}
+
+func (f *fake{{.Name}}Repository) Update(_ context.Context, entity *domain.{{.Name}}) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, ok := f.items[entity.ID]; !ok {
+		return domain.Err{{.Name}}NotFound
+	}
+	f.items[entity.ID] = *entity
+	return nil
+}
+
+func (f *fake{{.Name}}Repository) Delete(_ context.Context, id string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if _, ok := f.items[id]; !ok {
+		return domain.Err{{.Name}}NotFound
+	}
+	delete(f.items, id)
+	return nil
+}
+
+func Test{{.Plural}}Endpoints(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	Register{{.Plural}}(router.Group("/api/v1"), service.New{{.Name}}Service(&fake{{.Name}}Repository{items: map[string]domain.{{.Name}}{}}))
+
+	do := func(method, path, body string) *httptest.ResponseRecorder {
+		t.Helper()
+		var request *http.Request
+		if body == "" {
+			request = httptest.NewRequest(method, path, nil)
+		} else {
+			request = httptest.NewRequest(method, path, strings.NewReader(body))
+			request.Header.Set("Content-Type", "application/json")
+		}
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, request)
+		return recorder
+	}
+
+	created := do(http.MethodPost, "/api/v1/{{.PluralCamel}}", `{{.SampleJSON}}`)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create: %d %s", created.Code, created.Body)
+	}
+{{if .StringFields}}
+	if invalid := do(http.MethodPost, "/api/v1/{{.PluralCamel}}", `{}`); invalid.Code != http.StatusBadRequest {
+		t.Fatalf("invalid create accepted: %d %s", invalid.Code, invalid.Body)
+	}
+{{end}}
+	listed := do(http.MethodGet, "/api/v1/{{.PluralCamel}}", "")
+	if listed.Code != http.StatusOK || !strings.Contains(listed.Body.String(), `"meta"`) {
+		t.Fatalf("list: %d %s", listed.Code, listed.Body)
+	}
+
+	if missing := do(http.MethodGet, "/api/v1/{{.PluralCamel}}/absent-id", ""); missing.Code != http.StatusNotFound {
+		t.Fatalf("missing entity: %d %s", missing.Code, missing.Body)
+	}
+	if missing := do(http.MethodDelete, "/api/v1/{{.PluralCamel}}/absent-id", ""); missing.Code != http.StatusNotFound {
+		t.Fatalf("missing delete: %d %s", missing.Code, missing.Body)
+	}
+}

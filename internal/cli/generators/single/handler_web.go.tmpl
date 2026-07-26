@@ -1,0 +1,15 @@
+package web
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+)
+
+// Register{{.Plural}}Routes wires the {{.Camel}} pages. Call it from the
+// package Register function and replace the placeholder handler.
+func Register{{.Plural}}Routes(router gin.IRoutes) {
+	router.GET("/{{.PluralCamel}}", func(c *gin.Context) {
+		c.String(http.StatusOK, "{{.Plural}} page")
+	})
+}

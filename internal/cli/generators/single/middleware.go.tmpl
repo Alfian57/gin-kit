@@ -1,0 +1,10 @@
+package middleware
+
+import "github.com/gin-gonic/gin"
+
+// {{.Name}} is application middleware; replace the body with real behavior.
+func {{.Name}}() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Next()
+	}
+}

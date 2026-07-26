@@ -1,0 +1,38 @@
+package web
+
+import (
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"{{.Module}}/internal/platform/query"
+	"{{.Module}}/internal/platform/session"
+	"{{.Module}}/internal/service"
+)
+
+// Register{{.Plural}} wires the {{.Camel}} pages onto the router.
+func Register{{.Plural}}(r *gin.Engine, {{.PluralCamel}} *service.{{.Name}}Service) {
+	r.GET("/{{.PluralCamel}}", func(c *gin.Context) {
+		listQuery := query.Result{Page: 1, PerPage: 100, Sorts: []query.SortValue{ {Column: "created_at", Desc: true} }}
+		items, _, err := {{.PluralCamel}}.List(c.Request.Context(), listQuery)
+		if err != nil {
+			c.String(http.StatusInternalServerError, "Unable to load {{.PluralCamel}}")
+			return
+		}
+		c.HTML(http.StatusOK, "{{.PluralCamel}}.html", gin.H{
+			"items":      items,
+			"csrf_field": session.TemplateField(c),
+			"flashes":    session.Flashes(c),
+		})
+	})
+	r.POST("/{{.PluralCamel}}", func(c *gin.Context) {
+		input := service.{{.Name}}Input{
+{{range .StringFields}}			{{.Pascal}}: c.PostForm("{{.Name}}"),
+{{end}}		}
+		if _, err := {{.PluralCamel}}.Create(c.Request.Context(), input); err != nil {
+			c.String(http.StatusBadRequest, err.Error())
+			return
+		}
+		_ = session.PutFlash(c, "success", "{{.Name}} created.")
+		c.Redirect(http.StatusSeeOther, "/{{.PluralCamel}}")
+	})
+}

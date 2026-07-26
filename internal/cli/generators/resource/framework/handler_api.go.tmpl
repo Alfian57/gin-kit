@@ -1,0 +1,94 @@
+package {{if eq .Mode "ui"}}web{{else}}api{{end}}
+
+import (
+	"errors"
+	"net/http"
+{{if .HasTime}}	"time"
+{{end}}
+	"github.com/Alfian57/gin-kit/framework/httpx"
+	"github.com/Alfian57/gin-kit/framework/query"
+	"github.com/gin-gonic/gin"
+	"{{.Module}}/internal/domain"
+	"{{.Module}}/internal/service"
+)
+
+type {{.Camel}}Input struct {
+{{range .Fields}}	{{.Pascal}} {{.GoType}} `json:"{{.Name}}"{{if .InputTag}} validate:"{{.InputTag}}"{{end}}`
+{{end}}}
+
+func (input {{.Camel}}Input) toService() service.{{.Name}}Input {
+	return service.{{.Name}}Input{
+{{range .Fields}}		{{.Pascal}}: input.{{.Pascal}},
+{{end}}	}
+}
+
+// Register{{.Plural}} wires the {{.Camel}} routes onto the router.
+func Register{{.Plural}}(router *gin.Engine, {{.PluralCamel}} *service.{{.Name}}Service) {
+	router.POST("/api/v1/{{.PluralCamel}}", func(c *gin.Context) {
+		input, ok := httpx.BindJSON[{{.Camel}}Input](c)
+		if !ok {
+			return
+		}
+		created, err := {{.PluralCamel}}.Create(c.Request.Context(), input.toService())
+		if err != nil {
+			{{.Camel}}Fail(c, err)
+			return
+		}
+		httpx.Created(c, created)
+	})
+	router.GET("/api/v1/{{.PluralCamel}}", func(c *gin.Context) {
+		q, err := query.Parse(c, query.Options{
+			AllowedFilters: []query.Filter{ {{.FilterList}} },
+			AllowedSorts:   []query.Sort{ {{.SortList}} },
+			DefaultSort:    "-created_at",
+		})
+		if err != nil {
+			httpx.Handle(c, nil, err)
+			return
+		}
+		items, total, err := {{.PluralCamel}}.List(c.Request.Context(), q)
+		if err != nil {
+			{{.Camel}}Fail(c, err)
+			return
+		}
+		httpx.List(c, items, q.Meta(total))
+	})
+	router.GET("/api/v1/{{.PluralCamel}}/:id", func(c *gin.Context) {
+		entity, err := {{.PluralCamel}}.Get(c.Request.Context(), c.Param("id"))
+		if err != nil {
+			{{.Camel}}Fail(c, err)
+			return
+		}
+		httpx.OK(c, entity)
+	})
+	router.PUT("/api/v1/{{.PluralCamel}}/:id", func(c *gin.Context) {
+		input, ok := httpx.BindJSON[{{.Camel}}Input](c)
+		if !ok {
+			return
+		}
+		entity, err := {{.PluralCamel}}.Update(c.Request.Context(), c.Param("id"), input.toService())
+		if err != nil {
+			{{.Camel}}Fail(c, err)
+			return
+		}
+		httpx.OK(c, entity)
+	})
+	router.DELETE("/api/v1/{{.PluralCamel}}/:id", func(c *gin.Context) {
+		if err := {{.PluralCamel}}.Delete(c.Request.Context(), c.Param("id")); err != nil {
+			{{.Camel}}Fail(c, err)
+			return
+		}
+		httpx.NoContent(c)
+	})
+}
+
+func {{.Camel}}Fail(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, domain.Err{{.Name}}NotFound):
+		httpx.Fail(c, httpx.NewError(http.StatusNotFound, "{{.Snake}}_not_found", "{{.Name}} not found."))
+	case errors.Is(err, service.ErrInvalid{{.Name}}):
+		httpx.Fail(c, httpx.NewError(http.StatusBadRequest, "validation_failed", err.Error()))
+	default:
+		httpx.Handle(c, nil, err)
+	}
+}

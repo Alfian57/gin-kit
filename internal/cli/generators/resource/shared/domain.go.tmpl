@@ -1,0 +1,28 @@
+package domain
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"{{.QueryImport}}"
+)
+
+var Err{{.Name}}NotFound = errors.New("{{.Camel}} not found")
+
+type {{.Name}} struct {
+	ID string `json:"id" db:"id" gorm:"primaryKey;size:36"`
+{{range .Fields}}	{{.Pascal}} {{.GoType}} {{.StructTag}}
+{{end}}	CreatedAt time.Time `json:"created_at" db:"created_at" gorm:"not null"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at" gorm:"not null"`
+}
+
+func ({{.Name}}) TableName() string { return "{{.Table}}" }
+
+type {{.Name}}Repository interface {
+	Create(context.Context, *{{.Name}}) error
+	List(context.Context, query.Result) ([]{{.Name}}, int64, error)
+	Get(context.Context, string) ({{.Name}}, error)
+	Update(context.Context, *{{.Name}}) error
+	Delete(context.Context, string) error
+}

@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+# Generated smoke projects are not git repositories; skip VCS stamping so the
+# smoke behaves identically across CI runners and local sandboxes.
+export GOFLAGS="-buildvcs=false${GOFLAGS:+ $GOFLAGS}"
+
 repo_root="$(git rev-parse --show-toplevel)"
 mode="${GIN_KIT_MODE:?GIN_KIT_MODE is required}"
 database="${GIN_KIT_DATABASE:?GIN_KIT_DATABASE is required}"
@@ -22,10 +26,9 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if [[ ! -x "$cli_path" ]]; then
-  mkdir -p "$(dirname "$cli_path")"
-  (cd "$repo_root" && go build -trimpath -o "$cli_path" ./cmd/gin-kit)
-fi
+# Always rebuild so local runs never test a stale CLI binary.
+mkdir -p "$(dirname "$cli_path")"
+(cd "$repo_root" && go build -trimpath -o "$cli_path" ./cmd/gin-kit)
 
 args=(
   new "$project_name"
@@ -92,4 +95,11 @@ fi
   "$cli_path" check
   go run ./cmd/migrate up
   go run ./cmd/migrate status
+  # Generators must produce compiling, passing code in every matrix cell.
+  "$cli_path" generate resource SmokeTicket --fields "title:string,done:bool,price:float64,due_at:time"
+  "$cli_path" generate middleware SmokeTimer
+  go mod tidy
+  go build ./...
+  go vet ./...
+  go test ./...
 )
