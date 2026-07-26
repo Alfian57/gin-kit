@@ -5,11 +5,16 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+{{if .Auth}}
+	"github.com/Alfian57/gin-kit/framework/auth"
+{{end}}
 )
 
-// Register installs the initial application-owned UI route.
-func Register(router *gin.Engine) {
-	if _, err := os.Stat("web/templates/index.html"); err == nil {
+// Register installs the initial application-owned UI routes.
+func Register(router *gin.Engine{{if .Auth}}, tokens *auth.Manager{{end}}) {
+{{if .Auth}}	registerAuth(router, tokens)
+{{end}}{{if .Example}}	registerTasks(router)
+{{end}}	if _, err := os.Stat("web/templates/index.html"); err == nil {
 		router.LoadHTMLGlob("web/templates/*.html")
 		router.Static("/assets", "web/assets")
 		router.GET("/", func(c *gin.Context) {
@@ -20,6 +25,4 @@ func Register(router *gin.Engine) {
 	router.GET("/", func(c *gin.Context) {
 		c.String(http.StatusOK, "Welcome to {{.Project}}")
 	})
-{{if .Example}}	registerTasks(router)
-{{end}}
 }

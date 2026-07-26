@@ -61,6 +61,11 @@ jobs:
             database: sqlite
             orm: gorm
             auth: false
+          - edition: framework
+            mode: api
+            database: sqlite
+            orm: gorm
+            auth: true
           - edition: starter
             mode: api
             database: sqlite

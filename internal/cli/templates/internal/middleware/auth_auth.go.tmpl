@@ -12,12 +12,14 @@ func RequireAuth(secret []byte) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		header := c.GetHeader("Authorization")
 		if !strings.HasPrefix(header, "Bearer ") {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": gin.H{"code": "missing_token", "message": "Bearer token required"}})
+			c.Header("WWW-Authenticate", "Bearer")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": gin.H{"code": "missing_token", "message": "Bearer token required."}})
 			return
 		}
 		claims, err := auth.Parse(strings.TrimPrefix(header, "Bearer "), secret)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": gin.H{"code": "invalid_token", "message": "Token is invalid or expired"}})
+			c.Header("WWW-Authenticate", "Bearer")
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": gin.H{"code": "invalid_token", "message": "Token is invalid or expired."}})
 			return
 		}
 		c.Set("user_id", claims.UserID)

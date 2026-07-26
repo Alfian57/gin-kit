@@ -131,6 +131,41 @@ func TestFrameworkReplaceAddsLocalOverride(t *testing.T) {
 	}
 }
 
+func TestFrameworkScaffoldWiresAuth(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "secure")
+	m := Manifest{
+		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+		Project: "secure", Module: "example.com/secure",
+		Mode: "api", Database: "sqlite", ORM: "gorm", Auth: true,
+	}
+	if err := scaffold(dir, m); err != nil {
+		t.Fatal(err)
+	}
+	appSource, err := os.ReadFile(filepath.Join(dir, "internal", "app", "app.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(appSource), "auth.New(") {
+		t.Fatalf("framework app.go does not wire authentication:\n%s", appSource)
+	}
+	for _, rel := range []string{"internal/handler/api/auth_me.go", "internal/handler/api/auth_me_test.go"} {
+		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
+			t.Fatalf("framework auth scaffold missing %s: %v", rel, err)
+		}
+	}
+
+	plain := filepath.Join(t.TempDir(), "plain")
+	m.Auth = false
+	m.Project = "plain"
+	m.Module = "example.com/plain"
+	if err := scaffold(plain, m); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(plain, "internal", "handler", "api", "auth_me.go")); err == nil {
+		t.Fatal("auth scaffold generated without --auth")
+	}
+}
+
 func TestFrameworkUIIncludesAssetTooling(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "portal")
 	m := Manifest{
