@@ -323,7 +323,7 @@ func resourceNextSteps(m Manifest, data genData, handlerPackage string) string {
 		wiring = fmt.Sprintf(`In internal/app/app.go, after the existing Register call, add:
 
     %s := service.New%sService(repository.New%sRepository(application.Database()))
-    %s.Register%s(router, %s)
+    %s.Register%s(router, application.OpenAPI(), %s)
 
 and import "%s/internal/repository" and "%s/internal/service".`,
 			data.PluralCamel, data.Name, data.Name,

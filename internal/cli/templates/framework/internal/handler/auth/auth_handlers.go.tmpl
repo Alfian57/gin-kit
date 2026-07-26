@@ -8,6 +8,7 @@ import (
 
 	jwtauth "github.com/Alfian57/gin-kit/framework/auth"
 	"github.com/Alfian57/gin-kit/framework/httpx"
+	"github.com/Alfian57/gin-kit/framework/openapi"
 	"github.com/gin-gonic/gin"
 	"{{.Module}}/internal/domain"
 	"{{.Module}}/internal/service"
@@ -22,8 +23,47 @@ type refreshInput struct {
 	RefreshToken string `json:"refresh_token" validate:"required"`
 }
 
+// authResponse mirrors the login/register payload for the API docs.
+type authResponse struct {
+	User         domain.User `json:"user"`
+	AccessToken  string      `json:"access_token"`
+	RefreshToken string      `json:"refresh_token"`
+	TokenType    string      `json:"token_type"`
+	ExpiresIn    int64       `json:"expires_in"`
+}
+
 // Register installs the authentication routes.
-func Register(router *gin.Engine, tokens *jwtauth.Manager, accounts *service.AuthService) {
+func Register(router *gin.Engine, docs *openapi.Registry, tokens *jwtauth.Manager, accounts *service.AuthService) {
+	docs.Describe(
+		openapi.Operation{
+			Method: http.MethodPost, Path: "/api/v1/auth/register",
+			Summary: "Register an account", Tags: []string{"auth"},
+			Request: credentialsInput{}, Response: authResponse{}, Status: http.StatusCreated,
+			ErrorCodes: []string{"email_taken"},
+		},
+		openapi.Operation{
+			Method: http.MethodPost, Path: "/api/v1/auth/login",
+			Summary: "Sign in", Tags: []string{"auth"},
+			Request: credentialsInput{}, Response: authResponse{},
+			ErrorCodes: []string{"invalid_credentials"},
+		},
+		openapi.Operation{
+			Method: http.MethodPost, Path: "/api/v1/auth/refresh",
+			Summary: "Rotate a refresh token", Tags: []string{"auth"},
+			Request: refreshInput{}, Response: service.TokenPair{},
+			ErrorCodes: []string{"invalid_refresh_token"},
+		},
+		openapi.Operation{
+			Method: http.MethodPost, Path: "/api/v1/auth/logout",
+			Summary: "Revoke a refresh token", Tags: []string{"auth"},
+			Request: refreshInput{}, Status: http.StatusNoContent,
+		},
+		openapi.Operation{
+			Method: http.MethodGet, Path: "/api/v1/me",
+			Summary: "The authenticated account", Tags: []string{"auth"},
+			Response: domain.User{}, Security: true,
+		},
+	)
 	group := router.Group("/api/v1/auth")
 	group.POST("/register", func(c *gin.Context) {
 		input, ok := httpx.BindJSON[credentialsInput](c)

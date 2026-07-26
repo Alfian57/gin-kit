@@ -51,7 +51,15 @@ tables (run `gin-kit db up` first, and set a 32+ byte `JWT_SECRET`):
 Passwords use Argon2id; refresh tokens are stored hashed and rotate on every
 use.
 
-{{end}}## Mail and storage
+{{end}}## API documentation
+
+The API documents itself — no annotations. Open `/docs` in development for
+Swagger UI (`DOCS_ENABLED` defaults to true only in development); the spec at
+`/openapi.json` is generated from the live routes plus the typed descriptions
+the generators emit. Configure title, version, servers, and optional basic
+auth through the `DOCS_*` variables in `.env`.
+
+## Mail and storage
 
 Send email with `mail.New(cfg.MailOptions())` — the default `MAIL_DRIVER=log`
 renders messages into the logs, and `docker compose --profile mail up` starts

@@ -9,6 +9,17 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Auto-generated OpenAPI docs for framework-edition applications — zero
+  annotations: `framework/openapi` builds the 3.0.3 spec at runtime from the
+  live route table plus typed `Describe` calls that generated code carries
+  (schemas reflected from Go structs, validation tags becoming constraints,
+  list endpoints documenting filters/sorts/pagination). Swagger UI at
+  `/docs`, spec at `/openapi.json`, fully configured via `DOCS_*` env vars
+  (default on in development only) including optional basic-auth protection
+  and a customizable security scheme; scaffolded auth/tasks/ping routes and
+  `generate resource` handlers self-describe, and generated projects include
+  a docs test.
+
 - `framework/apptest` v2: PATCH, request options (`WithHeader`, `WithBearer`,
   `WithCookie`), form/multipart/raw bodies, `Meta`/`JSON` decoders, and a
   cookie-jar `Client` with a `CSRFToken` helper for session flows; apps built

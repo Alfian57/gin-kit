@@ -50,6 +50,7 @@ export default defineConfig({
             { label: 'Queues and scheduling', slug: 'background-work' },
             { label: 'Caching and events', slug: 'caching-events' },
             { label: 'Mail and file storage', slug: 'mail-storage' },
+            { label: 'API documentation', slug: 'api-docs' },
             { label: 'Observability', slug: 'observability' },
             { label: 'CLI and generators', slug: 'cli-generators' },
             { label: 'Customizing the runtime', slug: 'customization' },

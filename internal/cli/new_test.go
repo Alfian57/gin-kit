@@ -157,6 +157,12 @@ func TestFrameworkScaffoldUsesTypedConfig(t *testing.T) {
 	if !strings.Contains(string(appSource), "jobs.Register(") {
 		t.Fatalf("framework app.go does not register jobs:\n%s", appSource)
 	}
+	if !strings.Contains(string(appSource), "application.OpenAPI()") {
+		t.Fatalf("framework app.go does not wire the docs registry:\n%s", appSource)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "internal", "handler", "api", "docs_test.go")); err != nil {
+		t.Fatalf("framework api scaffold missing docs test: %v", err)
+	}
 	if _, err := os.Stat(filepath.Join(dir, "internal", "jobs", "ping.go")); err != nil {
 		t.Fatalf("framework scaffold missing jobs example: %v", err)
 	}
