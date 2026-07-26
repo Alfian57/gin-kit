@@ -17,6 +17,15 @@ and versions follow [Semantic Versioning](https://semver.org/).
   produce `{"next_cursor": ..., "per_page": ...}` metadata. Offset
   pagination remains the default; the starter edition's vendored query
   package gains the same API.
+- Authorization policies: the new `framework/authz` package (vendored as
+  `internal/platform/authz` in starter projects) provides allowlist-style
+  `Decision` values with one stable `403 forbidden` envelope — deny reasons
+  are logged and wrapped as error causes, never serialized — enforced in
+  handlers via `authz.Authorize` or converted to a mapper-ready error with
+  `Decision.Err()`. `gin-kit generate policy <Name>` renders a per-resource
+  policy (CanView/CanCreate/CanUpdate/CanDelete) with placeholder rules, a
+  table test, and the exact handler wiring snippet in both editions, and
+  back-fills the vendored authz package into older starter projects.
 
 - Visual identity: the gin-kit gopher mascot (tool belt included) becomes the
   project logo, with light/dark variants in the site header, a hero

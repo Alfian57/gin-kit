@@ -39,6 +39,7 @@ func TestScaffoldAPIPreservesSelections(t *testing.T) {
 		"internal/platform/query/query.go",
 		"internal/platform/httpx/response.go",
 		"internal/platform/httpx/bind.go",
+		"internal/platform/authz/authz.go",
 		"internal/platform/validation/validation.go",
 		"internal/middleware/security.go",
 		"internal/middleware/ratelimit.go",
@@ -157,7 +158,7 @@ func TestFrameworkScaffoldIsThinAndPinsRuntime(t *testing.T) {
 		}
 	}
 	assertAgentGuidance(t, dir, "example.com/acme/orders")
-	for _, rel := range []string{"internal/platform/config/config.go", "internal/middleware/security.go"} {
+	for _, rel := range []string{"internal/platform/config/config.go", "internal/platform/authz/authz.go", "internal/middleware/security.go"} {
 		if _, err := os.Stat(filepath.Join(dir, rel)); err == nil {
 			t.Fatalf("framework edition copied generic core %s", rel)
 		}

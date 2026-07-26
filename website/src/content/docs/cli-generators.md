@@ -39,6 +39,7 @@ gin-kit generate repository <Name> [--fields ...]
 gin-kit generate handler <Name>
 gin-kit generate service <Name>
 gin-kit generate middleware <Name>
+gin-kit generate policy <Name>
 gin-kit generate factory <Name> [--fields ...]
 gin-kit generate seeder <Name>
 gin-kit generate migration <name>
@@ -56,6 +57,10 @@ migration with dialect-mapped column types — then prints the exact wiring
 snippet to paste into `internal/app/app.go`.
 
 `generate dto` renders just the DTO file for an existing model.
+`generate policy` renders an [authorization policy](/gin-kit/authorization/)
+in `internal/policy` — per-action decision methods with placeholder rules
+and a table test — and works in both editions; starter projects get the
+vendored `internal/platform/authz` package back-filled when it is missing.
 `generate factory` creates a [model factory](/gin-kit/seeding-factories/)
 with field-aware fake data; `generate seeder` a registry-based seeder.
 `generate job`, `generate event`, and `generate mail` scaffold

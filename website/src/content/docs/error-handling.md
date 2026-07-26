@@ -25,6 +25,7 @@ releases:
 | `missing_token` / `invalid_token` | 401 | Protected route without/with a bad bearer token. |
 | `invalid_credentials` / `invalid_refresh_token` / `email_taken` | 401 / 401 / 409 | Auth flows. |
 | `csrf_token_mismatch` | 403 | UI-mode form posts without a valid CSRF token. |
+| `forbidden` | 403 | An [authorization policy](/gin-kit/authorization/) denied the action. The internal deny reason goes to logs, never to the body. |
 | `<resource>_not_found` | 404 | Generated handlers, e.g. `ticket_not_found`. |
 | `not_found` / `method_not_allowed` | 404 / 405 | Router-level fallbacks. |
 | `internal_error` | 500 | Anything unexpected; the cause goes to logs, never to clients. |

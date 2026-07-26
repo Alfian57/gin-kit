@@ -38,6 +38,7 @@ gin-kit generate repository <Name> [--fields ...]
 gin-kit generate handler <Name>
 gin-kit generate service <Name>
 gin-kit generate middleware <Name>
+gin-kit generate policy <Name>
 gin-kit generate seeder <Name>
 gin-kit generate factory <Name> --fields "email:string,age:int"
 gin-kit generate migration <name>
@@ -59,6 +60,12 @@ column types.
 `Normalize()` trimmer, plus `<Name>Response` with explicit mappers.
 Credential-like fields (`password`, `secret`, `token`, `hash`) are excluded
 from the response type.
+
+`generate policy` renders an authorization policy in `internal/policy`:
+`CanView`/`CanCreate`/`CanUpdate`/`CanDelete` methods returning
+`authz.Decision` values (deny reasons are logged, never serialized) plus a
+table test. It works in both editions; starter projects missing the vendored
+`internal/platform/authz` package get it back-filled automatically.
 
 The `--fields` grammar is `name:type` pairs separated by commas, with types
 `string`, `text`, `int`, `int64`, `float64`, `bool`, and `time` (aliases:

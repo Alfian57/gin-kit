@@ -46,7 +46,7 @@ gin-kit run                # serve with .env loaded
 gin-kit check              # gofmt report + tests + vet (read-only)
 gin-kit routes             # print the routing table
 gin-kit generate resource <Name> --fields "title:string,done:bool"
-gin-kit generate dto|domain|repository|handler|service|middleware|factory|seeder|migration <Name>
+gin-kit generate dto|domain|repository|handler|service|middleware|policy|factory|seeder|migration <Name>
 {{if eq .Edition "framework"}}gin-kit generate job|event|mail <Name>
 {{end}}gin-kit db up|down|status|redo|create|seed
 gin-kit db reset --yes | fresh --yes   # destructive

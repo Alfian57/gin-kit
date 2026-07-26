@@ -111,6 +111,7 @@ fi
   go run ./cmd/migrate status
   # Generators must produce compiling, passing code in every matrix cell.
   "$cli_path" generate resource SmokeTicket --fields "title:string,done:bool,price:float64,due_at:time"
+  "$cli_path" generate policy SmokeTicket
   "$cli_path" generate middleware SmokeTimer
   "$cli_path" generate seeder Demo
   "$cli_path" generate domain SmokeProfile --fields "email:string,age:int"
