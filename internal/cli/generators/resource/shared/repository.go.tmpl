@@ -1,0 +1,111 @@
+package repository
+
+import (
+	"context"
+{{if ne .ORM "gorm"}}	"database/sql"
+{{end}}	"errors"
+
+	"{{.Module}}/internal/domain"
+	"{{.DatabaseImport}}"
+	"{{.QueryImport}}"
+{{if eq .ORM "gorm"}}	"gorm.io/gorm"
+{{end}})
+
+type {{.Camel}}Repository struct {
+{{if eq .ORM "gorm"}}	db *gorm.DB
+{{else}}	db interface {
+		Rebind(string) string
+		ExecContext(context.Context, string, ...any) (sql.Result, error)
+		GetContext(context.Context, any, string, ...any) error
+		SelectContext(context.Context, any, string, ...any) error
+	}
+{{end}}}
+
+func New{{.Name}}Repository(connection *database.Connection) domain.{{.Name}}Repository {
+{{if eq .ORM "gorm"}}	return &{{.Camel}}Repository{db: connection.GORM}
+{{else}}	return &{{.Camel}}Repository{db: connection.SQLX}
+{{end}}}
+
+func (r *{{.Camel}}Repository) Create(ctx context.Context, entity *domain.{{.Name}}) error {
+{{if eq .ORM "gorm"}}	return r.db.WithContext(ctx).Create(entity).Error
+{{else}}	statement := r.db.Rebind("INSERT INTO {{.Table}} ({{.ColumnList}}) VALUES ({{.InsertPlaceholders}})")
+	_, err := r.db.ExecContext(ctx, statement, {{.InsertArgs}})
+	return err
+{{end}}}
+
+func (r *{{.Camel}}Repository) List(ctx context.Context, q query.Result) ([]domain.{{.Name}}, int64, error) {
+{{if eq .ORM "gorm"}}	total, err := q.CountGORM(r.db.WithContext(ctx).Model(&domain.{{.Name}}{}))
+	if err != nil {
+		return nil, 0, err
+	}
+	var items []domain.{{.Name}}
+	if err := q.ApplyGORM(r.db.WithContext(ctx).Model(&domain.{{.Name}}{})).Find(&items).Error; err != nil {
+		return nil, 0, err
+	}
+	return items, total, nil
+{{else}}	countStatement, countArgs := q.BuildCountSQL("SELECT COUNT(*) FROM {{.Table}}")
+	var total int64
+	if err := r.db.GetContext(ctx, &total, r.db.Rebind(countStatement), countArgs...); err != nil {
+		return nil, 0, err
+	}
+	statement, args := q.BuildSQL("SELECT {{.ColumnList}} FROM {{.Table}}")
+	var items []domain.{{.Name}}
+	if err := r.db.SelectContext(ctx, &items, r.db.Rebind(statement), args...); err != nil {
+		return nil, 0, err
+	}
+	return items, total, nil
+{{end}}}
+
+func (r *{{.Camel}}Repository) Get(ctx context.Context, id string) (domain.{{.Name}}, error) {
+	var entity domain.{{.Name}}
+{{if eq .ORM "gorm"}}	err := r.db.WithContext(ctx).First(&entity, "id = ?", id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return entity, domain.Err{{.Name}}NotFound
+	}
+{{else}}	err := r.db.GetContext(ctx, &entity, r.db.Rebind("SELECT {{.ColumnList}} FROM {{.Table}} WHERE id = ?"), id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return entity, domain.Err{{.Name}}NotFound
+	}
+{{end}}	return entity, err
+}
+
+func (r *{{.Camel}}Repository) Update(ctx context.Context, entity *domain.{{.Name}}) error {
+{{if eq .ORM "gorm"}}	result := r.db.WithContext(ctx).Model(&domain.{{.Name}}{}).Where("id = ?", entity.ID).Select("*").Omit("id", "created_at").Updates(entity)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return domain.Err{{.Name}}NotFound
+	}
+	return nil
+{{else}}	statement := r.db.Rebind("UPDATE {{.Table}} SET {{.UpdateSet}} WHERE id = ?")
+	result, err := r.db.ExecContext(ctx, statement, {{.UpdateArgs}})
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return domain.Err{{.Name}}NotFound
+	}
+	return err
+{{end}}}
+
+func (r *{{.Camel}}Repository) Delete(ctx context.Context, id string) error {
+{{if eq .ORM "gorm"}}	result := r.db.WithContext(ctx).Delete(&domain.{{.Name}}{}, "id = ?", id)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return domain.Err{{.Name}}NotFound
+	}
+	return nil
+{{else}}	result, err := r.db.ExecContext(ctx, r.db.Rebind("DELETE FROM {{.Table}} WHERE id = ?"), id)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err == nil && affected == 0 {
+		return domain.Err{{.Name}}NotFound
+	}
+	return err
+{{end}}}

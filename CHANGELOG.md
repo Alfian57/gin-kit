@@ -9,6 +9,24 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Template-based, manifest-aware generators: `gin-kit generate resource`
+  renders a complete vertical slice (domain model + repository interface,
+  GORM or sqlx repository, service with typed inputs and validation, HTTP
+  handler with allowlist filtering/sorting/pagination, tests with in-memory
+  fakes, and a dialect-mapped goose migration) driven by a `--fields` DSL
+  (`string`, `text`, `int`, `int64`, `float64`, `bool`, `time`, `?` for
+  nullable), then prints the exact wiring snippet — explicit wiring, no file
+  editing. `domain`, `repository`, `handler`, `service`, and `middleware`
+  generators now render real, compilable code in the correct packages.
+
+### Changed
+
+- `snakeCase` naming is acronym- and dash-aware (`APIKey` → `api_key`);
+  generated Go is gofmt-ed in staging before publishing, so a bad render
+  aborts with the project untouched. Generator policy docs now embrace
+  Laravel-style generators while keeping explicit wiring and rejecting
+  reflection-based dependency injection.
+
 - `framework/session`: encrypted cookie sessions (gin-contrib/sessions) with
   one-shot flash messages and constant-time CSRF protection (form field or
   header, `/api/` exempt by default), wired automatically into UI-mode

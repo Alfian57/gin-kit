@@ -1,0 +1,79 @@
+package service
+
+import (
+	"context"
+	"errors"
+{{if .StringFields}}	"strings"
+{{end}}	"time"
+
+	"github.com/google/uuid"
+	"{{.Module}}/internal/domain"
+	"{{.QueryImport}}"
+)
+
+var ErrInvalid{{.Name}} = errors.New("{{.Camel}} input is invalid")
+
+type {{.Name}}Service struct {
+	repository domain.{{.Name}}Repository
+}
+
+func New{{.Name}}Service(repository domain.{{.Name}}Repository) *{{.Name}}Service {
+	return &{{.Name}}Service{repository: repository}
+}
+
+type {{.Name}}Input struct {
+{{range .Fields}}	{{.Pascal}} {{.GoType}}
+{{end}}}
+
+func (input *{{.Name}}Input) validate() error {
+{{range .StringFields}}	input.{{.Pascal}} = strings.TrimSpace(input.{{.Pascal}})
+	if input.{{.Pascal}} == "" {
+		return ErrInvalid{{$.Name}}
+	}
+{{end}}	return nil
+}
+
+func (s *{{.Name}}Service) Create(ctx context.Context, input {{.Name}}Input) (domain.{{.Name}}, error) {
+	if err := input.validate(); err != nil {
+		return domain.{{.Name}}{}, err
+	}
+	now := time.Now().UTC()
+	entity := domain.{{.Name}}{
+		ID: uuid.NewString(),
+{{range .Fields}}		{{.Pascal}}: input.{{.Pascal}},
+{{end}}		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	if err := s.repository.Create(ctx, &entity); err != nil {
+		return domain.{{.Name}}{}, err
+	}
+	return entity, nil
+}
+
+func (s *{{.Name}}Service) List(ctx context.Context, q query.Result) ([]domain.{{.Name}}, int64, error) {
+	return s.repository.List(ctx, q)
+}
+
+func (s *{{.Name}}Service) Get(ctx context.Context, id string) (domain.{{.Name}}, error) {
+	return s.repository.Get(ctx, id)
+}
+
+func (s *{{.Name}}Service) Update(ctx context.Context, id string, input {{.Name}}Input) (domain.{{.Name}}, error) {
+	if err := input.validate(); err != nil {
+		return domain.{{.Name}}{}, err
+	}
+	entity, err := s.repository.Get(ctx, id)
+	if err != nil {
+		return domain.{{.Name}}{}, err
+	}
+{{range .Fields}}	entity.{{.Pascal}} = input.{{.Pascal}}
+{{end}}	entity.UpdatedAt = time.Now().UTC()
+	if err := s.repository.Update(ctx, &entity); err != nil {
+		return domain.{{.Name}}{}, err
+	}
+	return entity, nil
+}
+
+func (s *{{.Name}}Service) Delete(ctx context.Context, id string) error {
+	return s.repository.Delete(ctx, id)
+}

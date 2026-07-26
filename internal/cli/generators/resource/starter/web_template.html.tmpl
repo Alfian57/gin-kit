@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>[[.Plural]]</title><link rel="stylesheet" href="/assets/app.css"></head>
+<body>
+<main>
+<h1>[[.Plural]]</h1>
+{{range .flashes}}<p class="flash flash-{{.Kind}}">{{.Message}}</p>{{end}}
+<form method="post" action="/[[.PluralCamel]]">{{.csrf_field}}[[range .StringFields]]<label for="[[.Name]]">[[.Pascal]]</label><input id="[[.Name]]" name="[[.Name]]" maxlength="255" required>[[end]]<button class="primary" type="submit">Create [[.Camel]]</button></form>
+<ul>
+{{range .items}}<li>{{.ID}} — created {{.CreatedAt}}</li>{{end}}
+</ul>
+</main>
+</body>
+</html>

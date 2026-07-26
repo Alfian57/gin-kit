@@ -22,8 +22,10 @@ cd website && npm ci && npm run check && npm run build
 ## Engineering rules
 
 - Keep source, README files, CLI messages, and generated documentation in English.
-- Do not introduce Laravel-like `make:*` commands, reflection-based dependency
-  injection, service locators, or implicit application wiring.
+- Generators must produce explicit, wired-by-hand code. Do not introduce
+  reflection-based dependency injection, service locators, or implicit
+  application wiring; generators print exact wiring snippets instead of
+  editing existing files.
 - Framework-edition projects import the versioned gin-kit runtime. Keep their
   application routes, handlers, services, domains, repositories, migrations,
   and configuration visible and editable.

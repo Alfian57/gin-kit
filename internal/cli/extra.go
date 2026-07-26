@@ -6,7 +6,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
-	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -91,72 +90,6 @@ func checkCommand() *cobra.Command {
 	}}
 }
 
-func generateCommand() *cobra.Command {
-	var dryRun bool
-	generate := &cobra.Command{Use: "generate", Short: "Generate Go project building blocks"}
-	generate.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "show generated files without writing them")
-	for _, kind := range []string{"handler", "service", "domain", "repository", "middleware", "migration", "resource"} {
-		k := kind
-		generate.AddCommand(&cobra.Command{
-			Use:   k + " <name>",
-			Short: "Generate a " + k,
-			Args:  cobra.ExactArgs(1),
-			RunE: func(cmd *cobra.Command, args []string) error {
-				rootDir, m, err := projectRoot()
-				if err != nil {
-					return err
-				}
-				name := args[0]
-				snake := snakeCase(name)
-				switch k {
-				case "migration":
-					stamp := time.Now().UTC().Format("20060102150405")
-					path := filepath.Join(rootDir, "migrations", fmt.Sprintf("%s_%s.sql", stamp, snake))
-					for i := 1; ; i++ {
-						if _, statErr := os.Stat(path); os.IsNotExist(statErr) {
-							break
-						}
-						path = filepath.Join(rootDir, "migrations", fmt.Sprintf("%s_%s_%d.sql", stamp, snake, i))
-					}
-					return writeGeneratedFiles(rootDir, map[string][]byte{path: []byte("-- +goose Up\n\n-- +goose Down\n")}, dryRun)
-				case "resource":
-					return generateResource(rootDir, m, name, dryRun)
-				default:
-					dir := filepath.Join(rootDir, "internal", k)
-					if k == "middleware" {
-						dir = filepath.Join(rootDir, "internal", "middleware")
-					}
-					path := filepath.Join(dir, snake+".go")
-					content := fmt.Sprintf("package %s\n\n// %s is a generated %s placeholder. Replace this with project behavior.\ntype %s struct{}\n", k, name, k, name)
-					return writeGeneratedFiles(rootDir, map[string][]byte{path: []byte(content)}, dryRun)
-				}
-			},
-		})
-	}
-	return generate
-}
-
-func generateResource(rootDir string, m Manifest, name string, dryRun bool) error {
-	snake := snakeCase(name)
-	files := map[string]string{
-		filepath.Join("internal", "domain", snake+".go"):  fmt.Sprintf("package domain\n\n// %s is a generated domain model.\ntype %s struct {\n\tID string `json:\"id\" db:\"id\"`\n\tName string `json:\"name\" db:\"name\"`\n}\n", name, name),
-		filepath.Join("internal", "service", snake+".go"): fmt.Sprintf("package service\n\n// %sService contains business rules for %s.\ntype %sService struct{}\n", name, name, name),
-		filepath.Join("internal", "handler", snake+".go"): fmt.Sprintf("package handler\n\n// %sHandler exposes the %s use cases over HTTP.\ntype %sHandler struct{}\n", name, name, name),
-	}
-	absolute := make(map[string][]byte, len(files))
-	for rel, content := range files {
-		path := filepath.Join(rootDir, rel)
-		absolute[path] = []byte(content)
-	}
-	if err := writeGeneratedFiles(rootDir, absolute, dryRun); err != nil {
-		return err
-	}
-	if !dryRun {
-		fmt.Printf("Generated %s resource skeleton for %s (%s/%s).\n", name, m.Mode, m.Database, m.ORM)
-	}
-	return nil
-}
-
 func writeGeneratedFiles(rootDir string, files map[string][]byte, dryRun bool) error {
 	paths := make([]string, 0, len(files))
 	for path := range files {
@@ -193,6 +126,11 @@ func writeGeneratedFiles(rootDir string, files map[string][]byte, dryRun bool) e
 			return diagnostic("generation_write_failed", "stage generated files", staged, err, "Check directory permissions and available disk space.")
 		}
 	}
+	// Format staged Go files before publishing so a template bug that renders
+	// unparseable code aborts with the project untouched.
+	if err := formatGeneratedGo(staging); err != nil {
+		return err
+	}
 	// Every collision is checked before this point. Publishing is intentionally
 	// explicit so a failed render cannot leave half-written source files.
 	published := make([]string, 0, len(files))
@@ -214,18 +152,4 @@ func writeGeneratedFiles(rootDir string, files map[string][]byte, dryRun bool) e
 		published = append(published, path)
 	}
 	return nil
-}
-
-func snakeCase(value string) string {
-	var out []rune
-	for i, r := range value {
-		if i > 0 && r >= 'A' && r <= 'Z' {
-			out = append(out, '_')
-		}
-		if r >= 'A' && r <= 'Z' {
-			r += 'a' - 'A'
-		}
-		out = append(out, r)
-	}
-	return string(out)
 }
