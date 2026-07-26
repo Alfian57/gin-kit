@@ -1,0 +1,21 @@
+// Package event holds this project's domain events and their listeners.
+package event
+
+import (
+	"context"
+)
+
+// {{.Name}} is a domain event. Emit it where the change happens:
+//
+//	err := events.Emit(ctx, bus, event.{{.Name}}{...})
+type {{.Name}} struct {
+	// Add event fields here.
+}
+
+// On{{.Name}} handles {{.Name}} events. Subscribe it during wiring:
+//
+//	events.On(bus, event.On{{.Name}})
+func On{{.Name}}(ctx context.Context, payload {{.Name}}) error {
+	// React to the event here; keep it fast or dispatch a queue job.
+	return nil
+}

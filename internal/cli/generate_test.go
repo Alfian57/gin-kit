@@ -194,6 +194,63 @@ func TestRunGenerateSinglesAndCollisions(t *testing.T) {
 	}
 }
 
+func TestRunGenerateFrameworkOnlyKinds(t *testing.T) {
+	framework := Manifest{
+		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+		Project: "shop", Module: "example.com/shop",
+		Mode: "api", Database: "sqlite", ORM: "gorm",
+	}
+	rootDir := generatedProject(t, framework)
+
+	files, nextSteps, err := runGenerate(rootDir, framework, generateRequest{Kind: "job", Name: "SendInvoice"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	job := fileContent(t, files, "internal/jobs/send_invoice.go")
+	if !strings.Contains(job, `const TypeSendInvoice = "send_invoice"`) ||
+		!strings.Contains(job, "func HandleSendInvoice(ctx context.Context, payload SendInvoicePayload) error") {
+		t.Errorf("job content wrong:\n%s", job)
+	}
+	if !strings.Contains(nextSteps, "queue.Register(q, TypeSendInvoice, HandleSendInvoice)") {
+		t.Errorf("job next steps wrong:\n%s", nextSteps)
+	}
+
+	files, _, err = runGenerate(rootDir, framework, generateRequest{Kind: "event", Name: "OrderPlaced"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	eventContent := fileContent(t, files, "internal/event/order_placed.go")
+	if !strings.Contains(eventContent, "type OrderPlaced struct") ||
+		!strings.Contains(eventContent, "func OnOrderPlaced(ctx context.Context, payload OrderPlaced) error") {
+		t.Errorf("event content wrong:\n%s", eventContent)
+	}
+
+	files, _, err = runGenerate(rootDir, framework, generateRequest{Kind: "mail", Name: "Welcome"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	mailContent := fileContent(t, files, "internal/mail/welcome.go")
+	if !strings.Contains(mailContent, "frameworkmail.NewMessage()") ||
+		!strings.Contains(mailContent, `HTMLTemplate(templates, "welcome.html", nil)`) {
+		t.Errorf("mail content wrong:\n%s", mailContent)
+	}
+	page := fileContent(t, files, "web/templates/mail/welcome.html")
+	if !strings.Contains(page, "<h1>Welcome</h1>") {
+		t.Errorf("mail template wrong:\n%s", page)
+	}
+
+	starter := Manifest{
+		Version: 2, Edition: "starter", Project: "plain", Module: "example.com/plain",
+		Mode: "api", Database: "sqlite", ORM: "gorm",
+	}
+	starterDir := generatedProject(t, starter)
+	for _, kind := range []string{"job", "event", "mail"} {
+		if _, _, err := runGenerate(starterDir, starter, generateRequest{Kind: kind, Name: "Thing"}); err == nil {
+			t.Errorf("%s generator accepted for starter edition", kind)
+		}
+	}
+}
+
 func TestWriteGeneratedFilesFormatsStagedGo(t *testing.T) {
 	rootDir := t.TempDir()
 	unformatted := []byte("package demo\n\nfunc   Weird(  ) {}\n")

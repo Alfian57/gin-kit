@@ -37,7 +37,11 @@ gin-kit generate repository <Name> [--fields ...]
 gin-kit generate handler <Name>
 gin-kit generate service <Name>
 gin-kit generate middleware <Name>
+gin-kit generate seeder <Name>
 gin-kit generate migration <name>
+gin-kit generate job <Name>      # framework edition only
+gin-kit generate event <Name>    # framework edition only
+gin-kit generate mail <Name>     # framework edition only
 ```
 
 `generate resource` renders a complete vertical slice from real,

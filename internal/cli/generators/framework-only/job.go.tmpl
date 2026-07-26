@@ -1,0 +1,21 @@
+package jobs
+
+import (
+	"context"
+)
+
+// Type{{.Name}} names the {{.Camel}} job. Dispatch it with:
+//
+//	queue.Dispatch(ctx, q, jobs.Type{{.Name}}, jobs.{{.Name}}Payload{...})
+const Type{{.Name}} = "{{.Snake}}"
+
+type {{.Name}}Payload struct {
+	// Add payload fields here; they are JSON-encoded on dispatch.
+}
+
+// Handle{{.Name}} processes one {{.Camel}} job.
+func Handle{{.Name}}(ctx context.Context, payload {{.Name}}Payload) error {
+	// Do the work here. Returned errors trigger the queue's retry policy on
+	// the redis driver.
+	return nil
+}

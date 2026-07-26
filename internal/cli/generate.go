@@ -226,6 +226,32 @@ func runGenerate(rootDir string, m Manifest, request generateRequest) (map[strin
 			return nil, "", err
 		}
 		nextSteps = fmt.Sprintf("Wire the routes where %s.Register is called:\n  %s.Register%sRoutes(...)", handlerPackage, handlerPackage, data.Plural)
+	case "job", "event", "mail":
+		if m.Edition != "framework" {
+			return nil, "", diagnostic("generator_edition_unsupported", "generate "+request.Kind, m.Edition,
+				fmt.Errorf("the %s generator relies on gin-kit framework packages", request.Kind),
+				"Use a framework-edition project, or write a standalone implementation by hand.")
+		}
+		switch request.Kind {
+		case "job":
+			if err := add(filepath.Join("internal", "jobs", data.Snake+".go"), "generators/framework-only/job.go.tmpl"); err != nil {
+				return nil, "", err
+			}
+			nextSteps = fmt.Sprintf("Register the handler inside func Register in internal/jobs:\n\n    queue.Register(q, Type%s, Handle%s)\n\nDispatch it with:\n\n    queue.Dispatch(ctx, application.Queue(), jobs.Type%s, jobs.%sPayload{...})", data.Name, data.Name, data.Name, data.Name)
+		case "event":
+			if err := add(filepath.Join("internal", "event", data.Snake+".go"), "generators/framework-only/event.go.tmpl"); err != nil {
+				return nil, "", err
+			}
+			nextSteps = fmt.Sprintf("Create a bus during wiring and subscribe the listener:\n\n    bus := events.NewBus()\n    events.On(bus, event.On%s)\n\nEmit it where the change happens:\n\n    err := events.Emit(ctx, bus, event.%s{...})", data.Name, data.Name)
+		case "mail":
+			if err := add(filepath.Join("internal", "mail", data.Snake+".go"), "generators/framework-only/mail.go.tmpl"); err != nil {
+				return nil, "", err
+			}
+			if err := add(filepath.Join("web", "templates", "mail", data.Snake+".html"), "generators/framework-only/mail_template.html.tmpl"); err != nil {
+				return nil, "", err
+			}
+			nextSteps = fmt.Sprintf("Build the mailer from configuration and send:\n\n    mailer, err := mail.New(cfg.MailOptions())\n    templates := template.Must(template.ParseGlob(\"web/templates/mail/*.html\"))\n    err = mailer.Send(ctx, projectmail.New%s(templates, recipient))", data.Name)
+		}
 	case "seeder":
 		if err := add(filepath.Join("internal", "database", "seeders", data.Snake+".go"), "generators/single/seeder.go.tmpl"); err != nil {
 			return nil, "", err
@@ -348,7 +374,7 @@ func generateCommand() *cobra.Command {
 	repository.RunE = runKind("repository", repositoryFields, nil)
 	generate.AddCommand(repository)
 
-	for _, kind := range []string{"service", "handler", "middleware", "seeder"} {
+	for _, kind := range []string{"service", "handler", "middleware", "seeder", "job", "event", "mail"} {
 		k := kind
 		generate.AddCommand(&cobra.Command{
 			Use:   k + " <Name>",
