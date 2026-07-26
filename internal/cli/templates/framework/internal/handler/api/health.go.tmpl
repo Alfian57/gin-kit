@@ -1,20 +1,33 @@
 package api
 
 import (
+	"net/http"
+
 {{if .Auth}}	jwtauth "github.com/Alfian57/gin-kit/framework/auth"
 {{end}}	"github.com/Alfian57/gin-kit/framework/httpx"
+	"github.com/Alfian57/gin-kit/framework/openapi"
 	"github.com/gin-gonic/gin"
 {{if .Auth}}	authhandler "{{.Module}}/internal/handler/auth"
 	"{{.Module}}/internal/service"
 {{end}})
 
+type pingResponse struct {
+	Message string `json:"message"`
+}
+
 // Register installs application-owned API routes. Generic middleware and
-// lifecycle behavior are supplied by the gin-kit framework runtime.
-func Register(router *gin.Engine{{if .Auth}}, tokens *jwtauth.Manager, accounts *service.AuthService{{end}}) {
+// lifecycle behavior are supplied by the gin-kit framework runtime; the docs
+// registry powers the auto-generated OpenAPI page.
+func Register(router *gin.Engine, docs *openapi.Registry{{if .Auth}}, tokens *jwtauth.Manager, accounts *service.AuthService{{end}}) {
 	router.GET("/api/v1/ping", func(c *gin.Context) {
-		httpx.OK(c, gin.H{"message": "pong"})
+		httpx.OK(c, pingResponse{Message: "pong"})
 	})
-{{if .Auth}}	authhandler.Register(router, tokens, accounts)
-{{end}}{{if .Example}}	registerTasks(router)
+	docs.Describe(openapi.Operation{
+		Method: http.MethodGet, Path: "/api/v1/ping",
+		Summary: "Ping", Tags: []string{"system"},
+		Response: pingResponse{},
+	})
+{{if .Auth}}	authhandler.Register(router, docs, tokens, accounts)
+{{end}}{{if .Example}}	registerTasks(router, docs)
 {{end}}
 }

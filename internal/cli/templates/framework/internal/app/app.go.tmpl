@@ -43,6 +43,9 @@ func New() (*framework.Application, error) {
 	options := cfg.Options()
 	options.HTTP.UI = {{if eq .Mode "ui"}}true{{else}}false{{end}}
 	options.Database = &connectionConfig
+	if options.Docs.Title == "" {
+		options.Docs.Title = "{{.Project}}"
+	}
 	application, err := framework.New(options)
 	if err != nil {
 		return nil, err
@@ -79,8 +82,8 @@ func New() (*framework.Application, error) {
 	)
 {{end}}	jobs.Register(application.Queue(), application.Logger())
 	var router *gin.Engine = application.Router()
-{{if eq .Mode "ui"}}	web.Register(router{{if .Auth}}, tokens, accounts{{end}})
-{{else}}	api.Register(router{{if .Auth}}, tokens, accounts{{end}})
+{{if eq .Mode "ui"}}	web.Register(router, application.OpenAPI(){{if .Auth}}, tokens, accounts{{end}})
+{{else}}	api.Register(router, application.OpenAPI(){{if .Auth}}, tokens, accounts{{end}})
 {{end}}
 	return application, nil
 }

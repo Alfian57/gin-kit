@@ -1,0 +1,45 @@
+package api
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+{{if .Auth}}	"time"
+{{end}}
+	"github.com/Alfian57/gin-kit/framework"
+{{if .Auth}}	jwtauth "github.com/Alfian57/gin-kit/framework/auth"
+{{end}})
+
+// TestOpenAPIDocsServeGeneratedSpec proves the API documents itself: no
+// annotations exist anywhere, yet the spec covers every registered route.
+func TestOpenAPIDocsServeGeneratedSpec(t *testing.T) {
+	application, err := framework.New(framework.Options{Docs: framework.DocsOptions{Enabled: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+{{if .Auth}}	tokens, err := jwtauth.New([]byte(strings.Repeat("s", jwtauth.MinimumSecretLength)), "{{.Project}}", 15*time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	Register(application.Router(), application.OpenAPI(), tokens, nil)
+{{else}}	Register(application.Router(), application.OpenAPI())
+{{end}}
+	spec := httptest.NewRecorder()
+	application.Router().ServeHTTP(spec, httptest.NewRequest(http.MethodGet, "/openapi.json", nil))
+	if spec.Code != http.StatusOK {
+		t.Fatalf("spec status = %d", spec.Code)
+	}
+	body := spec.Body.String()
+	for _, expected := range []string{`"/api/v1/ping"`, `"/health/live"`{{if .Auth}}, `"/api/v1/auth/login"`, "bearerAuth"{{end}}} {
+		if !strings.Contains(body, expected) {
+			t.Fatalf("spec missing %s:\n%s", expected, body)
+		}
+	}
+
+	page := httptest.NewRecorder()
+	application.Router().ServeHTTP(page, httptest.NewRequest(http.MethodGet, "/docs", nil))
+	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "swagger-ui") {
+		t.Fatalf("docs page: %d", page.Code)
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	frameworkdb "github.com/Alfian57/gin-kit/framework/database"
 	"github.com/Alfian57/gin-kit/framework/httpx"
 	"github.com/Alfian57/gin-kit/framework/metrics"
+	"github.com/Alfian57/gin-kit/framework/openapi"
 	"github.com/Alfian57/gin-kit/framework/queue"
 	"github.com/Alfian57/gin-kit/framework/validation"
 	"github.com/gin-gonic/gin"
@@ -49,6 +51,26 @@ type MetricsOptions struct {
 	// Registry optionally receives the HTTP collectors instead of a new
 	// registry with the standard Go and process collectors.
 	Registry *prometheus.Registry
+}
+
+type DocsOptions struct {
+	// Enabled serves the OpenAPI spec and Swagger UI.
+	Enabled bool
+	// Path is the Swagger UI page, defaulting to /docs.
+	Path string
+	// SpecPath is the JSON document, defaulting to /openapi.json.
+	SpecPath string
+	// Title defaults to "API".
+	Title string
+	// Version defaults to "0.1.0".
+	Version     string
+	Description string
+	// Servers lists the base URLs shown in the spec.
+	Servers []string
+	// BasicAuthUsername and BasicAuthPassword, when both set, protect the
+	// docs and spec endpoints with HTTP basic auth.
+	BasicAuthUsername string
+	BasicAuthPassword string
 }
 
 type QueueOptions struct {
@@ -89,6 +111,7 @@ type Options struct {
 	PProf       PProfOptions
 	Cache       CacheOptions
 	Queue       QueueOptions
+	Docs        DocsOptions
 }
 
 type Application struct {
@@ -102,6 +125,7 @@ type Application struct {
 	metrics         *metrics.Metrics
 	cache           cache.Store
 	queue           *queue.Queue
+	docs            *openapi.Registry
 	shutdownTimeout time.Duration
 	hooksMu         sync.Mutex
 	shutdownHooks   []func(context.Context) error
@@ -124,6 +148,17 @@ func New(options Options) (*Application, error) {
 	}
 	if options.HTTP.RateLimit.Enabled && options.HTTP.RateLimit.RequestsPerMinute < 1 {
 		return nil, errors.New("framework: rate limit requests per minute must be positive")
+	}
+	if options.Docs.Enabled {
+		if (options.Docs.BasicAuthUsername == "") != (options.Docs.BasicAuthPassword == "") {
+			return nil, errors.New("framework: docs basic auth requires both a username and a password")
+		}
+		if options.Docs.Path == options.Docs.SpecPath {
+			return nil, errors.New("framework: docs path and spec path must differ")
+		}
+		if !strings.HasPrefix(options.Docs.Path, "/") || !strings.HasPrefix(options.Docs.SpecPath, "/") {
+			return nil, errors.New("framework: docs paths must start with /")
+		}
 	}
 
 	if options.Environment == "production" {
@@ -171,6 +206,7 @@ func New(options Options) (*Application, error) {
 		readiness:       options.Readiness,
 		database:        connection,
 		metrics:         httpMetrics,
+		docs:            openapi.NewRegistry(),
 		shutdownTimeout: options.HTTP.ShutdownTimeout,
 	}
 	if connection != nil {
@@ -220,6 +256,9 @@ func New(options Options) (*Application, error) {
 	}
 	if options.PProf.Enabled {
 		mountPProf(router, options.PProf.Prefix)
+	}
+	if options.Docs.Enabled {
+		mountDocs(router, app.docs, options)
 	}
 	app.registerHealthRoutes()
 	router.NoRoute(func(c *gin.Context) {
@@ -342,6 +381,18 @@ func applyDefaults(options *Options) {
 	if options.PProf.Prefix == "" {
 		options.PProf.Prefix = "/debug/pprof"
 	}
+	if options.Docs.Path == "" {
+		options.Docs.Path = "/docs"
+	}
+	if options.Docs.SpecPath == "" {
+		options.Docs.SpecPath = "/openapi.json"
+	}
+	if options.Docs.Title == "" {
+		options.Docs.Title = "API"
+	}
+	if options.Docs.Version == "" {
+		options.Docs.Version = "0.1.0"
+	}
 }
 
 func (a *Application) Router() *gin.Engine { return a.router }
@@ -369,6 +420,11 @@ func (a *Application) Cache() cache.Store { return a.cache }
 // configuration the sync driver executes jobs inline, and QueueOptions
 // selects the supervised Redis worker.
 func (a *Application) Queue() *queue.Queue { return a.queue }
+
+// OpenAPI returns the documentation registry. It is never nil, so generated
+// code can describe operations unconditionally; the docs endpoints serve
+// only when DocsOptions.Enabled is set.
+func (a *Application) OpenAPI() *openapi.Registry { return a.docs }
 
 // Logger returns the application's base structured logger. Handlers should
 // prefer the request-scoped httpx.Logger(c).
@@ -484,6 +540,23 @@ func (a *Application) runShutdownHooks(ctx context.Context) error {
 }
 
 func (a *Application) registerHealthRoutes() {
+	a.docs.Describe(
+		openapi.Operation{
+			Method: http.MethodGet, Path: "/health/live",
+			Summary: "Liveness probe", Tags: []string{"health"},
+			Response: struct {
+				Status string `json:"status"`
+			}{},
+		},
+		openapi.Operation{
+			Method: http.MethodGet, Path: "/health/ready",
+			Summary: "Readiness probe", Tags: []string{"health"},
+			Response: struct {
+				Status string `json:"status"`
+			}{},
+			ErrorCodes: []string{"not_ready"},
+		},
+	)
 	a.router.GET("/health/live", func(c *gin.Context) {
 		httpx.OK(c, gin.H{"status": "up"})
 	})

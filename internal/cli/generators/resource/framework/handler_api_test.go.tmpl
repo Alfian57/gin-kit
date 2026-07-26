@@ -67,11 +67,11 @@ func (f *fake{{.Name}}Repository) Delete(_ context.Context, id string) error {
 }
 
 func Test{{.Plural}}Endpoints(t *testing.T) {
-	application, err := framework.New(framework.Options{})
+	application, err := framework.New(framework.Options{Docs: framework.DocsOptions{Enabled: true}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	Register{{.Plural}}(application.Router(), service.New{{.Name}}Service(&fake{{.Name}}Repository{items: map[string]domain.{{.Name}}{}}))
+	Register{{.Plural}}(application.Router(), application.OpenAPI(), service.New{{.Name}}Service(&fake{{.Name}}Repository{items: map[string]domain.{{.Name}}{}}))
 
 	do := func(method, path, body string) *httptest.ResponseRecorder {
 		t.Helper()
@@ -106,5 +106,10 @@ func Test{{.Plural}}Endpoints(t *testing.T) {
 	}
 	if missing := do(http.MethodDelete, "/api/v1/{{.PluralCamel}}/absent-id", ""); missing.Code != http.StatusNotFound {
 		t.Fatalf("missing delete: %d %s", missing.Code, missing.Body)
+	}
+
+	spec := do(http.MethodGet, "/openapi.json", "")
+	if spec.Code != http.StatusOK || !strings.Contains(spec.Body.String(), "/api/v1/{{.PluralCamel}}/{id}") {
+		t.Fatalf("openapi spec missing {{.Camel}} paths: %d", spec.Code)
 	}
 }

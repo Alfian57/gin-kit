@@ -1,9 +1,11 @@
 package api
 
 import (
+	"net/http"
 	"strings"
 
 	"github.com/Alfian57/gin-kit/framework/httpx"
+	"github.com/Alfian57/gin-kit/framework/openapi"
 	"github.com/Alfian57/gin-kit/framework/query"
 	"github.com/gin-gonic/gin"
 )
@@ -26,7 +28,21 @@ var sampleTasks = []taskItem{
 	{ID: "3", Title: "Ship the release", Completed: false},
 }
 
-func registerTasks(router *gin.Engine) {
+func registerTasks(router *gin.Engine, docs *openapi.Registry) {
+	docs.Describe(
+		openapi.Operation{
+			Method: http.MethodPost, Path: "/api/v1/tasks",
+			Summary: "Create a task", Tags: []string{"tasks"},
+			Request: taskInput{}, Response: taskItem{}, Status: http.StatusCreated,
+		},
+		openapi.Operation{
+			Method: http.MethodGet, Path: "/api/v1/tasks",
+			Summary: "List tasks", Tags: []string{"tasks"},
+			Response: taskItem{}, List: true,
+			Filters: []string{"completed", "title"},
+			Sorts:   []string{"id", "title"},
+		},
+	)
 	router.POST("/api/v1/tasks", func(c *gin.Context) {
 		input, ok := httpx.BindJSON[taskInput](c)
 		if !ok {

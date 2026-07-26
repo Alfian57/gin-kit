@@ -111,7 +111,7 @@ func TestAuthenticationFlow(t *testing.T) {
 		tokens,
 		time.Hour,
 	)
-	Register(application.Router(), tokens, accounts)
+	Register(application.Router(), application.OpenAPI(), tokens, accounts)
 
 	do := func(method, path, body string, header http.Header) *httptest.ResponseRecorder {
 		t.Helper()

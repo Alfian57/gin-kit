@@ -37,6 +37,15 @@ type Config struct {
 	RedisURL           string        // REDIS_URL, e.g. redis://localhost:6379/0
 	MetricsEnabled     bool          // METRICS_ENABLED, defaults to false
 	PProfEnabled       bool          // PPROF_ENABLED, defaults to false; never expose publicly
+	DocsEnabled        bool          // DOCS_ENABLED, defaults to true only in development
+	DocsPath           string        // DOCS_PATH, defaults to /docs
+	DocsSpecPath       string        // DOCS_SPEC_PATH, defaults to /openapi.json
+	DocsTitle          string        // DOCS_TITLE, empty lets the application inject its name
+	DocsVersion        string        // DOCS_VERSION, defaults to 0.1.0
+	DocsDescription    string        // DOCS_DESCRIPTION
+	DocsServers        []string      // DOCS_SERVERS, comma separated
+	DocsBasicAuthUser  string        // DOCS_BASIC_AUTH_USERNAME
+	DocsBasicAuthPass  string        // DOCS_BASIC_AUTH_PASSWORD
 	MailDriver         string        // MAIL_DRIVER, "log" (default) or "smtp"
 	MailHost           string        // MAIL_HOST
 	MailPort           int           // MAIL_PORT, defaults per encryption
@@ -84,6 +93,14 @@ func Load() (Config, error) {
 		MailEncryption:     stringValue("MAIL_ENCRYPTION", "starttls"),
 		MailFromAddress:    os.Getenv("MAIL_FROM_ADDRESS"),
 		MailFromName:       os.Getenv("MAIL_FROM_NAME"),
+		DocsPath:           stringValue("DOCS_PATH", "/docs"),
+		DocsSpecPath:       stringValue("DOCS_SPEC_PATH", "/openapi.json"),
+		DocsTitle:          os.Getenv("DOCS_TITLE"),
+		DocsVersion:        stringValue("DOCS_VERSION", "0.1.0"),
+		DocsDescription:    os.Getenv("DOCS_DESCRIPTION"),
+		DocsServers:        splitCSV(os.Getenv("DOCS_SERVERS")),
+		DocsBasicAuthUser:  os.Getenv("DOCS_BASIC_AUTH_USERNAME"),
+		DocsBasicAuthPass:  os.Getenv("DOCS_BASIC_AUTH_PASSWORD"),
 		StorageDriver:      stringValue("STORAGE_DRIVER", "local"),
 		StorageLocalRoot:   stringValue("STORAGE_LOCAL_ROOT", "./storage"),
 		StorageLocalURL:    os.Getenv("STORAGE_LOCAL_BASE_URL"),
@@ -116,6 +133,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.PProfEnabled, err = boolValue("PPROF_ENABLED", false); err != nil {
+		return Config{}, err
+	}
+	if cfg.DocsEnabled, err = boolValue("DOCS_ENABLED", cfg.Environment == "development"); err != nil {
 		return Config{}, err
 	}
 	if cfg.MailPort, err = intValue("MAIL_PORT", 0); err != nil {
@@ -211,6 +231,15 @@ func (c Config) validate() error {
 	default:
 		return fmt.Errorf("STORAGE_DRIVER must be local or s3, got %q", c.StorageDriver)
 	}
+	if (c.DocsBasicAuthUser == "") != (c.DocsBasicAuthPass == "") {
+		return errors.New("DOCS_BASIC_AUTH_USERNAME and DOCS_BASIC_AUTH_PASSWORD must be set together")
+	}
+	if !strings.HasPrefix(c.DocsPath, "/") || !strings.HasPrefix(c.DocsSpecPath, "/") {
+		return errors.New("DOCS_PATH and DOCS_SPEC_PATH must start with /")
+	}
+	if c.DocsPath == c.DocsSpecPath {
+		return errors.New("DOCS_PATH and DOCS_SPEC_PATH must differ")
+	}
 	if c.RedisURL != "" {
 		parsed, err := url.Parse(c.RedisURL)
 		if err != nil {
@@ -263,7 +292,18 @@ func (c Config) Options() framework.Options {
 		},
 		Metrics: framework.MetricsOptions{Enabled: c.MetricsEnabled},
 		PProf:   framework.PProfOptions{Enabled: c.PProfEnabled},
-		Cache:   framework.CacheOptions{Driver: c.CacheDriver, RedisURL: c.RedisURL},
+		Docs: framework.DocsOptions{
+			Enabled:           c.DocsEnabled,
+			Path:              c.DocsPath,
+			SpecPath:          c.DocsSpecPath,
+			Title:             c.DocsTitle,
+			Version:           c.DocsVersion,
+			Description:       c.DocsDescription,
+			Servers:           c.DocsServers,
+			BasicAuthUsername: c.DocsBasicAuthUser,
+			BasicAuthPassword: c.DocsBasicAuthPass,
+		},
+		Cache: framework.CacheOptions{Driver: c.CacheDriver, RedisURL: c.RedisURL},
 		Queue: framework.QueueOptions{
 			Driver:      c.QueueDriver,
 			RedisURL:    c.RedisURL,

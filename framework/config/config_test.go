@@ -15,6 +15,8 @@ func clearEnv(t *testing.T) {
 		"CORS_ALLOWED_ORIGINS", "RATE_LIMIT_ENABLED", "RATE_LIMIT_PER_MINUTE",
 		"RATE_LIMIT_BURST", "MAX_BODY_BYTES", "METRICS_ENABLED", "PPROF_ENABLED",
 		"CACHE_DRIVER", "REDIS_URL", "QUEUE_DRIVER", "QUEUE_CONCURRENCY",
+		"DOCS_ENABLED", "DOCS_PATH", "DOCS_SPEC_PATH", "DOCS_TITLE", "DOCS_VERSION",
+		"DOCS_DESCRIPTION", "DOCS_SERVERS", "DOCS_BASIC_AUTH_USERNAME", "DOCS_BASIC_AUTH_PASSWORD",
 		"MAIL_DRIVER", "MAIL_HOST", "MAIL_PORT", "MAIL_USERNAME", "MAIL_PASSWORD",
 		"MAIL_ENCRYPTION", "MAIL_FROM_ADDRESS", "MAIL_FROM_NAME",
 		"STORAGE_DRIVER", "STORAGE_LOCAL_ROOT", "STORAGE_LOCAL_BASE_URL",
@@ -223,6 +225,53 @@ func TestMailAndStorageOptionMapping(t *testing.T) {
 	t.Setenv("MAIL_DRIVER", "smtp")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "MAIL_HOST") {
 		t.Fatalf("smtp without host accepted: %v", err)
+	}
+}
+
+func TestDocsConfiguration(t *testing.T) {
+	clearEnv(t)
+	cfg, err := Load()
+	if err != nil || !cfg.DocsEnabled {
+		t.Fatalf("docs should default on in development: enabled=%v err=%v", cfg.DocsEnabled, err)
+	}
+	options := cfg.Options()
+	if !options.Docs.Enabled || options.Docs.Path != "/docs" || options.Docs.SpecPath != "/openapi.json" {
+		t.Fatalf("docs options not mapped: %+v", options.Docs)
+	}
+
+	clearEnv(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("DATABASE_URL", "postgres://db/app")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://app.example.com")
+	cfg, err = Load()
+	if err != nil || cfg.DocsEnabled {
+		t.Fatalf("docs should default off in production: enabled=%v err=%v", cfg.DocsEnabled, err)
+	}
+	t.Setenv("DOCS_ENABLED", "true")
+	t.Setenv("DOCS_BASIC_AUTH_USERNAME", "admin")
+	t.Setenv("DOCS_BASIC_AUTH_PASSWORD", "secret")
+	t.Setenv("DOCS_SERVERS", "https://api.example.com, https://staging.example.com")
+	cfg, err = Load()
+	if err != nil || !cfg.DocsEnabled || len(cfg.DocsServers) != 2 {
+		t.Fatalf("docs production opt-in failed: %+v err=%v", cfg, err)
+	}
+
+	clearEnv(t)
+	t.Setenv("DOCS_BASIC_AUTH_USERNAME", "admin")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "DOCS_BASIC_AUTH") {
+		t.Fatalf("half basic auth accepted: %v", err)
+	}
+
+	clearEnv(t)
+	t.Setenv("DOCS_PATH", "docs")
+	if _, err := Load(); err == nil {
+		t.Fatal("relative docs path accepted")
+	}
+
+	clearEnv(t)
+	t.Setenv("DOCS_SPEC_PATH", "/docs")
+	if _, err := Load(); err == nil {
+		t.Fatal("identical docs paths accepted")
 	}
 }
 
