@@ -12,9 +12,7 @@
   --sl-color-gray-7: #f6f3ea;
   --sl-color-black: #f6f3ea;
   --gin-kit-ink: #121713;
-  --gin-kit-teal: #0b6b5b;
   --gin-kit-lime: #b9f53d;
-  --gin-kit-paper: #f6f3ea;
   --sl-font: "Inter", "Avenir Next", ui-sans-serif, system-ui, sans-serif;
   --sl-font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
 }
@@ -36,8 +34,8 @@
 
 body {
   background-color: var(--sl-color-black);
-  background-image: linear-gradient(rgba(18, 23, 19, .045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(18, 23, 19, .045) 1px, transparent 1px);
+  background-image: linear-gradient(color-mix(in srgb, var(--sl-color-white), transparent 95.5%) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--sl-color-white), transparent 95.5%) 1px, transparent 1px);
   background-size: 32px 32px;
 }
 
@@ -58,39 +56,12 @@ body {
 .sidebar-content a[aria-current='page'] { border-inline-start: 3px solid var(--gin-kit-lime); }
 .site-title { font-size: 1.35rem; }
 .main-pane { background: color-mix(in srgb, var(--sl-color-black), transparent 4%); }
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 1rem calc(50% - 50vw) 4rem;
-  border-block: 1px solid color-mix(in srgb, var(--sl-color-gray-4), transparent 45%);
-}
-.sl-link-card {
-  display: flex;
-  gap: 1rem;
-  min-height: 12rem;
-  padding: 2rem clamp(1rem, 4vw, 3rem);
-  border-inline-end: 1px solid color-mix(in srgb, var(--sl-color-gray-4), transparent 45%);
-  align-items: flex-start;
-}
-.sl-link-card:last-child { border-inline-end: 0; }
-.sl-link-card strong { display: inline-block; margin-bottom: .6rem; font-size: 1.15rem; letter-spacing: -.03em; }
-.sl-link-card .icon {
-  display: grid;
-  flex: 0 0 2.8rem;
-  min-height: 2.8rem;
-  place-items: center;
-  border: 1px solid var(--sl-color-accent);
-  border-radius: 8px;
-  color: var(--sl-color-accent);
-  font-family: var(--sl-font-mono);
-  font-weight: 700;
-}
+/* Starlight cards: square corners off, subtle accent icon. */
+.card { border-radius: 10px; }
+.card .icon { color: var(--sl-color-accent); }
 
 @media (max-width: 50rem) {
   body { background-size: 24px 24px; }
   .hero h1 { max-width: 15ch; font-size: clamp(2.7rem, 13vw, 4rem); }
   .hero .tagline { font-size: 1rem; }
-  .card-grid { grid-template-columns: 1fr; margin-inline: 0; }
-  .sl-link-card { min-height: auto; border-inline-end: 0; border-block-end: 1px solid color-mix(in srgb, var(--sl-color-gray-4), transparent 45%); }
-  .sl-link-card:last-child { border-block-end: 0; }
 }
