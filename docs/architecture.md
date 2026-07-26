@@ -1,6 +1,6 @@
-# GinKit Architecture
+# gin-kit Architecture
 
-GinKit separates its versioned runtime, project CLI, and application-owned
+gin-kit separates its versioned runtime, project CLI, and application-owned
 code. The framework owns generic HTTP and lifecycle policy; the generated
 project owns its business behavior and integration choices.
 
@@ -15,13 +15,13 @@ HTTP request
   -> database
 ```
 
-Each application boundary has a small constructor. GinKit does not use a
+Each application boundary has a small constructor. gin-kit does not use a
 reflection-based container or service locator.
 
 ## Editions
 
 - `framework` is the default. Generic lifecycle, HTTP middleware, responses,
-  validation, and security primitives come from the pinned GinKit module.
+  validation, and security primitives come from the pinned gin-kit module.
 - `starter` contains the infrastructure implementation in the generated
   project for developers who want a standalone, source-visible reference.
 

@@ -3,15 +3,15 @@
 ## Project commands
 
 ```text
-ginkit new <name>
-ginkit run
-ginkit build
-ginkit check
-ginkit doctor
-ginkit explain <topic>
+gin-kit new <name>
+gin-kit run
+gin-kit build
+gin-kit check
+gin-kit doctor
+gin-kit explain <topic>
 ```
 
-`ginkit new` defaults to `--edition framework`. Use `--edition starter` for the
+`gin-kit new` defaults to `--edition framework`. Use `--edition starter` for the
 standalone source-visible edition. Use `--example` to include the runnable
 Tasks vertical slice. Generated projects expose the same
 domain/service/repository boundaries regardless of whether GORM or sqlx is
@@ -20,7 +20,7 @@ selected.
 Non-interactive creation requires the module, mode, database, and ORM:
 
 ```text
-ginkit new ./services/orders --non-interactive \
+gin-kit new ./services/orders --non-interactive \
   --edition framework \
   --module example.com/acme/orders \
   --mode api \
@@ -31,27 +31,27 @@ ginkit new ./services/orders --non-interactive \
 ## Generation
 
 ```text
-ginkit generate handler <name>
-ginkit generate service <name>
-ginkit generate domain <name>
-ginkit generate repository <name>
-ginkit generate middleware <name>
-ginkit generate migration <name>
-ginkit generate resource <name>
+gin-kit generate handler <name>
+gin-kit generate service <name>
+gin-kit generate domain <name>
+gin-kit generate repository <name>
+gin-kit generate middleware <name>
+gin-kit generate migration <name>
+gin-kit generate resource <name>
 ```
 
 ## Database
 
 ```text
-ginkit db up
-ginkit db down
-ginkit db status
+gin-kit db up
+gin-kit db down
+gin-kit db status
 ```
 
 The command tree intentionally uses Go-native verbs and nouns. It does not
 implement Laravel's `make:*` or Artisan conventions.
 
-`ginkit check` is read-only: it reports files that need formatting, then runs
+`gin-kit check` is read-only: it reports files that need formatting, then runs
 tests and vet. It never rewrites source files.
 
 Generators preflight every output, refuse overwrites, and write transactionally

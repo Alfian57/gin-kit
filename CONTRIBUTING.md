@@ -1,6 +1,6 @@
-# Contributing to GinKit
+# Contributing to gin-kit
 
-Thank you for helping improve GinKit. Contributions may target the framework
+Thank you for helping improve gin-kit. Contributions may target the framework
 runtime, CLI, generated editions, documentation, or delivery pipeline.
 
 ## Development setup
@@ -19,7 +19,7 @@ go test ./...
 go test -race ./...
 go vet ./...
 test -z "$(gofmt -l cmd framework internal)"
-go run ./cmd/ginkit new /tmp/ginkit-check --non-interactive --edition starter --module example.com/check --mode api --database sqlite --orm gorm
+go run ./cmd/gin-kit new /tmp/gin-kit-check --non-interactive --edition starter --module example.com/check --mode api --database sqlite --orm gorm
 cd website && npm ci && npm run check && npm run build
 ```
 
@@ -30,7 +30,7 @@ MySQL, MariaDB, and SQLite.
 
 ## Pull requests
 
-1. Explain the user-facing behavior and why it belongs in GinKit.
+1. Explain the user-facing behavior and why it belongs in gin-kit.
 2. Add or update tests.
 3. Update English documentation and generated-project instructions when behavior changes.
 4. Run the relevant generated-project matrix before requesting review.
@@ -49,7 +49,7 @@ combination.
 
 New generators must:
 
-- use the `ginkit generate ...` command tree;
+- use the `gin-kit generate ...` command tree;
 - refuse accidental overwrites;
 - produce formatted Go;
 - include tests and an English explanation;
@@ -59,4 +59,4 @@ New database support must include connection setup, migration dialect, Docker do
 
 ## Releases
 
-GinKit uses SemVer tags in the `v0.x.y` series. Only maintainers may create annotated release tags. Read [docs/releasing.md](docs/releasing.md) for the complete release and verification procedure.
+gin-kit uses SemVer tags in the `v0.x.y` series. Only maintainers may create annotated release tags. Read [docs/releasing.md](docs/releasing.md) for the complete release and verification procedure.

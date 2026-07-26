@@ -1,4 +1,4 @@
-// Package framework provides GinKit's explicit application lifecycle and
+// Package framework provides gin-kit's explicit application lifecycle and
 // production-safe HTTP defaults on top of Gin.
 package framework
 
@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
-	frameworkdb "github.com/Alfian57/ginkit/framework/database"
-	"github.com/Alfian57/ginkit/framework/httpx"
-	"github.com/Alfian57/ginkit/framework/validation"
+	frameworkdb "github.com/Alfian57/gin-kit/framework/database"
+	"github.com/Alfian57/gin-kit/framework/httpx"
+	"github.com/Alfian57/gin-kit/framework/validation"
 	"github.com/gin-gonic/gin"
 )
 
@@ -162,7 +162,7 @@ func applyDefaults(options *Options) {
 
 func (a *Application) Router() *gin.Engine { return a.router }
 
-// Use installs application middleware after GinKit's safety middleware and
+// Use installs application middleware after gin-kit's safety middleware and
 // before routes registered subsequently.
 func (a *Application) Use(middleware ...gin.HandlerFunc) {
 	a.router.Use(middleware...)
@@ -247,5 +247,5 @@ func (a *Application) registerHealthRoutes() {
 }
 
 func (a *Application) String() string {
-	return fmt.Sprintf("GinKit application listening on %s", a.server.Addr)
+	return fmt.Sprintf("gin-kit application listening on %s", a.server.Addr)
 }

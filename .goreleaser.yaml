@@ -1,21 +1,21 @@
 version: 2
 
-project_name: ginkit
+project_name: gin-kit
 
 before:
   hooks:
     - go mod tidy
 
 builds:
-  - id: ginkit
-    main: ./cmd/ginkit
-    binary: ginkit
+  - id: gin-kit
+    main: ./cmd/gin-kit
+    binary: gin-kit
     env:
       - CGO_ENABLED=0
     flags:
       - -trimpath
     ldflags:
-      - -s -w -X github.com/Alfian57/ginkit/internal/cli.Version={{.Version}}
+      - -s -w -X github.com/Alfian57/gin-kit/internal/cli.Version={{.Version}}
     goos:
       - linux
       - darwin
@@ -27,7 +27,7 @@ builds:
 archives:
   - id: unix
     ids:
-      - ginkit
+      - gin-kit
     formats:
       - tar.gz
     name_template: >-

@@ -30,7 +30,7 @@ func New(secret []byte, issuer string, accessTTL time.Duration) (*Manager, error
 		return nil, err
 	}
 	if issuer == "" {
-		issuer = "ginkit"
+		issuer = "gin-kit"
 	}
 	if accessTTL <= 0 {
 		accessTTL = 15 * time.Minute
@@ -85,7 +85,7 @@ func (m *Manager) Parse(tokenString string) (*Claims, error) {
 }
 
 func Issue(userID string, secret []byte, ttl time.Duration) (string, error) {
-	manager, err := New(secret, "ginkit", ttl)
+	manager, err := New(secret, "gin-kit", ttl)
 	if err != nil {
 		return "", err
 	}
@@ -93,7 +93,7 @@ func Issue(userID string, secret []byte, ttl time.Duration) (string, error) {
 }
 
 func Parse(token string, secret []byte) (*Claims, error) {
-	manager, err := New(secret, "ginkit", time.Minute)
+	manager, err := New(secret, "gin-kit", time.Minute)
 	if err != nil {
 		return nil, err
 	}

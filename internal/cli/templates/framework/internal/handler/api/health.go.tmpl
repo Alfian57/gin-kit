@@ -1,12 +1,12 @@
 package api
 
 import (
-	"github.com/Alfian57/ginkit/framework/httpx"
+	"github.com/Alfian57/gin-kit/framework/httpx"
 	"github.com/gin-gonic/gin"
 )
 
 // Register installs application-owned API routes. Generic middleware and
-// lifecycle behavior are supplied by the GinKit framework runtime.
+// lifecycle behavior are supplied by the gin-kit framework runtime.
 func Register(router *gin.Engine) {
 	router.GET("/api/v1/ping", func(c *gin.Context) {
 		httpx.OK(c, gin.H{"message": "pong"})

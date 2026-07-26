@@ -1,4 +1,4 @@
-module github.com/Alfian57/ginkit
+module github.com/Alfian57/gin-kit
 
 go 1.26
 

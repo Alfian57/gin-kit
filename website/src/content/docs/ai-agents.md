@@ -3,7 +3,7 @@ title: AI agents
 description: Give coding agents a safe, useful project context.
 ---
 
-Generated projects include `AGENTS.md`, provider adapters, and a GinKit
+Generated projects include `AGENTS.md`, provider adapters, and a gin-kit
 development skill. These files explain the project boundaries, test commands,
 response contract, and safe migration workflow.
 

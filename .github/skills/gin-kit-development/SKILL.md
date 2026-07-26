@@ -1,15 +1,15 @@
 ---
-name: ginkit-development
-description: Build and maintain the GinKit framework runtime, CLI, project editions, database integrations, generated API or UI applications, and documentation.
+name: gin-kit-development
+description: Build and maintain the gin-kit framework runtime, CLI, project editions, database integrations, generated API or UI applications, and documentation.
 license: MIT
 compatibility: Requires Go 1.26; UI template work also requires Node.js 20+.
 ---
 
-# GinKit development
+# gin-kit development
 
-Read `AGENTS.md` before editing. GinKit provides two deliberate editions:
+Read `AGENTS.md` before editing. gin-kit provides two deliberate editions:
 
-- `framework` is the default. It imports the versioned GinKit runtime and keeps
+- `framework` is the default. It imports the versioned gin-kit runtime and keeps
   only application-owned code in the generated repository.
 - `starter` is standalone. It exposes its infrastructure source for developers
   who want to inspect or replace every layer.
@@ -20,7 +20,7 @@ Keep the generated flow explicit:
 router -> handler -> service -> repository -> database
 ```
 
-Use constructors and context-aware interfaces. Put schema changes in versioned SQL migrations. Template source files must use `.tmpl` so they are not compiled as part of the GinKit repository.
+Use constructors and context-aware interfaces. Put schema changes in versioned SQL migrations. Template source files must use `.tmpl` so they are not compiled as part of the gin-kit repository.
 
 Useful commands:
 
@@ -29,12 +29,12 @@ go test ./...
 go vet ./...
 go test -race ./...
 test -z "$(gofmt -l cmd framework internal)"
-ginkit new <name> --edition framework
-ginkit new <name> --edition starter
-ginkit run
-ginkit generate resource <name>
-ginkit db up
-ginkit explain architecture
+gin-kit new <name> --edition framework
+gin-kit new <name> --edition starter
+gin-kit run
+gin-kit generate resource <name>
+gin-kit db up
+gin-kit explain architecture
 ```
 
 After changing templates, scaffold framework and starter projects in both API

@@ -1,9 +1,9 @@
 ---
 title: Architecture
-description: Understand the boundaries in a generated GinKit project.
+description: Understand the boundaries in a generated gin-kit project.
 ---
 
-GinKit follows a small, visible flow:
+gin-kit follows a small, visible flow:
 
 ```text
 HTTP request → router → handler → service → repository → database
@@ -11,7 +11,7 @@ HTTP request → router → handler → service → repository → database
 
 Handlers bind and validate input. Services own business decisions. Repositories
 own persistence. Domain packages hold models and DTOs. Constructors make each
-boundary explicit; GinKit does not use a reflection-based container or service
+boundary explicit; gin-kit does not use a reflection-based container or service
 locator.
 
 The framework runtime owns generic HTTP policy, recovery, request IDs,

@@ -101,7 +101,7 @@ func TestFrameworkScaffoldIsThinAndPinsRuntime(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(data), "module example.com/acme/orders") ||
-		!strings.Contains(string(data), "github.com/Alfian57/ginkit v0.3.0") {
+		!strings.Contains(string(data), "github.com/Alfian57/gin-kit v0.3.0") {
 		t.Fatalf("framework go.mod did not preserve module/runtime:\n%s", data)
 	}
 	for _, rel := range []string{"internal/app/app.go", "cmd/server/main.go"} {
@@ -126,7 +126,7 @@ func TestFrameworkReplaceAddsLocalOverride(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(data), "replace github.com/Alfian57/ginkit =>") {
+	if !strings.Contains(string(data), "replace github.com/Alfian57/gin-kit =>") {
 		t.Fatalf("expected local framework replace:\n%s", data)
 	}
 }

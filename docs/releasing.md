@@ -1,11 +1,11 @@
-# Releasing GinKit
+# Releasing gin-kit
 
-GinKit releases are published from the `main` branch through GitHub Actions. The
+gin-kit releases are published from the `main` branch through GitHub Actions. The
 release workflow is tag-driven and does not require a long-lived signing key.
 
 ## Version policy
 
-GinKit follows Semantic Versioning while the project is in the `v0.x` series:
+gin-kit follows Semantic Versioning while the project is in the `v0.x` series:
 
 - `v0.1.0` is the first public release.
 - Minor versions may introduce new CLI commands, template features, or supported
@@ -37,14 +37,14 @@ the binary, so do not edit a version constant for a release.
 
    ```bash
    sha256sum -c checksums.txt --ignore-missing
-   gh attestation verify ginkit_0.1.0_linux_amd64.tar.gz -R Alfian57/ginkit
+   gh attestation verify gin-kit_0.1.0_linux_amd64.tar.gz -R Alfian57/gin-kit
    ```
 
 8. Verify the installed binary:
 
    ```bash
-   ./ginkit --version
-   ./ginkit new release-check \
+   ./gin-kit --version
+   ./gin-kit new release-check \
      --non-interactive \
      --edition framework \
      --module example.com/release-check \

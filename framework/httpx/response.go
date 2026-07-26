@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/Alfian57/ginkit/framework/validation"
+	"github.com/Alfian57/gin-kit/framework/validation"
 	"github.com/gin-gonic/gin"
 )
 

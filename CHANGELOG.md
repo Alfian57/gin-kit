@@ -1,11 +1,21 @@
 # Changelog
 
-All notable GinKit changes are documented in this file.
+All notable gin-kit changes are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+### Changed
+
+- **Breaking:** renamed the project from GinKit to gin-kit with no migration
+  path: module path `github.com/Alfian57/ginkit` → `github.com/Alfian57/gin-kit`,
+  CLI binary `ginkit` → `gin-kit`, project manifest `.ginkit.yaml` →
+  `.gin-kit.yaml`, default JWT issuer `ginkit` → `gin-kit`, generated health
+  table `ginkit_health` → `gin_kit_health`, and CI smoke-test environment
+  variables `GINKIT_*` → `GIN_KIT_*`. Releases `v0.2.0` and earlier remain
+  importable only through the old module path.
 
 ### Added
 
@@ -26,7 +36,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Runtime GORM and sqlx database adapters across SQLite, PostgreSQL, MySQL, and MariaDB.
 - Runnable Tasks CRUD vertical slice for API and UI projects.
 - Generated middleware, authentication, password, application, and rate-limit tests.
-- Atomic scaffolding, stronger CLI validation, read-only `ginkit check`, AI development skill guidance, and safer Docker defaults.
+- Atomic scaffolding, stronger CLI validation, read-only `gin-kit check`, AI development skill guidance, and safer Docker defaults.
 
 ### Security
 
@@ -37,7 +47,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- Interactive GinKit project scaffolding for API and UI applications.
+- Interactive gin-kit project scaffolding for API and UI applications.
 - SQLite, PostgreSQL, MySQL, and MariaDB selections.
 - GORM and sqlx data-access selections.
 - Generated authentication primitives, migrations, Docker files, and AI-agent guidance.

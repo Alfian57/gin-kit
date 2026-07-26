@@ -1,6 +1,6 @@
 ## Summary
 
-Describe the user-facing change and why it belongs in GinKit.
+Describe the user-facing change and why it belongs in gin-kit.
 
 ## Validation
 
