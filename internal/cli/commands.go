@@ -102,7 +102,7 @@ func runCommand() *cobra.Command {
 }
 
 func buildCommand() *cobra.Command {
-	return &cobra.Command{Use: "build", Short: "Build server and migration binaries", RunE: func(cmd *cobra.Command, args []string) error {
+	return &cobra.Command{Use: "build", Short: "Build server, migration, and seed binaries", RunE: func(cmd *cobra.Command, args []string) error {
 		rootDir, _, err := projectRoot()
 		if err != nil {
 			return err
@@ -110,8 +110,11 @@ func buildCommand() *cobra.Command {
 		if err := os.MkdirAll(filepath.Join(rootDir, "bin"), 0o755); err != nil {
 			return err
 		}
-		for _, item := range [][2]string{{"./cmd/server", "./bin/server"}, {"./cmd/migrate", "./bin/migrate"}} {
-			c := exec.Command("go", "build", "-trimpath", "-o", item[1], item[0])
+		for _, name := range []string{"server", "migrate", "seed"} {
+			if _, err := os.Stat(filepath.Join(rootDir, "cmd", name)); err != nil {
+				continue
+			}
+			c := exec.Command("go", "build", "-trimpath", "-o", "./bin/"+name, "./cmd/"+name)
 			c.Dir, c.Stdout, c.Stderr = rootDir, os.Stdout, os.Stderr
 			if err := c.Run(); err != nil {
 				return err
@@ -121,21 +124,123 @@ func buildCommand() *cobra.Command {
 	}}
 }
 
+// runProjectCommand shells a go run command inside the project root.
+func runProjectCommand(rootDir string, extraEnv []string, args ...string) error {
+	c := exec.Command("go", args...)
+	c.Dir, c.Stdout, c.Stderr, c.Stdin = rootDir, os.Stdout, os.Stderr, os.Stdin
+	c.Env = append(os.Environ(), extraEnv...)
+	return c.Run()
+}
+
+func seedUnavailable(rootDir string) error {
+	if _, err := os.Stat(filepath.Join(rootDir, "cmd", "seed")); err != nil {
+		return diagnostic("seed_unavailable", "seed database", rootDir,
+			fmt.Errorf("cmd/seed does not exist"),
+			"This project predates seeding support. Create cmd/seed/main.go and internal/database/seeders (see docs/cli.md), or regenerate the project.")
+	}
+	return nil
+}
+
 func dbCommand() *cobra.Command {
 	db := &cobra.Command{Use: "db", Short: "Run database operations"}
-	for _, op := range []string{"up", "down", "status"} {
-		operation := op
-		db.AddCommand(&cobra.Command{Use: operation, RunE: func(cmd *cobra.Command, args []string) error {
+	for _, item := range []struct{ operation, short string }{
+		{"up", "Apply pending migrations"},
+		{"down", "Roll back the most recent migration"},
+		{"status", "Show migration status"},
+		{"redo", "Roll back and re-apply the latest migration"},
+		{"reset", "Roll back every migration (destructive)"},
+	} {
+		operation, short := item.operation, item.short
+		db.AddCommand(&cobra.Command{Use: operation, Short: short, RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, _, err := projectRoot()
 			if err != nil {
 				return err
 			}
-			c := exec.Command("go", "run", "./cmd/migrate", operation)
-			c.Dir, c.Stdout, c.Stderr, c.Stdin = rootDir, os.Stdout, os.Stderr, os.Stdin
-			return c.Run()
+			if operation == "reset" && !confirmDestructive(cmd) {
+				return errDestructiveNotConfirmed
+			}
+			return runProjectCommand(rootDir, nil, "run", "./cmd/migrate", operation)
 		}})
 	}
+	db.AddCommand(&cobra.Command{
+		Use:   "create <name>",
+		Short: "Create an empty timestamped migration",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rootDir, _, err := projectRoot()
+			if err != nil {
+				return err
+			}
+			path := migrationPath(rootDir, snakeCase(args[0]))
+			return writeGeneratedFiles(rootDir, map[string][]byte{path: []byte("-- +goose Up\n\n-- +goose Down\n")}, false)
+		},
+	})
+	db.AddCommand(&cobra.Command{
+		Use:   "seed",
+		Short: "Run the project's registered seeders",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rootDir, _, err := projectRoot()
+			if err != nil {
+				return err
+			}
+			if err := seedUnavailable(rootDir); err != nil {
+				return err
+			}
+			return runProjectCommand(rootDir, nil, "run", "./cmd/seed")
+		},
+	})
+	db.AddCommand(&cobra.Command{
+		Use:   "fresh",
+		Short: "Reset the schema, migrate up, and seed (destructive)",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rootDir, _, err := projectRoot()
+			if err != nil {
+				return err
+			}
+			if !confirmDestructive(cmd) {
+				return errDestructiveNotConfirmed
+			}
+			if err := runProjectCommand(rootDir, nil, "run", "./cmd/migrate", "reset"); err != nil {
+				return err
+			}
+			if err := runProjectCommand(rootDir, nil, "run", "./cmd/migrate", "up"); err != nil {
+				return err
+			}
+			if err := seedUnavailable(rootDir); err != nil {
+				fmt.Println("skipping seed: cmd/seed does not exist in this project")
+				return nil
+			}
+			return runProjectCommand(rootDir, nil, "run", "./cmd/seed")
+		},
+	})
+	for _, sub := range db.Commands() {
+		if sub.Use == "reset" || sub.Use == "fresh" {
+			sub.Flags().Bool("yes", false, "confirm the destructive operation")
+		}
+	}
 	return db
+}
+
+var errDestructiveNotConfirmed = fmt.Errorf("refusing to run a destructive database operation; re-run with --yes")
+
+func confirmDestructive(cmd *cobra.Command) bool {
+	confirmed, _ := cmd.Flags().GetBool("yes")
+	return confirmed
+}
+
+func routesCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "routes",
+		Short: "List the application's HTTP routes",
+		Long:  "Boots the application (a reachable database is required) and prints its routing table.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			rootDir, _, err := projectRoot()
+			if err != nil {
+				return err
+			}
+			return runProjectCommand(rootDir, []string{"GIN_MODE=release"}, "run", "./cmd/server", "--routes")
+		},
+	}
 }
 
 func addDirs(w *fsnotify.Watcher, root string) error {

@@ -2,23 +2,36 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
+	"strings"
 	"syscall"
+	"text/tabwriter"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"{{.Module}}/internal/app"
 	"{{.Module}}/internal/platform/config"
 )
 
 func main() {
+	if err := config.LoadDotenv(".env"); err != nil {
+		log.Fatal(err)
+	}
 	server, cleanup, err := app.New()
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer cleanup()
+
+	if len(os.Args) > 1 && os.Args[1] == "--routes" {
+		printRoutes(server.Routes())
+		return
+	}
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -44,5 +57,21 @@ func main() {
 	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}
-	_ = os.Stdout
+}
+
+// printRoutes renders the routing table for `gin-kit routes`.
+func printRoutes(routes gin.RoutesInfo) {
+	sort.Slice(routes, func(a, b int) bool {
+		if routes[a].Path == routes[b].Path {
+			return routes[a].Method < routes[b].Method
+		}
+		return routes[a].Path < routes[b].Path
+	})
+	writer := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(writer, "METHOD\tPATH\tHANDLER")
+	for _, route := range routes {
+		fmt.Fprintf(writer, "%s\t%s\t%s\n", route.Method, route.Path, strings.TrimPrefix(route.Handler, "{{.Module}}/"))
+	}
+	writer.Flush()
+	fmt.Printf("\n%d routes\n", len(routes))
 }

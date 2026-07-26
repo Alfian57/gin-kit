@@ -1,0 +1,20 @@
+// Package seeders registers this project's database seeders. gin-kit never
+// edits this file; add generated seeders to All in the order they must run.
+package seeders
+
+import (
+	"context"
+	"database/sql"
+)
+
+type Seeder struct {
+	Name string
+	Run  func(context.Context, *sql.DB) error
+}
+
+// All lists every seeder in run order.
+func All() []Seeder {
+	return []Seeder{
+{{if .Example}}		{Name: "tasks", Run: SeedTasks},
+{{end}}	}
+}

@@ -42,6 +42,8 @@ args=(
 )
 if [[ "$auth" == "true" ]]; then
   args+=(--auth)
+  # gin-kit routes boots the application, which fail-fasts on a short secret.
+  export JWT_SECRET="${JWT_SECRET:-gin-kit-smoke-secret-0123456789abcdef}"
 fi
 if [[ "$edition" == "framework" ]]; then
   args+=(--framework-version "$framework_version" --framework-replace "$repo_root")
@@ -98,8 +100,11 @@ fi
   # Generators must produce compiling, passing code in every matrix cell.
   "$cli_path" generate resource SmokeTicket --fields "title:string,done:bool,price:float64,due_at:time"
   "$cli_path" generate middleware SmokeTimer
+  "$cli_path" generate seeder Demo
   go mod tidy
   go build ./...
   go vet ./...
   go test ./...
+  "$cli_path" db seed
+  "$cli_path" routes
 )

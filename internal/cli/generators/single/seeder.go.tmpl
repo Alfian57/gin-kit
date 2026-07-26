@@ -1,0 +1,15 @@
+package seeders
+
+import (
+	"context"
+	"database/sql"
+)
+
+// Seed{{.Name}} seeds {{.Camel}} data. Keep it idempotent (check before
+// inserting) and register it in All (seeders.go):
+//
+//	{Name: "{{.Snake}}", Run: Seed{{.Name}}},
+func Seed{{.Name}}(ctx context.Context, db *sql.DB) error {
+	// Insert idempotent seed data here.
+	return nil
+}

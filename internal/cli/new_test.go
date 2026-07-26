@@ -33,10 +33,13 @@ func TestScaffoldAPIPreservesSelections(t *testing.T) {
 	}
 	for _, rel := range []string{
 		"internal/platform/config/config.go",
+		"internal/platform/config/dotenv.go",
 		"internal/platform/database/database.go",
 		"internal/platform/query/query.go",
 		"internal/middleware/security.go",
 		"internal/middleware/ratelimit.go",
+		"cmd/seed/main.go",
+		"internal/database/seeders/seeders.go",
 	} {
 		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
 			t.Fatalf("expected runtime foundation %s: %v", rel, err)
@@ -244,6 +247,48 @@ func TestFrameworkScaffoldWiresAuth(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(plain, rel)); err == nil {
 			t.Fatalf("auth scaffold %s generated without --auth", rel)
 		}
+	}
+}
+
+func TestSeedScaffoldFollowsExampleFlag(t *testing.T) {
+	withExample := filepath.Join(t.TempDir(), "demo")
+	m := Manifest{
+		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+		Project: "demo", Module: "example.com/demo",
+		Mode: "api", Database: "sqlite", ORM: "gorm", Example: true,
+	}
+	if err := scaffold(withExample, m); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{"cmd/seed/main.go", "internal/database/seeders/seeders.go", "internal/database/seeders/tasks_seeder.go"} {
+		if _, err := os.Stat(filepath.Join(withExample, rel)); err != nil {
+			t.Fatalf("framework example scaffold missing %s: %v", rel, err)
+		}
+	}
+	registry, err := os.ReadFile(filepath.Join(withExample, "internal", "database", "seeders", "seeders.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(registry), "SeedTasks") {
+		t.Fatalf("example registry does not register SeedTasks:\n%s", registry)
+	}
+
+	plain := filepath.Join(t.TempDir(), "plain")
+	m.Example = false
+	m.Project = "plain"
+	m.Module = "example.com/plain"
+	if err := scaffold(plain, m); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(plain, "internal", "database", "seeders", "tasks_seeder.go")); err == nil {
+		t.Fatal("tasks seeder generated without --example")
+	}
+	registry, err = os.ReadFile(filepath.Join(plain, "internal", "database", "seeders", "seeders.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(registry), "SeedTasks") {
+		t.Fatal("registry references SeedTasks without --example")
 	}
 }
 
