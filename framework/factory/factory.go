@@ -1,4 +1,4 @@
-// Package factory provides Laravel-style model factories: define how a model
+// Package factory provides model factories for tests and seeders: define how a model
 // is built once, then Make in-memory instances or Create persisted ones in
 // tests and seeders. Factories are ORM-agnostic — persistence goes through a
 // caller-supplied function, typically a repository's Create method.

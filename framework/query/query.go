@@ -1,5 +1,5 @@
 // Package query provides allowlist-based filtering, sorting, and pagination
-// for list endpoints, in the style of Spatie's query builder.
+// for list endpoints, driven by bracketed query parameters.
 //
 // URL contract:
 //

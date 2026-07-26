@@ -41,7 +41,7 @@ func NewAuthService(users domain.UserRepository, refresh domain.RefreshTokenRepo
 	return &AuthService{users: users, refresh: refresh, tokens: tokens, refreshTTL: refreshTTL}
 }
 
-// Register creates the account and signs the user in, Breeze-style.
+// Register creates the account and signs the user in immediately.
 func (s *AuthService) Register(ctx context.Context, email, plainPassword string) (domain.User, TokenPair, error) {
 	email = normalizeEmail(email)
 	if _, err := s.users.FindByEmail(ctx, email); err == nil {

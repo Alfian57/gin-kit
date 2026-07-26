@@ -1,9 +1,10 @@
 # gin-kit
 
 gin-kit is an opinionated Go framework built on
-[Gin](https://gin-gonic.com/). It provides a versioned runtime, an interactive
-project CLI, consistent HTTP contracts, SQL integrations, and explicit
-application architecture without a reflection-based dependency container.
+[Gin](https://gin-gonic.com/). Everything included, nothing hidden: a
+versioned runtime, an interactive project CLI, consistent HTTP contracts, SQL
+integrations, and explicit application architecture without a
+reflection-based dependency container.
 
 The default framework edition keeps generic infrastructure in the gin-kit
 module while leaving your routes, handlers, services, domains, repositories,

@@ -29,7 +29,7 @@ sends through `MAIL_HOST`/`MAIL_PORT` with `MAIL_ENCRYPTION` set to
 
 ## File storage
 
-`framework/storage` is a Laravel-style disk behind one interface:
+`framework/storage` puts local and S3-compatible file storage behind one interface:
 
 ```go
 disk, err := storage.New(cfg.StorageOptions())

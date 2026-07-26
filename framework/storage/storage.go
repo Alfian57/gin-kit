@@ -1,4 +1,4 @@
-// Package storage provides a Laravel-style disk abstraction with a
+// Package storage provides a file storage abstraction with a
 // path-confined local driver and an S3-compatible driver.
 package storage
 

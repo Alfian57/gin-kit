@@ -1,4 +1,4 @@
-// Package mail provides a Laravel-style mailer with a fluent message
+// Package mail provides transactional email with a fluent message
 // builder, an SMTP driver, and a development log driver.
 package mail
 

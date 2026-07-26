@@ -1,4 +1,4 @@
-// Package queue provides Laravel-style background jobs with explicit handler
+// Package queue provides explicit background jobs with typed handler
 // registration, an inline sync driver for development, and a Redis (asynq)
 // driver for production with retries, delays, and graceful drain.
 package queue

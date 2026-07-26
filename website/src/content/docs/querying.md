@@ -4,8 +4,8 @@ description: Safe list endpoints with an allowlist-based query builder.
 ---
 
 The `framework/query` package (mirrored as `internal/platform/query` in
-starter-edition projects) parses list-endpoint parameters in the style of
-Spatie's query builder:
+starter-edition projects) parses list-endpoint parameters with a bracketed
+filter syntax:
 
 ```
 GET /tasks?filter[completed]=true&filter[title]=report
