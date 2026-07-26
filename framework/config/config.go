@@ -24,6 +24,7 @@ type Config struct {
 	Environment        string        // APP_ENV, defaults to development
 	DatabaseURL        string        // DATABASE_URL
 	JWTSecret          []byte        // JWT_SECRET, length is enforced by auth.New
+	SessionSecret      []byte        // SESSION_SECRET, length is enforced by session.Middleware
 	TrustedProxyCIDRs  []string      // TRUSTED_PROXY_CIDRS, comma separated
 	CORSAllowedOrigins []string      // CORS_ALLOWED_ORIGINS, comma separated
 	RateLimitEnabled   bool          // RATE_LIMIT_ENABLED, defaults to true
@@ -70,6 +71,7 @@ func Load() (Config, error) {
 		Environment:        stringValue("APP_ENV", "development"),
 		DatabaseURL:        os.Getenv("DATABASE_URL"),
 		JWTSecret:          []byte(os.Getenv("JWT_SECRET")),
+		SessionSecret:      []byte(os.Getenv("SESSION_SECRET")),
 		TrustedProxyCIDRs:  splitCSV(os.Getenv("TRUSTED_PROXY_CIDRS")),
 		CORSAllowedOrigins: splitCSV(os.Getenv("CORS_ALLOWED_ORIGINS")),
 		CacheDriver:        stringValue("CACHE_DRIVER", "memory"),

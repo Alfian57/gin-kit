@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"{{.Module}}/internal/platform/database"
 	"{{.Module}}/internal/platform/query"
+	"{{.Module}}/internal/platform/session"
 	"{{.Module}}/internal/repository"
 	"{{.Module}}/internal/service"
 )
@@ -16,13 +17,18 @@ func registerTasks(r *gin.Engine, db *database.Connection) {
 		listQuery := query.Result{Page: 1, PerPage: 100, Sorts: []query.SortValue{{"{{"}}Column: "created_at", Desc: true{{"}}"}}}
 		items, _, err := tasks.List(c.Request.Context(), listQuery)
 		if err != nil { c.String(http.StatusInternalServerError, "Unable to load tasks"); return }
-		c.HTML(http.StatusOK, "tasks.html", gin.H{"tasks": items})
+		c.HTML(http.StatusOK, "tasks.html", gin.H{
+			"tasks":      items,
+			"csrf_field": session.TemplateField(c),
+			"flashes":    session.Flashes(c),
+		})
 	})
 	r.POST("/tasks", func(c *gin.Context) {
 		if _, err := tasks.Create(c.Request.Context(), c.PostForm("title")); err != nil {
 			c.String(http.StatusBadRequest, err.Error())
 			return
 		}
+		_ = session.PutFlash(c, "success", "Task created.")
 		c.Redirect(http.StatusSeeOther, "/tasks")
 	})
 }
