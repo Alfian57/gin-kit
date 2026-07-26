@@ -9,6 +9,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Framework-edition generators for infrastructure concepts:
+  `gin-kit generate job` (typed queue job with registration and dispatch
+  snippets), `generate event` (domain event plus listener for the event bus),
+  and `generate mail` (mailable builder with an HTML template). Starter
+  projects receive a clear diagnostic since these depend on framework
+  packages.
+
 - Database seeding: generated projects ship `cmd/seed` with an explicit
   seeder registry (`internal/database/seeders`), `gin-kit generate seeder`,
   and `gin-kit db seed`; `--example` projects seed sample tasks idempotently.

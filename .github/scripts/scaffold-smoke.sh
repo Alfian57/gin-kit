@@ -101,6 +101,11 @@ fi
   "$cli_path" generate resource SmokeTicket --fields "title:string,done:bool,price:float64,due_at:time"
   "$cli_path" generate middleware SmokeTimer
   "$cli_path" generate seeder Demo
+  if [[ "$edition" == "framework" ]]; then
+    "$cli_path" generate job SmokeJob
+    "$cli_path" generate event SmokeEvent
+    "$cli_path" generate mail SmokeMail
+  fi
   go mod tidy
   go build ./...
   go vet ./...
