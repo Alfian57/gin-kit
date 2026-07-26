@@ -60,10 +60,18 @@ inspect intended files.
 
 ## Generated runtime configuration
 
-Generated projects read configuration from environment variables. Development
-uses local defaults where safe. Staging and production fail startup when
-database, CORS, or enabled-authentication secrets are missing or invalid.
+Generated projects read configuration from environment variables, and load a
+local `.env` file at startup without overriding the real environment.
+Development uses local defaults where safe. Staging and production fail startup
+when database, CORS, or enabled-authentication secrets are missing or invalid,
+and malformed values are always startup errors.
 
-Rate limiting is enabled by default and exposes separate per-minute settings
-for general, authentication, and expensive endpoint classes. Forwarded client
-IP headers are trusted only when `TRUSTED_PROXY_CIDRS` is configured.
+Framework-edition projects use `framework/config` with `PORT`, `APP_ENV`,
+`DATABASE_URL`, `JWT_SECRET`, `TRUSTED_PROXY_CIDRS`, `CORS_ALLOWED_ORIGINS`,
+`RATE_LIMIT_ENABLED`, `RATE_LIMIT_PER_MINUTE`, `RATE_LIMIT_BURST`,
+`MAX_BODY_BYTES`, and `READ/WRITE/IDLE/SHUTDOWN_TIMEOUT` Go durations.
+
+Starter-edition rate limiting is enabled by default and exposes separate
+per-minute settings for general, authentication, and expensive endpoint
+classes. In both editions, forwarded client IP headers are trusted only when
+`TRUSTED_PROXY_CIDRS` is configured.

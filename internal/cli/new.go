@@ -15,7 +15,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-//go:embed templates/*
+//go:embed templates/* templates/framework/.env.example
 var templateFS embed.FS
 
 func newCommand() *cobra.Command {
@@ -304,7 +304,6 @@ func templateOutputPath(rel string, m Manifest) (string, bool) {
 	if m.Edition == "framework" {
 		switch {
 		case rel == ".gitignore",
-			rel == ".env.example",
 			rel == "AGENTS.md",
 			rel == "CLAUDE.md",
 			rel == "GEMINI.md",

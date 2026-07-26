@@ -131,6 +131,34 @@ func TestFrameworkReplaceAddsLocalOverride(t *testing.T) {
 	}
 }
 
+func TestFrameworkScaffoldUsesTypedConfig(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "cfg")
+	m := Manifest{
+		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+		Project: "cfg", Module: "example.com/cfg",
+		Mode: "api", Database: "sqlite", ORM: "gorm",
+	}
+	if err := scaffold(dir, m); err != nil {
+		t.Fatal(err)
+	}
+	appSource, err := os.ReadFile(filepath.Join(dir, "internal", "app", "app.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(appSource), "config.LoadDotenv(") ||
+		!strings.Contains(string(appSource), "config.Load()") {
+		t.Fatalf("framework app.go does not use typed configuration:\n%s", appSource)
+	}
+	envExample, err := os.ReadFile(filepath.Join(dir, ".env.example"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(envExample), "READ_TIMEOUT") ||
+		strings.Contains(string(envExample), "SESSION_SECRET") {
+		t.Fatalf("framework .env.example should use the framework variable set:\n%s", envExample)
+	}
+}
+
 func TestFrameworkScaffoldWiresAuth(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "secure")
 	m := Manifest{
