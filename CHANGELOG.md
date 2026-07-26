@@ -154,6 +154,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Framework-edition projects generated with `--example` no longer register
+  the tasks seeder: their tasks example is an in-memory stub without a tasks
+  table, so `gin-kit db seed` failed. The seeder stays starter-only.
 - Generated framework README instructed copying `.env.example` to `.env`
   although nothing loaded the file; framework applications now load it.
 - Framework-edition projects received the starter's `.env.example` with
