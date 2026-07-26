@@ -33,6 +33,7 @@ type genData struct {
 	FactoryImport  string      // edition-specific factory package import path
 	HasNullable    bool        // any nullable field (factory ptr helper)
 	HasStringFake  bool        // any FakeExpr using the strings package
+	SQLiteSchema   string      // CREATE TABLE statement for sqlite-backed integration tests
 
 	// Precomputed SQL fragments for the sqlx repository variant.
 	ColumnList         string // id, title, ..., created_at, updated_at
@@ -101,6 +102,13 @@ func buildGenData(m Manifest, name, fieldsSpec, table string) (genData, error) {
 		samples = append(samples, fmt.Sprintf("%q: %s", field.Name, sampleJSONValue(field)))
 	}
 	data.SampleJSON = "{" + strings.Join(samples, ", ") + "}"
+	var schemaColumns []string
+	schemaColumns = append(schemaColumns, "id VARCHAR(36) PRIMARY KEY")
+	for _, field := range fields {
+		schemaColumns = append(schemaColumns, field.Name+" "+sqliteColumnType(field))
+	}
+	schemaColumns = append(schemaColumns, "created_at TIMESTAMP NOT NULL", "updated_at TIMESTAMP NOT NULL")
+	data.SQLiteSchema = "CREATE TABLE IF NOT EXISTS " + table + " (" + strings.Join(schemaColumns, ", ") + ")"
 	columns = append(columns, "created_at", "updated_at")
 	insertArgs = append(insertArgs, "entity.CreatedAt", "entity.UpdatedAt")
 	updateSet = append(updateSet, "updated_at = ?")
@@ -196,6 +204,14 @@ func runGenerate(rootDir string, m Manifest, request generateRequest) (map[strin
 			{filepath.Join("internal", "service", data.Snake+"_service.go"), "generators/resource/shared/service.go.tmpl"},
 			{filepath.Join("internal", "service", data.Snake+"_service_test.go"), "generators/resource/shared/service_test.go.tmpl"},
 			{filepath.Join("internal", "database", "factories", data.Snake+"_factory.go"), "generators/single/factory.go.tmpl"},
+		}
+		if m.Edition == "framework" {
+			// The repository integration test relies on framework/apptest,
+			// which starter projects cannot import.
+			steps = append(steps, struct{ rel, tmpl string }{
+				filepath.Join("internal", "repository", data.Snake+"_repository_test.go"),
+				"generators/resource/framework/repository_test.go.tmpl",
+			})
 		}
 		if m.Edition == "starter" && m.Mode == "ui" {
 			steps = append(steps,

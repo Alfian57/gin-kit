@@ -38,10 +38,7 @@ app.Router().POST("/tasks", createTask)
 
 var task Task
 app.POST("/tasks", newTask).RequireStatus(http.StatusCreated).Data(&task)
-
-failure := app.GET("/tasks/absent").RequireStatus(http.StatusNotFound).Err()
-// failure.Code == "not_found"
 ```
 
-`Do` sends JSON bodies and custom headers; `Data` decodes the `data` envelope
-field; `Err` decodes the error envelope.
+See the [Testing guide](/gin-kit/testing/) for request options, session/CSRF
+flows, integration databases, factories, and browser tests.

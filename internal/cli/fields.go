@@ -66,6 +66,34 @@ func parseFields(spec, database string) ([]fieldSpec, error) {
 	return fields, nil
 }
 
+// sqliteColumnType maps a field kind to a SQLite column type so generated
+// integration tests can create the table regardless of the project's target
+// database dialect.
+func sqliteColumnType(field fieldSpec) string {
+	var base string
+	switch field.Kind {
+	case "string":
+		base = "VARCHAR(255)"
+	case "text":
+		base = "TEXT"
+	case "int", "int64":
+		base = "INTEGER"
+	case "float64":
+		base = "REAL"
+	case "bool":
+		base = "BOOLEAN"
+	default: // time
+		base = "TIMESTAMP"
+	}
+	if field.Nullable {
+		return base
+	}
+	if field.Kind == "bool" {
+		return base + " NOT NULL DEFAULT FALSE"
+	}
+	return base + " NOT NULL"
+}
+
 // fakeExpression maps a field to a gofakeit expression, using the field name
 // as a heuristic for realistic data. Nullable wrapping happens in the
 // template through the emitted ptr helper.
