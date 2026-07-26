@@ -7,7 +7,7 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'gin-kit',
-      description: 'An opinionated Go framework built on Gin.',
+      description: 'Everything included, nothing hidden — an opinionated Go framework built on Gin.',
       logo: {
         light: './src/assets/gin-kit-mark-light.svg',
         dark: './src/assets/gin-kit-mark-dark.svg',

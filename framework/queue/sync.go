@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// syncDriver executes jobs inline at dispatch time — Laravel's sync driver.
+// syncDriver executes jobs inline at dispatch time, for development and tests.
 type syncDriver struct {
 	queue *Queue
 }

@@ -88,8 +88,8 @@ destructive and require `--yes`. Server, migrate, and seed binaries all load
 `gin-kit routes` boots the application (a reachable database is required —
 SQLite always works) and prints the sorted routing table with handlers.
 
-The command tree uses Go-native verbs and nouns while delivering
-Artisan-level generator coverage. Routes are never registered automatically:
+The command tree uses Go-native verbs and nouns, and every building block a
+project needs has a generator. Routes are never registered automatically:
 each generator prints the exact wiring snippet to paste, keeping application
 wiring explicit and reviewable.
 

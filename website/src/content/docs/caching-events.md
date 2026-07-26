@@ -1,6 +1,6 @@
 ---
 title: Caching and events
-description: A Laravel-style cache and a typed in-process event bus.
+description: A pluggable cache and a typed in-process event bus.
 ---
 
 ## Cache

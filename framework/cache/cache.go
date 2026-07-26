@@ -1,4 +1,4 @@
-// Package cache provides a Laravel-style cache with in-memory and Redis
+// Package cache provides a small cache contract with in-memory and Redis
 // drivers behind one small interface.
 package cache
 

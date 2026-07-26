@@ -30,6 +30,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Positioning: gin-kit's identity is now "Everything included, nothing
+  hidden." — framework comparisons were removed from package docs, generated
+  code, the website, and the repository description. The framing describes
+  what gin-kit is (batteries included, explicit wiring, no magic) instead of
+  what it resembles.
 - Generated services now take `dto.Create<Name>Request` /
   `dto.Update<Name>Request` instead of a service-local `<Name>Input` struct
   with sentinel-error validation; validation happens once, at bind time, with
@@ -153,7 +158,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - `snakeCase` naming is acronym- and dash-aware (`APIKey` → `api_key`);
   generated Go is gofmt-ed in staging before publishing, so a bad render
   aborts with the project untouched. Generator policy docs now embrace
-  Laravel-style generators while keeping explicit wiring and rejecting
+  full-coverage generators while keeping explicit wiring and rejecting
   reflection-based dependency injection.
 
 - `framework/session`: encrypted cookie sessions (gin-contrib/sessions) with
@@ -163,7 +168,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
   form carries a CSRF field, and starter projects receive a standalone
   `internal/platform/session` copy.
 
-- Full `--auth` scaffold in both editions (Laravel Breeze-API equivalent):
+- Full `--auth` scaffold in both editions, a complete token-API vertical:
   `users` and `refresh_tokens` migrations, domain models, GORM and sqlx
   repositories, an auth service with Argon2id passwords, timing-leveled
   login, and single-use refresh-token rotation, plus JSON endpoints for
@@ -176,7 +181,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
   projects now receive the auth service; the previous sample-only
   `/api/v1/me` handlers were replaced by the full auth handler package.
 
-- `framework/mail`: Laravel-style mailer with a fluent message builder,
+- `framework/mail`: transactional mailer with a fluent message builder,
   html/template rendering, an SMTP driver (wneessen/go-mail with
   none/tls/starttls), and a development log driver that renders the full MIME
   message; configured through `MAIL_*` variables and `config.MailOptions()`.
@@ -200,7 +205,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
   skip-if-still-running, and graceful stop as an application runner
   (single-instance in this version).
 
-- `framework/cache`: Laravel-style cache with in-memory (default) and Redis
+- `framework/cache`: application cache with in-memory (default) and Redis
   drivers behind one interface, a JSON `Remember` helper, key prefixes,
   increments and TTLs; configured with `CACHE_DRIVER`/`REDIS_URL`, with an
   automatic `redis` readiness check and shutdown-managed cleanup.
