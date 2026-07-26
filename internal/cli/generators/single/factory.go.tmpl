@@ -1,0 +1,30 @@
+// Package factories holds this project's model factories for tests and
+// seeders.
+package factories
+
+import (
+{{if .HasStringFake}}	"strings"
+{{end}}	"time"
+
+	"{{.FactoryImport}}"
+	"{{.Module}}/internal/domain"
+)
+
+// New{{.Name}}Factory builds {{.Camel}} models with realistic fake data.
+//
+//	item := New{{.Name}}Factory().Make()
+//	persisted, err := New{{.Name}}Factory().Create(ctx, repo.Create)
+func New{{.Name}}Factory() *factory.Factory[domain.{{.Name}}] {
+	return factory.Define(func(f *factory.F) domain.{{.Name}} {
+		now := time.Now().UTC()
+		return domain.{{.Name}}{
+			ID:        f.UUID(),
+{{range .Fields}}			{{.Pascal}}: {{if .Nullable}}ptr({{.FakeExpr}}){{else}}{{.FakeExpr}}{{end}},
+{{end}}			CreatedAt: now,
+			UpdatedAt: now,
+		}
+	})
+}
+{{if .HasNullable}}
+func ptr[T any](value T) *T { return &value }
+{{end}}

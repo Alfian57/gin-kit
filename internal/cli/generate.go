@@ -30,6 +30,9 @@ type genData struct {
 	SampleJSON     string      // JSON body with valid sample values for tests
 	QueryImport    string      // edition-specific query package import path
 	DatabaseImport string      // edition-specific database package import path
+	FactoryImport  string      // edition-specific factory package import path
+	HasNullable    bool        // any nullable field (factory ptr helper)
+	HasStringFake  bool        // any FakeExpr using the strings package
 
 	// Precomputed SQL fragments for the sqlx repository variant.
 	ColumnList         string // id, title, ..., created_at, updated_at
@@ -66,9 +69,11 @@ func buildGenData(m Manifest, name, fieldsSpec, table string) (genData, error) {
 	if m.Edition == "framework" {
 		data.QueryImport = "github.com/Alfian57/gin-kit/framework/query"
 		data.DatabaseImport = "github.com/Alfian57/gin-kit/framework/database"
+		data.FactoryImport = "github.com/Alfian57/gin-kit/framework/factory"
 	} else {
 		data.QueryImport = m.Module + "/internal/platform/query"
 		data.DatabaseImport = m.Module + "/internal/platform/database"
+		data.FactoryImport = m.Module + "/internal/platform/factory"
 	}
 	columns := []string{"id"}
 	insertArgs := []string{"entity.ID"}
@@ -80,6 +85,12 @@ func buildGenData(m Manifest, name, fieldsSpec, table string) (genData, error) {
 		}
 		if (field.Kind == "string" || field.Kind == "text") && !field.Nullable {
 			data.StringFields = append(data.StringFields, field)
+		}
+		if field.Nullable {
+			data.HasNullable = true
+		}
+		if strings.Contains(field.FakeExpr, "strings.") {
+			data.HasStringFake = true
 		}
 		columns = append(columns, field.Name)
 		insertArgs = append(insertArgs, "entity."+field.Pascal)
@@ -184,6 +195,7 @@ func runGenerate(rootDir string, m Manifest, request generateRequest) (map[strin
 			{filepath.Join("internal", "repository", data.Snake+"_repository.go"), "generators/resource/shared/repository.go.tmpl"},
 			{filepath.Join("internal", "service", data.Snake+"_service.go"), "generators/resource/shared/service.go.tmpl"},
 			{filepath.Join("internal", "service", data.Snake+"_service_test.go"), "generators/resource/shared/service_test.go.tmpl"},
+			{filepath.Join("internal", "database", "factories", data.Snake+"_factory.go"), "generators/single/factory.go.tmpl"},
 		}
 		if m.Edition == "starter" && m.Mode == "ui" {
 			steps = append(steps,
@@ -252,6 +264,11 @@ func runGenerate(rootDir string, m Manifest, request generateRequest) (map[strin
 			}
 			nextSteps = fmt.Sprintf("Build the mailer from configuration and send:\n\n    mailer, err := mail.New(cfg.MailOptions())\n    templates := template.Must(template.ParseGlob(\"web/templates/mail/*.html\"))\n    err = mailer.Send(ctx, projectmail.New%s(templates, recipient))", data.Name)
 		}
+	case "factory":
+		if err := add(filepath.Join("internal", "database", "factories", data.Snake+"_factory.go"), "generators/single/factory.go.tmpl"); err != nil {
+			return nil, "", err
+		}
+		nextSteps = fmt.Sprintf("Use the factory in tests and seeders:\n\n    item := factories.New%sFactory().Make()\n    persisted, err := factories.New%sFactory().Create(ctx, repo.Create)", data.Name, data.Name)
 	case "seeder":
 		if err := add(filepath.Join("internal", "database", "seeders", data.Snake+".go"), "generators/single/seeder.go.tmpl"); err != nil {
 			return nil, "", err
@@ -364,6 +381,15 @@ func generateCommand() *cobra.Command {
 	domainFields := domain.Flags().String("fields", "", fieldsGrammar)
 	domain.RunE = runKind("domain", domainFields, nil)
 	generate.AddCommand(domain)
+
+	factoryCommand := &cobra.Command{
+		Use:   "factory <Name>",
+		Short: "Generate a model factory with field-aware fake data",
+		Args:  cobra.ExactArgs(1),
+	}
+	factoryFields := factoryCommand.Flags().String("fields", "", fieldsGrammar+" (must match the domain model)")
+	factoryCommand.RunE = runKind("factory", factoryFields, nil)
+	generate.AddCommand(factoryCommand)
 
 	repository := &cobra.Command{
 		Use:   "repository <Name>",

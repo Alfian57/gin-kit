@@ -35,6 +35,7 @@ func TestScaffoldAPIPreservesSelections(t *testing.T) {
 		"internal/platform/config/config.go",
 		"internal/platform/config/dotenv.go",
 		"internal/platform/database/database.go",
+		"internal/platform/factory/factory.go",
 		"internal/platform/query/query.go",
 		"internal/middleware/security.go",
 		"internal/middleware/ratelimit.go",

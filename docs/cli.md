@@ -38,6 +38,7 @@ gin-kit generate handler <Name>
 gin-kit generate service <Name>
 gin-kit generate middleware <Name>
 gin-kit generate seeder <Name>
+gin-kit generate factory <Name> --fields "email:string,age:int"
 gin-kit generate migration <name>
 gin-kit generate job <Name>      # framework edition only
 gin-kit generate event <Name>    # framework edition only
@@ -72,7 +73,12 @@ gin-kit db fresh --yes
 ```
 
 Seeders live in `internal/database/seeders` as an explicit registry — generate
-one with `gin-kit generate seeder <Name>` and add it to `All()` by hand. `db
+one with `gin-kit generate seeder <Name>` and add it to `All()` by hand.
+Seeders receive the full database connection (`db.SQL` plus the project's
+GORM or sqlx handle), so repositories and model factories work inside them.
+Factories live in `internal/database/factories`; `generate resource` emits
+one automatically, and `generate factory` creates standalone ones with
+field-aware fake data (gofakeit). `db
 fresh` resets the schema, migrates up, and seeds; `reset` and `fresh` are
 destructive and require `--yes`. Server, migrate, and seed binaries all load
 `.env` (the real environment always wins).

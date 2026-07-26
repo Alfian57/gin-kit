@@ -4,12 +4,17 @@ package seeders
 
 import (
 	"context"
-	"database/sql"
-)
+
+{{if eq .Edition "framework"}}	"github.com/Alfian57/gin-kit/framework/database"
+{{else}}	"{{.Module}}/internal/platform/database"
+{{end}})
 
 type Seeder struct {
 	Name string
-	Run  func(context.Context, *sql.DB) error
+	// Run receives the full connection: db.SQL always, plus db.GORM or
+	// db.SQLX per the project's ORM — so seeders can use repositories and
+	// factories.
+	Run func(context.Context, *database.Connection) error
 }
 
 // All lists every seeder in run order.

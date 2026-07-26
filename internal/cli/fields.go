@@ -17,6 +17,7 @@ type fieldSpec struct {
 	StructTag  string // complete struct tag including backticks
 	FilterExpr string // query allowlist constructor, e.g. query.Partial("title")
 	InputTag   string // extra validation constraints, e.g. "required,max=255"
+	FakeExpr   string // factory value expression, e.g. f.Email()
 }
 
 const fieldsGrammar = `--fields "name:type,other:type?" with types string, text, int, int64, float64, bool, time (aliases: float, datetime, timestamp); a trailing ? makes the field nullable`
@@ -63,6 +64,48 @@ func parseFields(spec, database string) ([]fieldSpec, error) {
 		return nil, fmt.Errorf("no fields declared (%s)", fieldsGrammar)
 	}
 	return fields, nil
+}
+
+// fakeExpression maps a field to a gofakeit expression, using the field name
+// as a heuristic for realistic data. Nullable wrapping happens in the
+// template through the emitted ptr helper.
+func fakeExpression(field fieldSpec) string {
+	name := field.Name
+	contains := func(fragment string) bool { return strings.Contains(name, fragment) }
+	switch field.Kind {
+	case "string":
+		switch {
+		case contains("email"):
+			return "f.Email()"
+		case contains("name"):
+			return "f.Name()"
+		case contains("title"), contains("subject"):
+			return `strings.TrimSuffix(f.Sentence(3), ".")`
+		case contains("url"), contains("link"):
+			return "f.URL()"
+		case contains("phone"):
+			return "f.Phone()"
+		case contains("city"):
+			return "f.City()"
+		default:
+			return `f.Seqf("` + name + ` %d") + " " + f.Word()`
+		}
+	case "text":
+		return `f.Paragraph(1, 3, 12, " ")`
+	case "int":
+		return "f.Number(1, 1000)"
+	case "int64":
+		return "int64(f.Number(1, 100000))"
+	case "float64":
+		if contains("price") || contains("amount") || contains("cost") {
+			return "f.Price(1, 1000)"
+		}
+		return "f.Float64Range(0, 1000)"
+	case "bool":
+		return "f.Bool()"
+	default: // time
+		return "f.PastDate().UTC()"
+	}
 }
 
 func isSnakeIdentifier(name string) bool {
@@ -135,6 +178,7 @@ func buildField(name, kind string, nullable bool, database string) (fieldSpec, e
 	} else {
 		field.SQLType += " NOT NULL"
 	}
+	field.FakeExpr = fakeExpression(field)
 	gorm := []string{}
 	if gormSize != "" {
 		gorm = append(gorm, gormSize)

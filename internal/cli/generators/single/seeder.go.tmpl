@@ -2,14 +2,21 @@ package seeders
 
 import (
 	"context"
-	"database/sql"
+
+	"{{.DatabaseImport}}"
 )
 
 // Seed{{.Name}} seeds {{.Camel}} data. Keep it idempotent (check before
 // inserting) and register it in All (seeders.go):
 //
 //	{Name: "{{.Snake}}", Run: Seed{{.Name}}},
-func Seed{{.Name}}(ctx context.Context, db *sql.DB) error {
+//
+// The connection exposes db.SQL plus the project ORM handle, so repositories
+// and factories work here:
+//
+//	// repo := repository.New{{.Name}}Repository(db)
+//	// _, err := factories.New{{.Name}}Factory().CreateMany(ctx, 10, repo.Create)
+func Seed{{.Name}}(ctx context.Context, db *database.Connection) error {
 	// Insert idempotent seed data here.
 	return nil
 }

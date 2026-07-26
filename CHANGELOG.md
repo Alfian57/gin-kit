@@ -9,6 +9,20 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `framework/factory`: generic, ORM-agnostic model factories
+  (`factory.Define`, `Make`, `MakeMany`, `Create`, `CreateMany`, deterministic
+  `Seeded`) backed by gofakeit. `gin-kit generate factory` emits a per-model
+  factory with field-aware fake data, `generate resource` now includes one,
+  and starter projects receive a standalone `internal/platform/factory` copy.
+
+### Changed
+
+- Seeders now receive the full `*database.Connection` (SQL plus the project's
+  GORM or sqlx handle) instead of `*sql.DB`, so repositories and factories
+  work inside seeders; `cmd/seed` opens the connection through the edition's
+  database package. Breaking for previously generated projects that
+  regenerate seeders.
+
 - Framework-edition generators for infrastructure concepts:
   `gin-kit generate job` (typed queue job with registration and dispatch
   snippets), `generate event` (domain event plus listener for the event bus),

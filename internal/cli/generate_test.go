@@ -44,8 +44,19 @@ func TestRunGenerateResourceStarterAPI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(files) != 7 {
-		t.Fatalf("expected 7 files, got %d", len(files))
+	if len(files) != 8 {
+		t.Fatalf("expected 8 files, got %d", len(files))
+	}
+
+	factoryFile := fileContent(t, files, "internal/database/factories/ticket_factory.go")
+	for _, want := range []string{
+		"factory.Define(func(f *factory.F) domain.Ticket",
+		"example.com/shop/internal/platform/factory",
+		"f.Bool()", "f.Price(1, 1000)", "f.PastDate().UTC()",
+	} {
+		if !strings.Contains(factoryFile, want) {
+			t.Errorf("factory missing %q:\n%s", want, factoryFile)
+		}
 	}
 
 	domain := fileContent(t, files, "internal/domain/ticket.go")
@@ -191,6 +202,34 @@ func TestRunGenerateSinglesAndCollisions(t *testing.T) {
 	}
 	if err := writeGeneratedFiles(rootDir, files, false); err == nil {
 		t.Fatal("collision not detected")
+	}
+}
+
+func TestRunGenerateFactoryKind(t *testing.T) {
+	framework := Manifest{
+		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+		Project: "shop", Module: "example.com/shop",
+		Mode: "api", Database: "sqlite", ORM: "gorm",
+	}
+	rootDir := generatedProject(t, framework)
+	files, nextSteps, err := runGenerate(rootDir, framework, generateRequest{
+		Kind: "factory", Name: "Profile", Fields: "email:string,age:int,bio:text?",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := fileContent(t, files, "internal/database/factories/profile_factory.go")
+	for _, want := range []string{
+		"github.com/Alfian57/gin-kit/framework/factory",
+		"f.Email()", "f.Number(1, 1000)",
+		"ptr(", "func ptr[T any](value T) *T",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("factory missing %q:\n%s", want, content)
+		}
+	}
+	if !strings.Contains(nextSteps, "NewProfileFactory().Create(ctx, repo.Create)") {
+		t.Errorf("factory next steps wrong:\n%s", nextSteps)
 	}
 }
 
