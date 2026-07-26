@@ -8,6 +8,7 @@ import (
 
 	"{{.Module}}/internal/domain"
 	"{{.Module}}/internal/platform/database"
+	"{{.Module}}/internal/platform/query"
 {{if eq .ORM "gorm"}}	"gorm.io/gorm"
 {{end}}
 )
@@ -37,17 +38,18 @@ func (r *taskRepository) Create(ctx context.Context, task *domain.Task) error {
 {{end}}
 }
 
-func (r *taskRepository) List(ctx context.Context, limit, offset int) ([]domain.Task, int, error) {
-{{if eq .ORM "gorm"}}	var tasks []domain.Task
-	var total int64
-	if err := r.db.WithContext(ctx).Model(&domain.Task{}).Count(&total).Error; err != nil { return nil, 0, err }
-	if err := r.db.WithContext(ctx).Order("created_at DESC").Limit(limit).Offset(offset).Find(&tasks).Error; err != nil { return nil, 0, err }
-	return tasks, int(total), nil
-{{else}}	var total int
-	if err := r.db.GetContext(ctx, &total, "SELECT COUNT(*) FROM tasks"); err != nil { return nil, 0, err }
+func (r *taskRepository) List(ctx context.Context, q query.Result) ([]domain.Task, int64, error) {
+{{if eq .ORM "gorm"}}	total, err := q.CountGORM(r.db.WithContext(ctx).Model(&domain.Task{}))
+	if err != nil { return nil, 0, err }
 	var tasks []domain.Task
-	query := r.db.Rebind("SELECT id, title, completed, created_at, updated_at FROM tasks ORDER BY created_at DESC LIMIT ? OFFSET ?")
-	if err := r.db.SelectContext(ctx, &tasks, query, limit, offset); err != nil { return nil, 0, err }
+	if err := q.ApplyGORM(r.db.WithContext(ctx).Model(&domain.Task{})).Find(&tasks).Error; err != nil { return nil, 0, err }
+	return tasks, total, nil
+{{else}}	countStatement, countArgs := q.BuildCountSQL("SELECT COUNT(*) FROM tasks")
+	var total int64
+	if err := r.db.GetContext(ctx, &total, r.db.Rebind(countStatement), countArgs...); err != nil { return nil, 0, err }
+	statement, args := q.BuildSQL("SELECT id, title, completed, created_at, updated_at FROM tasks")
+	var tasks []domain.Task
+	if err := r.db.SelectContext(ctx, &tasks, r.db.Rebind(statement), args...); err != nil { return nil, 0, err }
 	return tasks, total, nil
 {{end}}
 }

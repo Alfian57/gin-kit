@@ -9,6 +9,14 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `framework/query`: allowlist-based filtering (exact, partial, in,
+  gte/lte/gt/lt), sorting, and pagination for list endpoints with GORM and
+  parameterized-SQL appliers, portable LIKE escaping, native boolean binding,
+  and standard pagination metadata. Starter-edition projects receive a
+  standalone `internal/platform/query` copy.
+- The Tasks examples in both editions now demonstrate query filtering,
+  sorting, and pagination end to end.
+
 - `httpx.BindQuery` and `httpx.BindURI` generic binders with the same
   validation behavior and error envelopes as `BindJSON` (`invalid_query` /
   `invalid_path`).

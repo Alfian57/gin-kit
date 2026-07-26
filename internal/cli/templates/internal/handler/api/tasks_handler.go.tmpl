@@ -3,11 +3,11 @@ package api
 import (
 	"errors"
 	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"{{.Module}}/internal/domain"
 	"{{.Module}}/internal/platform/database"
+	"{{.Module}}/internal/platform/query"
 	"{{.Module}}/internal/platform/response"
 	"{{.Module}}/internal/repository"
 	"{{.Module}}/internal/service"
@@ -28,11 +28,16 @@ func registerTasks(group *gin.RouterGroup, db *database.Connection) {
 		c.JSON(http.StatusCreated, gin.H{"data": task})
 	})
 	group.GET("/tasks", func(c *gin.Context) {
-		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-		offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
-		items, total, err := tasks.List(c.Request.Context(), limit, offset)
+		q, err := query.Parse(c, query.Options{
+			AllowedFilters: []query.Filter{query.Exact("completed").Bool(), query.Partial("title"), query.Compare("created_at")},
+			AllowedSorts:   []query.Sort{query.SortBy("created_at"), query.SortBy("title")},
+			DefaultSort:    "-created_at",
+			DefaultPerPage: 20,
+		})
+		if err != nil { response.Error(c, http.StatusBadRequest, "invalid_query", err.Error()); return }
+		items, total, err := tasks.List(c.Request.Context(), q)
 		if err != nil { taskError(c, err); return }
-		c.JSON(http.StatusOK, gin.H{"data": items, "meta": gin.H{"total": total, "limit": limit, "offset": offset}})
+		c.JSON(http.StatusOK, gin.H{"data": items, "meta": q.Meta(total)})
 	})
 	group.GET("/tasks/:id", func(c *gin.Context) {
 		task, err := tasks.Get(c.Request.Context(), c.Param("id"))
