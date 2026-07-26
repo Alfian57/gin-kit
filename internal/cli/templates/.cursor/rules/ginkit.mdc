@@ -1,6 +1,0 @@
----
-description: GinKit project architecture and workflow
-alwaysApply: true
----
-
-Read `AGENTS.md`. Keep generated Go projects explicit and learning-friendly. Run `ginkit check` after changes.

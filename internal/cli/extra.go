@@ -24,9 +24,9 @@ func explainCommand() *cobra.Command {
 			topics := map[string]string{
 				"architecture": "Requests move through router, handler, service, repository, and database. Constructors wire each dependency explicitly.",
 				"request-flow": "The router selects a handler. The handler binds and validates input. The service owns business rules. The repository owns persistence.",
-				"database":     fmt.Sprintf("This project uses %s with %s. Schema changes belong in migrations and are applied with `ginkit db up`.", m.Database, m.ORM),
+				"database":     fmt.Sprintf("This project uses %s with %s. Schema changes belong in migrations and are applied with `gin-kit db up`.", m.Database, m.ORM),
 				"auth":         "Authentication uses Argon2id password hashes, short-lived access tokens, rotating refresh tokens, and protected middleware.",
-				"commands":     "Use `ginkit run`, `ginkit build`, `ginkit generate resource`, `ginkit db up`, and `ginkit check`.",
+				"commands":     "Use `gin-kit run`, `gin-kit build`, `gin-kit generate resource`, `gin-kit db up`, and `gin-kit check`.",
 			}
 			text, ok := topics[args[0]]
 			if !ok {
@@ -44,7 +44,7 @@ func doctorCommand() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		fmt.Println("GinKit doctor")
+		fmt.Println("gin-kit doctor")
 		fmt.Println("  project:", rootDir)
 		fmt.Println("  module:", m.Module)
 		for _, tool := range []string{"go", "git"} {
@@ -174,7 +174,7 @@ func writeGeneratedFiles(rootDir string, files map[string][]byte, dryRun bool) e
 		}
 		return nil
 	}
-	staging, err := os.MkdirTemp(rootDir, ".ginkit-generate-*")
+	staging, err := os.MkdirTemp(rootDir, ".gin-kit-generate-*")
 	if err != nil {
 		return diagnostic("generation_staging_failed", "stage generated files", rootDir, err, "Check directory permissions and available disk space.")
 	}

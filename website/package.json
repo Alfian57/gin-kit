@@ -1,5 +1,5 @@
 {
-  "name": "@ginkit/docs",
+  "name": "@gin-kit/docs",
   "private": true,
   "type": "module",
   "scripts": {

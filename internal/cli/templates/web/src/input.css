@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* GinKit keeps a small custom layer for the generated learning page. */
+/* gin-kit keeps a small custom layer for the generated learning page. */
 @theme {
-  --color-ginkit-teal: #0e8c92;
+  --color-gin-kit-teal: #0e8c92;
 }

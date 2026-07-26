@@ -3,25 +3,25 @@ import starlight from '@astrojs/starlight';
 
 export default defineConfig({
   site: 'https://alfian57.github.io',
-  base: '/ginkit',
+  base: '/gin-kit',
   integrations: [
     starlight({
-      title: 'GinKit',
+      title: 'gin-kit',
       description: 'An opinionated Go framework built on Gin.',
       logo: {
-        src: './src/assets/ginkit-mark.svg',
-        alt: 'GinKit',
+        src: './src/assets/gin-kit-mark.svg',
+        alt: 'gin-kit',
       },
       social: [
         {
           icon: 'github',
           label: 'GitHub',
-          href: 'https://github.com/Alfian57/ginkit',
+          href: 'https://github.com/Alfian57/gin-kit',
         },
       ],
       customCss: ['./src/styles/custom.css'],
       editLink: {
-        baseUrl: 'https://github.com/Alfian57/ginkit/edit/main/website/',
+        baseUrl: 'https://github.com/Alfian57/gin-kit/edit/main/website/',
       },
       sidebar: [
         {

@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Alfian57/ginkit/framework/httpx"
+	"github.com/Alfian57/gin-kit/framework/httpx"
 	"github.com/gin-gonic/gin"
 )
 

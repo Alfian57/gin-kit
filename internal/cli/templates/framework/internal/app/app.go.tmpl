@@ -5,8 +5,8 @@ import (
 {{end}}
 	"os"
 
-	"github.com/Alfian57/ginkit/framework"
-	"github.com/Alfian57/ginkit/framework/database"
+	"github.com/Alfian57/gin-kit/framework"
+	"github.com/Alfian57/gin-kit/framework/database"
 	"github.com/gin-gonic/gin"
 
 {{if eq .Mode "ui"}}	"{{.Module}}/internal/handler/web"
@@ -14,7 +14,7 @@ import (
 {{end}}
 )
 
-// New composes the opinionated GinKit runtime. Application behavior remains
+// New composes the opinionated gin-kit runtime. Application behavior remains
 // in this project: add routes and middleware through Configure.
 func New() (*framework.Application, error) {
 	dsn := os.Getenv("DATABASE_URL")

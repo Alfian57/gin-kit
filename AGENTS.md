@@ -2,7 +2,7 @@
 
 ## Project overview
 
-GinKit is an opinionated Go framework built on Gin. The repository contains a
+gin-kit is an opinionated Go framework built on Gin. The repository contains a
 versioned runtime, a project CLI, a thin framework edition, and a standalone
 starter edition. Application code follows the explicit router → handler →
 service → repository → database flow.
@@ -15,7 +15,7 @@ go test -race ./...
 go vet ./...
 test -z "$(gofmt -l cmd framework internal)"
 gofmt -w cmd framework internal
-go run ./cmd/ginkit new /tmp/ginkit-sample --non-interactive --edition starter --module example.com/sample --mode api --database sqlite --orm gorm
+go run ./cmd/gin-kit new /tmp/gin-kit-sample --non-interactive --edition starter --module example.com/sample --mode api --database sqlite --orm gorm
 cd website && npm ci && npm run check && npm run build
 ```
 
@@ -24,17 +24,17 @@ cd website && npm ci && npm run check && npm run build
 - Keep source, README files, CLI messages, and generated documentation in English.
 - Do not introduce Laravel-like `make:*` commands, reflection-based dependency
   injection, service locators, or implicit application wiring.
-- Framework-edition projects import the versioned GinKit runtime. Keep their
+- Framework-edition projects import the versioned gin-kit runtime. Keep their
   application routes, handlers, services, domains, repositories, migrations,
   and configuration visible and editable.
-- Starter-edition projects remain standalone and buildable without GinKit
+- Starter-edition projects remain standalone and buildable without gin-kit
   installed.
 - Keep the public API small and explicit. Prefer options, interfaces, hooks,
   raw Gin access, and standard Go types as customization boundaries.
 - Preserve the canonical API response envelope and detailed validation field
   errors. Never expose stack traces, credentials, tokens, database errors, or
   submitted secret values in HTTP responses.
-- Template files use `.tmpl` so they are not compiled as part of the GinKit repository.
+- Template files use `.tmpl` so they are not compiled as part of the gin-kit repository.
 - Any template change requires framework and starter API/UI scaffold validation.
 - Keep migrations versioned SQL; do not add production AutoMigrate behavior.
 - Add tests for new CLI behavior and generated output.
@@ -52,4 +52,4 @@ cd website && npm ci && npm run check && npm run build
 
 ## AI workflow
 
-Read `.github/skills/ginkit-development/SKILL.md` when changing the scaffold, generators, or generated runtime.
+Read `.github/skills/gin-kit-development/SKILL.md` when changing the scaffold, generators, or generated runtime.

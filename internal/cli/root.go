@@ -29,7 +29,7 @@ type Manifest struct {
 }
 
 var root = &cobra.Command{
-	Use:   "ginkit",
+	Use:   "gin-kit",
 	Short: "An opinionated application framework built on Gin",
 }
 
@@ -51,7 +51,7 @@ func projectRoot() (string, Manifest, error) {
 		return "", Manifest{}, err
 	}
 	for {
-		data, readErr := os.ReadFile(filepath.Join(dir, ".ginkit.yaml"))
+		data, readErr := os.ReadFile(filepath.Join(dir, ".gin-kit.yaml"))
 		if readErr == nil {
 			var m Manifest
 			decoder := yaml.NewDecoder(bytes.NewReader(data))
@@ -63,9 +63,9 @@ func projectRoot() (string, Manifest, error) {
 				return dir, m, diagnostic(
 					"manifest_version_unsupported",
 					"read project manifest",
-					filepath.Join(dir, ".ginkit.yaml"),
+					filepath.Join(dir, ".gin-kit.yaml"),
 					fmt.Errorf("manifest version %d is not supported", m.Version),
-					"Migrate the project manifest to version 2: https://alfian57.github.io/ginkit/migration/manifest-v2/",
+					"Migrate the project manifest to version 2: https://alfian57.github.io/gin-kit/migration-v1/",
 				)
 			}
 			if err := validateManifest(m); err != nil {
@@ -75,7 +75,7 @@ func projectRoot() (string, Manifest, error) {
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", Manifest{}, errors.New("not inside a GinKit project (.ginkit.yaml not found)")
+			return "", Manifest{}, errors.New("not inside a gin-kit project (.gin-kit.yaml not found)")
 		}
 		dir = parent
 	}
@@ -122,7 +122,7 @@ func writeManifest(dir string, m Manifest) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, ".ginkit.yaml"), data, 0o644)
+	return os.WriteFile(filepath.Join(dir, ".gin-kit.yaml"), data, 0o644)
 }
 
 func platform() string { return runtime.GOOS + "/" + runtime.GOARCH }

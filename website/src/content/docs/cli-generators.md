@@ -1,20 +1,20 @@
 ---
 title: CLI and generators
-description: Use the GinKit command line without ceremony.
+description: Use the gin-kit command line without ceremony.
 ---
 
 ```text
-ginkit new <path>
-ginkit run
-ginkit build
-ginkit check
-ginkit doctor
-ginkit explain <topic>
-ginkit generate handler|service|domain|repository|middleware|migration|resource <name>
-ginkit db up|down|status
+gin-kit new <path>
+gin-kit run
+gin-kit build
+gin-kit check
+gin-kit doctor
+gin-kit explain <topic>
+gin-kit generate handler|service|domain|repository|middleware|migration|resource <name>
+gin-kit db up|down|status
 ```
 
-Commands use Go-native verbs and nouns. GinKit intentionally does not imitate
+Commands use Go-native verbs and nouns. gin-kit intentionally does not imitate
 Laravel’s `make:*` or Artisan conventions.
 
 Generators preflight output paths, refuse accidental overwrites, render

@@ -1,0 +1,6 @@
+---
+description: gin-kit project architecture and workflow
+alwaysApply: true
+---
+
+Read `AGENTS.md`. Keep generated Go projects explicit and learning-friendly. Run `gin-kit check` after changes.

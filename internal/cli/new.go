@@ -24,7 +24,7 @@ func newCommand() *cobra.Command {
 	var auth, example, docker bool
 	cmd := &cobra.Command{
 		Use:   "new <project>",
-		Short: "Create a new GinKit project",
+		Short: "Create a new gin-kit project",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			target, err := filepath.Abs(filepath.Clean(args[0]))
@@ -53,7 +53,7 @@ func newCommand() *cobra.Command {
 					m.FrameworkVersion = effectiveVersion()
 				}
 				if m.FrameworkVersion == "dev" && frameworkReplace == "" {
-					return diagnostic("framework_version_required", "resolve framework version", target, errors.New("development CLI builds do not identify a released framework version"), "Pass --framework-version <version>, or use --framework-replace <local-repository> while developing GinKit.")
+					return diagnostic("framework_version_required", "resolve framework version", target, errors.New("development CLI builds do not identify a released framework version"), "Pass --framework-version <version>, or use --framework-replace <local-repository> while developing gin-kit.")
 				}
 			}
 			if err := validateManifest(m); err != nil {
@@ -67,7 +67,7 @@ func newCommand() *cobra.Command {
 			if err := scaffoldWithOptions(target, m, scaffoldOptions{FrameworkReplace: frameworkReplace}); err != nil {
 				return err
 			}
-			fmt.Printf("Created %s (%s edition, %s, %s, %s).\nNext steps:\n  cd %s\n  ginkit run\n", name, m.Edition, m.Mode, m.Database, m.ORM, target)
+			fmt.Printf("Created %s (%s edition, %s, %s, %s).\nNext steps:\n  cd %s\n  gin-kit run\n", name, m.Edition, m.Mode, m.Database, m.ORM, target)
 			return nil
 		},
 	}
@@ -80,8 +80,8 @@ func newCommand() *cobra.Command {
 	cmd.Flags().BoolVar(&auth, "auth", false, "include authentication")
 	cmd.Flags().BoolVar(&example, "example", false, "include tasks example")
 	cmd.Flags().BoolVar(&docker, "docker", false, "include Docker files")
-	cmd.Flags().StringVar(&frameworkVersion, "framework-version", "", "GinKit framework version (defaults to the CLI release)")
-	cmd.Flags().StringVar(&frameworkReplace, "framework-replace", "", "local GinKit repository override for framework development")
+	cmd.Flags().StringVar(&frameworkVersion, "framework-version", "", "gin-kit framework version (defaults to the CLI release)")
+	cmd.Flags().StringVar(&frameworkReplace, "framework-replace", "", "local gin-kit repository override for framework development")
 	return cmd
 }
 
@@ -105,7 +105,7 @@ func scaffoldWithOptions(target string, m Manifest, options scaffoldOptions) err
 	if err := os.MkdirAll(parent, 0o755); err != nil {
 		return diagnostic("target_parent_failed", "create target parent", parent, err, "Check directory permissions and available disk space.")
 	}
-	staging, err := os.MkdirTemp(parent, ".ginkit-scaffold-*")
+	staging, err := os.MkdirTemp(parent, ".gin-kit-scaffold-*")
 	if err != nil {
 		return diagnostic("staging_failed", "create scaffold staging directory", parent, err, "Check directory permissions and available disk space.")
 	}
@@ -138,13 +138,13 @@ func scaffoldIntoWithOptions(target string, m Manifest, options scaffoldOptions)
 		if version == "" || version == "dev" {
 			version = "0.0.0"
 		}
-		frameworkRequire = "require github.com/Alfian57/ginkit v" + version
+		frameworkRequire = "require github.com/Alfian57/gin-kit v" + version
 		if options.FrameworkReplace != "" {
 			local, err := filepath.Abs(options.FrameworkReplace)
 			if err != nil {
-				return diagnostic("framework_replace_invalid", "resolve framework override", options.FrameworkReplace, err, "Pass a valid local GinKit repository path.")
+				return diagnostic("framework_replace_invalid", "resolve framework override", options.FrameworkReplace, err, "Pass a valid local gin-kit repository path.")
 			}
-			frameworkReplace = "\nreplace github.com/Alfian57/ginkit => " + filepath.ToSlash(local)
+			frameworkReplace = "\nreplace github.com/Alfian57/gin-kit => " + filepath.ToSlash(local)
 		}
 	}
 	data := templateData{Manifest: m, Package: filepath.Base(m.Module), FrameworkRequire: frameworkRequire, FrameworkReplace: frameworkReplace}
@@ -249,7 +249,7 @@ func formatGeneratedGo(root string) error {
 
 func validateManifest(m Manifest) error {
 	if m.Version != 2 {
-		return diagnostic("manifest_version_invalid", "validate manifest", ".ginkit.yaml", fmt.Errorf("expected version 2, got %d", m.Version), "Use a version 2 manifest.")
+		return diagnostic("manifest_version_invalid", "validate manifest", ".gin-kit.yaml", fmt.Errorf("expected version 2, got %d", m.Version), "Use a version 2 manifest.")
 	}
 	if strings.TrimSpace(m.Project) == "" || strings.ContainsAny(m.Project, `/\`) || m.Project == "." || m.Project == ".." {
 		return diagnostic("project_name_invalid", "validate manifest", m.Project, errors.New("project name must be non-empty and must not contain path separators"), "Use a directory name such as orders-api.")
@@ -309,8 +309,8 @@ func templateOutputPath(rel string, m Manifest) (string, bool) {
 			rel == "CLAUDE.md",
 			rel == "GEMINI.md",
 			rel == ".github/copilot-instructions.md",
-			rel == ".github/skills/ginkit-development/SKILL.md",
-			rel == ".cursor/rules/ginkit.mdc",
+			rel == ".github/skills/gin-kit-development/SKILL.md",
+			rel == ".cursor/rules/gin-kit.mdc",
 			rel == "cmd/migrate/main.go.tmpl",
 			rel == "package.json.tmpl",
 			rel == "migrations/00001_init.sql",

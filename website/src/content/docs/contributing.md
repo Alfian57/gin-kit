@@ -1,6 +1,6 @@
 ---
 title: Contributing
-description: Help improve GinKit.
+description: Help improve gin-kit.
 ---
 
 Read the repository’s `CONTRIBUTING.md` and `AGENTS.md`, then create a branch

@@ -2,16 +2,16 @@
 set -Eeuo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"
-mode="${GINKIT_MODE:?GINKIT_MODE is required}"
-database="${GINKIT_DATABASE:?GINKIT_DATABASE is required}"
-orm="${GINKIT_ORM:?GINKIT_ORM is required}"
-auth="${GINKIT_AUTH:-false}"
-edition="${GINKIT_EDITION:-framework}"
-framework_version="${GINKIT_FRAMEWORK_VERSION:-0.3.0}"
-project_name="${GINKIT_PROJECT_NAME:-matrixapp}"
+mode="${GIN_KIT_MODE:?GIN_KIT_MODE is required}"
+database="${GIN_KIT_DATABASE:?GIN_KIT_DATABASE is required}"
+orm="${GIN_KIT_ORM:?GIN_KIT_ORM is required}"
+auth="${GIN_KIT_AUTH:-false}"
+edition="${GIN_KIT_EDITION:-framework}"
+framework_version="${GIN_KIT_FRAMEWORK_VERSION:-0.3.0}"
+project_name="${GIN_KIT_PROJECT_NAME:-matrixapp}"
 runner_temp="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
-cli_path="${GINKIT_CLI_PATH:-$runner_temp/ginkit}"
-workdir="$(mktemp -d "${TMPDIR:-/tmp}/ginkit-scaffold.XXXXXX")"
+cli_path="${GIN_KIT_CLI_PATH:-$runner_temp/gin-kit}"
+workdir="$(mktemp -d "${TMPDIR:-/tmp}/gin-kit-scaffold.XXXXXX")"
 project_dir="$workdir/$project_name"
 
 cleanup() {
@@ -24,7 +24,7 @@ trap cleanup EXIT
 
 if [[ ! -x "$cli_path" ]]; then
   mkdir -p "$(dirname "$cli_path")"
-  (cd "$repo_root" && go build -trimpath -o "$cli_path" ./cmd/ginkit)
+  (cd "$repo_root" && go build -trimpath -o "$cli_path" ./cmd/gin-kit)
 fi
 
 args=(
@@ -47,13 +47,13 @@ fi
 (cd "$workdir" && "$cli_path" "${args[@]}")
 
 if [[ "$database" == "postgres" ]]; then
-  export GINKIT_DB_PORT="${GINKIT_DB_PORT:-$((20000 + RANDOM % 10000))}"
-  export DATABASE_URL="postgres://postgres:postgres@127.0.0.1:$GINKIT_DB_PORT/$project_name?sslmode=disable"
+  export GIN_KIT_DB_PORT="${GIN_KIT_DB_PORT:-$((20000 + RANDOM % 10000))}"
+  export DATABASE_URL="postgres://postgres:postgres@127.0.0.1:$GIN_KIT_DB_PORT/$project_name?sslmode=disable"
 elif [[ "$database" == "mysql" || "$database" == "mariadb" ]]; then
-  export GINKIT_DB_PORT="${GINKIT_DB_PORT:-$((30000 + RANDOM % 10000))}"
-  export DATABASE_URL="root:root@tcp(127.0.0.1:$GINKIT_DB_PORT)/$project_name?parseTime=true"
+  export GIN_KIT_DB_PORT="${GIN_KIT_DB_PORT:-$((30000 + RANDOM % 10000))}"
+  export DATABASE_URL="root:root@tcp(127.0.0.1:$GIN_KIT_DB_PORT)/$project_name?parseTime=true"
 else
-  export DATABASE_URL="$project_dir/.ginkit-test.sqlite"
+  export DATABASE_URL="$project_dir/.gin-kit-test.sqlite"
 fi
 
 if [[ "$database" != "sqlite" ]]; then
@@ -71,12 +71,12 @@ if [[ "$database" != "sqlite" ]]; then
     exit 1
   fi
   for _ in {1..60}; do
-    if (echo >/dev/tcp/127.0.0.1/"$GINKIT_DB_PORT") >/dev/null 2>&1; then
+    if (echo >/dev/tcp/127.0.0.1/"$GIN_KIT_DB_PORT") >/dev/null 2>&1; then
       break
     fi
     sleep 2
   done
-  (echo >/dev/tcp/127.0.0.1/"$GINKIT_DB_PORT") >/dev/null 2>&1
+  (echo >/dev/tcp/127.0.0.1/"$GIN_KIT_DB_PORT") >/dev/null 2>&1
 fi
 
 (

@@ -85,12 +85,12 @@ jobs:
 
       - name: Run generated project smoke test
         env:
-          GINKIT_EDITION: ${{ matrix.edition }}
-          GINKIT_MODE: ${{ matrix.mode }}
-          GINKIT_DATABASE: ${{ matrix.database }}
-          GINKIT_ORM: ${{ matrix.orm }}
-          GINKIT_AUTH: ${{ matrix.auth }}
-          GINKIT_CLI_PATH: ${{ runner.temp }}/ginkit
+          GIN_KIT_EDITION: ${{ matrix.edition }}
+          GIN_KIT_MODE: ${{ matrix.mode }}
+          GIN_KIT_DATABASE: ${{ matrix.database }}
+          GIN_KIT_ORM: ${{ matrix.orm }}
+          GIN_KIT_AUTH: ${{ matrix.auth }}
+          GIN_KIT_CLI_PATH: ${{ runner.temp }}/gin-kit
         run: .github/scripts/scaffold-smoke.sh
 
   scaffold-main:
@@ -131,12 +131,12 @@ jobs:
 
       - name: Run generated project smoke test
         env:
-          GINKIT_EDITION: ${{ matrix.edition }}
-          GINKIT_MODE: ${{ matrix.mode }}
-          GINKIT_DATABASE: ${{ matrix.database }}
-          GINKIT_ORM: ${{ matrix.orm }}
-          GINKIT_AUTH: ${{ matrix.auth || false }}
-          GINKIT_CLI_PATH: ${{ runner.temp }}/ginkit
+          GIN_KIT_EDITION: ${{ matrix.edition }}
+          GIN_KIT_MODE: ${{ matrix.mode }}
+          GIN_KIT_DATABASE: ${{ matrix.database }}
+          GIN_KIT_ORM: ${{ matrix.orm }}
+          GIN_KIT_AUTH: ${{ matrix.auth || false }}
+          GIN_KIT_CLI_PATH: ${{ runner.temp }}/gin-kit
         run: .github/scripts/scaffold-smoke.sh
 
   release-snapshot:

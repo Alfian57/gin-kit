@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: Create and run your first GinKit application.
+description: Create and run your first gin-kit application.
 ---
 
 ## Requirements
@@ -12,17 +12,17 @@ description: Create and run your first GinKit application.
 Install the CLI from a release:
 
 ```bash
-go install github.com/Alfian57/ginkit/cmd/ginkit@latest
+go install github.com/Alfian57/gin-kit/cmd/gin-kit@latest
 ```
 
 Create an API application with a custom module path:
 
 ```bash
-ginkit new ./orders --non-interactive \
+gin-kit new ./orders --non-interactive \
   --module example.com/acme/orders \
   --mode api --database sqlite --orm gorm
 cd orders
-ginkit run
+gin-kit run
 ```
 
 Open `http://localhost:8080/health/live`. The generated `.env.example` lists
@@ -30,6 +30,6 @@ the configuration your chosen database and features need.
 
 ## The interactive path
 
-Run `ginkit new ./orders` without `--non-interactive` to choose the edition,
+Run `gin-kit new ./orders` without `--non-interactive` to choose the edition,
 API/UI mode, SQL database, ORM, authentication, example slice, and Docker
-support. Use `ginkit check` before committing.
+support. Use `gin-kit check` before committing.

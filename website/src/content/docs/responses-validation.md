@@ -3,7 +3,7 @@ title: Responses and validation
 description: Predictable contracts for every request.
 ---
 
-GinKit returns a consistent JSON envelope. Validation failures use HTTP `422`
+gin-kit returns a consistent JSON envelope. Validation failures use HTTP `422`
 and include field-level details:
 
 ```json
