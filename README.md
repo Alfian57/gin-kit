@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset=".github/assets/gin-kit-logo-dark.png">
+    <img src=".github/assets/gin-kit-logo-light.png" alt="The gin-kit gopher mascot wearing a tool belt" width="180">
+  </picture>
+</p>
+
 # gin-kit
 
 gin-kit is an opinionated Go framework built on
