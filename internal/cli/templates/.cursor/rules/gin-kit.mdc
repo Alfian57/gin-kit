@@ -3,4 +3,9 @@ description: gin-kit project architecture and workflow
 alwaysApply: true
 ---
 
-Read `AGENTS.md`. Keep generated Go projects explicit and learning-friendly. Run `gin-kit check` after changes.
+Read `AGENTS.md` — it describes this project's edition, layout, and rules.
+Handlers bind request DTOs from `internal/dto` (`httpx.BindJSON[T]`) and wrap
+responses with `New<Name>Response` mappers; services take DTOs and return
+domain values; `context.Context` flows through every boundary; migrations are
+versioned SQL. Keep the OpenAPI description in sync when routes change. Run
+`gin-kit check` after changes.

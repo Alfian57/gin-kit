@@ -38,6 +38,18 @@ MySQL, MariaDB, and SQLite.
 4. Run the relevant generated-project matrix before requesting review.
 5. Keep commits focused. A separate CLA is not required.
 
+## Documentation discipline
+
+Every behavior change updates the documents it affects, in the same pull
+request — a feature is not done until its documentation exists. New features
+require a page or section on the documentation site
+(`website/src/content/docs/`, which deploys to GitHub Pages), a
+`CHANGELOG.md` entry under `[Unreleased]`, `docs/cli.md` updates when the
+CLI surface changes, and template AI-guidance updates
+(`internal/cli/templates/AGENTS.md.tmpl` and friends) when the
+generated-project workflow changes. The full change-type matrix lives in
+[AGENTS.md](AGENTS.md).
+
 Pull requests must pass the Go quality, generated-project smoke, release snapshot, vulnerability scan, dependency review, and CodeQL checks before merge.
 
 ## Template changes

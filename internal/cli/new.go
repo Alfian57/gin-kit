@@ -310,11 +310,11 @@ func templateOutputPath(rel string, m Manifest) (string, bool) {
 	if m.Edition == "framework" {
 		switch {
 		case rel == ".gitignore",
-			rel == "AGENTS.md",
+			rel == "AGENTS.md.tmpl",
 			rel == "CLAUDE.md",
 			rel == "GEMINI.md",
 			rel == ".github/copilot-instructions.md",
-			rel == ".github/skills/gin-kit-development/SKILL.md",
+			rel == ".github/skills/gin-kit-development/SKILL.md.tmpl",
 			rel == ".cursor/rules/gin-kit.mdc",
 			rel == "cmd/migrate/main.go.tmpl",
 			rel == "internal/database/seeders/seeders.go.tmpl",
