@@ -9,6 +9,14 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Opt-in Prometheus metrics endpoint (`MetricsOptions` / `METRICS_ENABLED`)
+  with request count, duration histogram, and in-flight gauge labeled by route
+  pattern, plus a registry accessor for custom metrics.
+- Request-scoped structured logging: `httpx.Logger(c)` returns an slog logger
+  carrying the request ID, method, and path.
+- Opt-in pprof endpoints under `/debug/pprof` (`PProfOptions` /
+  `PPROF_ENABLED`).
+
 - `framework/config`: typed environment loading with fail-fast validation,
   production requirements, Go-duration timeouts, and dependency-free `.env`
   support where the real environment always wins.

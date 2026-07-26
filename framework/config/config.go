@@ -28,6 +28,8 @@ type Config struct {
 	RateLimitPerMinute int           // RATE_LIMIT_PER_MINUTE, defaults to 60
 	RateLimitBurst     int           // RATE_LIMIT_BURST, 0 lets the framework derive it
 	MaxBodyBytes       int64         // MAX_BODY_BYTES, defaults to 1 MiB
+	MetricsEnabled     bool          // METRICS_ENABLED, defaults to false
+	PProfEnabled       bool          // PPROF_ENABLED, defaults to false; never expose publicly
 	ReadTimeout        time.Duration // READ_TIMEOUT, Go duration syntax such as 10s
 	WriteTimeout       time.Duration // WRITE_TIMEOUT
 	IdleTimeout        time.Duration // IDLE_TIMEOUT
@@ -60,6 +62,12 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	cfg.MaxBodyBytes = int64(maxBody)
+	if cfg.MetricsEnabled, err = boolValue("METRICS_ENABLED", false); err != nil {
+		return Config{}, err
+	}
+	if cfg.PProfEnabled, err = boolValue("PPROF_ENABLED", false); err != nil {
+		return Config{}, err
+	}
 	if cfg.ReadTimeout, err = durationValue("READ_TIMEOUT", 10*time.Second); err != nil {
 		return Config{}, err
 	}
@@ -140,6 +148,8 @@ func (c Config) Options() framework.Options {
 				Burst:             c.RateLimitBurst,
 			},
 		},
+		Metrics: framework.MetricsOptions{Enabled: c.MetricsEnabled},
+		PProf:   framework.PProfOptions{Enabled: c.PProfEnabled},
 	}
 }
 

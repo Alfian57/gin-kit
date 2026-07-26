@@ -69,7 +69,8 @@ and malformed values are always startup errors.
 Framework-edition projects use `framework/config` with `PORT`, `APP_ENV`,
 `DATABASE_URL`, `JWT_SECRET`, `TRUSTED_PROXY_CIDRS`, `CORS_ALLOWED_ORIGINS`,
 `RATE_LIMIT_ENABLED`, `RATE_LIMIT_PER_MINUTE`, `RATE_LIMIT_BURST`,
-`MAX_BODY_BYTES`, and `READ/WRITE/IDLE/SHUTDOWN_TIMEOUT` Go durations.
+`MAX_BODY_BYTES`, `METRICS_ENABLED`, `PPROF_ENABLED`, and
+`READ/WRITE/IDLE/SHUTDOWN_TIMEOUT` Go durations.
 
 Starter-edition rate limiting is enabled by default and exposes separate
 per-minute settings for general, authentication, and expensive endpoint
