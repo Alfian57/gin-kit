@@ -9,6 +9,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `framework/config`: typed environment loading with fail-fast validation,
+  production requirements, Go-duration timeouts, and dependency-free `.env`
+  support where the real environment always wins.
+- Framework-edition applications now apply timeouts, CORS origins, rate
+  limiting, body limits, and trusted proxies from the environment through
+  `framework/config`, and ship a framework-specific `.env.example`.
+
 - `framework/auth` Gin middleware: `RequireAuth`, `ClaimsFromContext`, and
   `UserID` with canonical `401` envelopes and `WWW-Authenticate` headers.
 - `HTTPOptions.TrustedProxies` for explicit forwarded-header trust.
@@ -26,6 +33,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Generated framework README instructed copying `.env.example` to `.env`
+  although nothing loaded the file; framework applications now load it.
+- Framework-edition projects received the starter's `.env.example` with
+  variables their runtime never read.
 - `--auth` was silently ignored for framework-edition projects.
 - Framework-edition UI projects registered the Tasks example route only when
   HTML templates were absent.
