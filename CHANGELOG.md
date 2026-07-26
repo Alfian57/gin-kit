@@ -9,6 +9,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Supervised background runners: `Application.Go(name, runner)` runs
+  long-lived goroutines under `Run` with shared cancellation; a runner error
+  or panic triggers graceful HTTP shutdown, runners drain before shutdown
+  hooks, and hooks keep their LIFO order.
+
 - `framework/query`: allowlist-based filtering (exact, partial, in,
   gte/lte/gt/lt), sorting, and pagination for list endpoints with GORM and
   parameterized-SQL appliers, portable LIKE escaping, native boolean binding,

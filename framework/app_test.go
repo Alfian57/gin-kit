@@ -227,6 +227,119 @@ func TestRequestScopedLoggerCarriesRequestID(t *testing.T) {
 	}
 }
 
+func TestRunnerErrorShutsDownApplication(t *testing.T) {
+	app, err := New(Options{HTTP: HTTPOptions{Address: "127.0.0.1:0", ShutdownTimeout: time.Second}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var hookCalled bool
+	app.OnShutdown(func(context.Context) error {
+		hookCalled = true
+		return nil
+	})
+	sentinel := errors.New("worker exploded")
+	app.Go("worker", func(context.Context) error { return sentinel })
+	runErr := app.Run(context.Background())
+	if !errors.Is(runErr, sentinel) || !strings.Contains(runErr.Error(), `runner "worker"`) {
+		t.Fatalf("runner error not propagated: %v", runErr)
+	}
+	if !hookCalled {
+		t.Fatal("shutdown hook did not run after runner failure")
+	}
+}
+
+func TestRunnerReceivesCancelOnShutdown(t *testing.T) {
+	app, err := New(Options{HTTP: HTTPOptions{Address: "127.0.0.1:0", ShutdownTimeout: time.Second}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	canceled := make(chan struct{})
+	app.Go("watcher", func(ctx context.Context) error {
+		<-ctx.Done()
+		close(canceled)
+		return ctx.Err()
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := app.Run(ctx); err != nil {
+		t.Fatalf("canceled runner should not produce an error: %v", err)
+	}
+	select {
+	case <-canceled:
+	default:
+		t.Fatal("runner did not observe cancellation")
+	}
+}
+
+func TestRunnerPanicBecomesError(t *testing.T) {
+	app, err := New(Options{HTTP: HTTPOptions{Address: "127.0.0.1:0", ShutdownTimeout: time.Second}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	app.Go("panicky", func(context.Context) error { panic("boom") })
+	runErr := app.Run(context.Background())
+	if runErr == nil || !strings.Contains(runErr.Error(), "panic") {
+		t.Fatalf("runner panic not converted to error: %v", runErr)
+	}
+}
+
+func TestShutdownHooksRemainLIFOWithRunners(t *testing.T) {
+	app, err := New(Options{HTTP: HTTPOptions{Address: "127.0.0.1:0", ShutdownTimeout: time.Second}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var order []string
+	app.OnShutdown(func(context.Context) error {
+		order = append(order, "first")
+		return nil
+	})
+	app.OnShutdown(func(context.Context) error {
+		order = append(order, "second")
+		return nil
+	})
+	app.Go("noop", func(ctx context.Context) error {
+		<-ctx.Done()
+		return nil
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := app.Run(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if len(order) != 2 || order[0] != "second" || order[1] != "first" {
+		t.Fatalf("hooks not LIFO: %v", order)
+	}
+}
+
+func TestGoAfterRunIsDropped(t *testing.T) {
+	app, err := New(Options{HTTP: HTTPOptions{Address: "127.0.0.1:0", ShutdownTimeout: time.Second}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	running := make(chan struct{})
+	app.Go("blocker", func(ctx context.Context) error {
+		close(running)
+		<-ctx.Done()
+		return nil
+	})
+	ctx, cancel := context.WithCancel(context.Background())
+	finished := make(chan error, 1)
+	go func() { finished <- app.Run(ctx) }()
+	<-running
+	var lateRan bool
+	app.Go("late", func(context.Context) error {
+		lateRan = true
+		return nil
+	})
+	cancel()
+	if err := <-finished; err != nil {
+		t.Fatal(err)
+	}
+	if lateRan {
+		t.Fatal("runner registered after Run was executed")
+	}
+}
+
 func TestRunReturnsServerError(t *testing.T) {
 	app, err := New(Options{HTTP: HTTPOptions{Address: "bad address", ShutdownTimeout: time.Millisecond}})
 	if err != nil {
