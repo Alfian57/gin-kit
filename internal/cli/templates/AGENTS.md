@@ -12,10 +12,13 @@ router -> handler -> service -> repository -> database.
 - `gin-kit run`
 - `gin-kit build`
 - `gin-kit check`
+- `gin-kit routes`
 - `gin-kit explain architecture`
-- `gin-kit generate resource <name>`
-- `gin-kit generate resource <name> --dry-run`
+- `gin-kit generate resource <Name> --fields "title:string,done:bool"`
+- `gin-kit generate seeder <Name>`
+- `gin-kit generate resource <Name> --dry-run`
 - `gin-kit db up`
+- `gin-kit db seed`
 
 ## Rules
 

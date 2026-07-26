@@ -60,7 +60,23 @@ fields comparison filters.
 gin-kit db up
 gin-kit db down
 gin-kit db status
+gin-kit db redo
+gin-kit db reset --yes
+gin-kit db create <name>
+gin-kit db seed
+gin-kit db fresh --yes
 ```
+
+Seeders live in `internal/database/seeders` as an explicit registry — generate
+one with `gin-kit generate seeder <Name>` and add it to `All()` by hand. `db
+fresh` resets the schema, migrates up, and seeds; `reset` and `fresh` are
+destructive and require `--yes`. Server, migrate, and seed binaries all load
+`.env` (the real environment always wins).
+
+## Routes
+
+`gin-kit routes` boots the application (a reachable database is required —
+SQLite always works) and prints the sorted routing table with handlers.
 
 The command tree uses Go-native verbs and nouns while delivering
 Artisan-level generator coverage. Routes are never registered automatically:

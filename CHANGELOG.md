@@ -9,6 +9,20 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Database seeding: generated projects ship `cmd/seed` with an explicit
+  seeder registry (`internal/database/seeders`), `gin-kit generate seeder`,
+  and `gin-kit db seed`; `--example` projects seed sample tasks idempotently.
+- `gin-kit db create|redo|reset|fresh` (destructive operations require
+  `--yes`) and `gin-kit routes`, which boots the app and prints the sorted
+  routing table (`cmd/server --routes`).
+
+### Fixed
+
+- Framework-edition `cmd/migrate` now loads `.env` like the server; starter
+  projects load `.env` in the server, migrate, and seed binaries (a copied
+  dotenv parser in `internal/platform/config`), and the starter migrate
+  binary gains the same SQLite DSN fallback as the framework edition.
+
 - Template-based, manifest-aware generators: `gin-kit generate resource`
   renders a complete vertical slice (domain model + repository interface,
   GORM or sqlx repository, service with typed inputs and validation, HTTP

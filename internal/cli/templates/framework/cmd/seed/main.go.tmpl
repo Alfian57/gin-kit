@@ -1,20 +1,18 @@
 package main
 
 import (
+	"context"
 	"database/sql"
-	"fmt"
 	"log"
 	"os"
 
 	"github.com/Alfian57/gin-kit/framework/config"
+	"{{.Module}}/internal/database/seeders"
+
 	_ "{{if eq .Database "postgres"}}github.com/jackc/pgx/v5/stdlib{{else if eq .Database "sqlite"}}github.com/mattn/go-sqlite3{{else}}github.com/go-sql-driver/mysql{{end}}"
-	"github.com/pressly/goose/v3"
 )
 
 func main() {
-	if len(os.Args) < 2 {
-		log.Fatal("usage: migrate up|down|status|redo|reset")
-	}
 	if err := config.LoadDotenv(".env"); err != nil {
 		log.Fatal(err)
 	}
@@ -28,25 +26,13 @@ func main() {
 		log.Fatal(err)
 	}
 	defer db.Close()
-	if err := goose.SetDialect("{{if eq .Database "postgres"}}postgres{{else if eq .Database "sqlite"}}sqlite3{{else}}mysql{{end}}"); err != nil {
-		log.Fatal(err)
+
+	ctx := context.Background()
+	for _, seeder := range seeders.All() {
+		log.Printf("seeding %s", seeder.Name)
+		if err := seeder.Run(ctx, db); err != nil {
+			log.Fatalf("seeder %s: %v", seeder.Name, err)
+		}
 	}
-	var runErr error
-	switch os.Args[1] {
-	case "up":
-		runErr = goose.Up(db, "migrations")
-	case "down":
-		runErr = goose.Down(db, "migrations")
-	case "status":
-		runErr = goose.Status(db, "migrations")
-	case "redo":
-		runErr = goose.Redo(db, "migrations")
-	case "reset":
-		runErr = goose.Reset(db, "migrations")
-	default:
-		runErr = fmt.Errorf("unknown migration command %q", os.Args[1])
-	}
-	if runErr != nil {
-		log.Fatal(runErr)
-	}
+	log.Println("seeding complete")
 }

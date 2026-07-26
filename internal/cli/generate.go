@@ -226,6 +226,11 @@ func runGenerate(rootDir string, m Manifest, request generateRequest) (map[strin
 			return nil, "", err
 		}
 		nextSteps = fmt.Sprintf("Wire the routes where %s.Register is called:\n  %s.Register%sRoutes(...)", handlerPackage, handlerPackage, data.Plural)
+	case "seeder":
+		if err := add(filepath.Join("internal", "database", "seeders", data.Snake+".go"), "generators/single/seeder.go.tmpl"); err != nil {
+			return nil, "", err
+		}
+		nextSteps = fmt.Sprintf("Register the seeder in internal/database/seeders/seeders.go inside All():\n\n    {Name: %q, Run: Seed%s},\n\nThen run it with:\n\n    gin-kit db seed", data.Snake, data.Name)
 	case "middleware":
 		if err := add(filepath.Join("internal", "middleware", data.Snake+".go"), "generators/single/middleware.go.tmpl"); err != nil {
 			return nil, "", err
@@ -343,7 +348,7 @@ func generateCommand() *cobra.Command {
 	repository.RunE = runKind("repository", repositoryFields, nil)
 	generate.AddCommand(repository)
 
-	for _, kind := range []string{"service", "handler", "middleware"} {
+	for _, kind := range []string{"service", "handler", "middleware", "seeder"} {
 		k := kind
 		generate.AddCommand(&cobra.Command{
 			Use:   k + " <Name>",

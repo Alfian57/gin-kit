@@ -2,11 +2,16 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
+	"sort"
+	"strings"
 	"syscall"
+	"text/tabwriter"
 
+	"github.com/gin-gonic/gin"
 	"{{.Module}}/internal/app"
 )
 
@@ -15,9 +20,30 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	if len(os.Args) > 1 && os.Args[1] == "--routes" {
+		printRoutes(application.Router().Routes())
+		return
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if err := application.Run(ctx); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// printRoutes renders the routing table for `gin-kit routes`.
+func printRoutes(routes gin.RoutesInfo) {
+	sort.Slice(routes, func(a, b int) bool {
+		if routes[a].Path == routes[b].Path {
+			return routes[a].Method < routes[b].Method
+		}
+		return routes[a].Path < routes[b].Path
+	})
+	writer := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+	fmt.Fprintln(writer, "METHOD\tPATH\tHANDLER")
+	for _, route := range routes {
+		fmt.Fprintf(writer, "%s\t%s\t%s\n", route.Method, route.Path, strings.TrimPrefix(route.Handler, "{{.Module}}/"))
+	}
+	writer.Flush()
+	fmt.Printf("\n%d routes\n", len(routes))
 }
