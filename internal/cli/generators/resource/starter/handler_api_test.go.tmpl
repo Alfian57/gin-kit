@@ -86,8 +86,8 @@ func Test{{.Plural}}Endpoints(t *testing.T) {
 	}
 
 	created := do(http.MethodPost, "/api/v1/{{.PluralCamel}}", `{{.SampleJSON}}`)
-	if created.Code != http.StatusCreated {
-		t.Fatalf("create: %d %s", created.Code, created.Body)
+	if created.Code != http.StatusCreated || !strings.Contains(created.Body.String(), `"created_at"`) {
+		t.Fatalf("create must return the response DTO: %d %s", created.Code, created.Body)
 	}
 {{if .StringFields}}
 	invalid := do(http.MethodPost, "/api/v1/{{.PluralCamel}}", `{}`)

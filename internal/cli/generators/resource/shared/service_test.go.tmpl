@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"{{.Module}}/internal/domain"
+	"{{.Module}}/internal/dto"
 	"{{.QueryImport}}"
 )
 
@@ -70,7 +71,7 @@ func Test{{.Name}}ServiceLifecycle(t *testing.T) {
 	ctx := context.Background()
 	svc := New{{.Name}}Service(newFake{{.Name}}Repository())
 
-	created, err := svc.Create(ctx, {{.Name}}Input{ {{range .StringFields}}{{.Pascal}}: "Sample value", {{end}} })
+	created, err := svc.Create(ctx, dto.Create{{.Name}}Request{ {{range .StringFields}}{{.Pascal}}: "Sample value", {{end}} })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,10 +97,14 @@ func Test{{.Name}}ServiceLifecycle(t *testing.T) {
 	}
 }
 {{if .StringFields}}
-func Test{{.Name}}ServiceValidatesInput(t *testing.T) {
+func Test{{.Name}}ServiceNormalizesInput(t *testing.T) {
 	svc := New{{.Name}}Service(newFake{{.Name}}Repository())
-	if _, err := svc.Create(context.Background(), {{.Name}}Input{}); !errors.Is(err, ErrInvalid{{.Name}}) {
-		t.Fatalf("empty required fields accepted: %v", err)
+	created, err := svc.Create(context.Background(), dto.Create{{.Name}}Request{ {{range .StringFields}}{{.Pascal}}: "  Sample value  ", {{end}} })
+	if err != nil {
+		t.Fatal(err)
 	}
-}
+{{range .StringFields}}	if created.{{.Pascal}} != "Sample value" {
+		t.Fatalf("{{.Name}} not trimmed: %q", created.{{.Pascal}})
+	}
+{{end}}}
 {{end}}

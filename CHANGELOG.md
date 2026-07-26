@@ -9,6 +9,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The `--fields` DSL marked nullable string fields (`nickname:string?`) as
+  `validate:"required"`, rejecting the very requests the schema allows. Tags
+  now follow nullability: nullable strings validate as
+  `omitempty,max=255`, nullable text carries no constraint.
+
 - The `httpx` binders (`BindJSON`/`BindQuery`/`BindURI`) validated with the
   package-level `validation.Default` even when the application configured
   `Options.Validator`, so custom rules and messages registered on the
@@ -25,6 +30,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- Generated services now take `dto.Create<Name>Request` /
+  `dto.Update<Name>Request` instead of a service-local `<Name>Input` struct
+  with sentinel-error validation; validation happens once, at bind time, with
+  `422` field details. `/api/v1/me` returns a `UserResponse`; register and
+  login responses are typed `AuthResponse` values with identical wire shapes.
 - **Breaking (regenerated starter projects only):** the starter
   `internal/platform/response` package is replaced by
   `internal/platform/httpx` — a standalone copy of the framework envelope and
@@ -42,6 +52,21 @@ and versions follow [Semantic Versioning](https://semver.org/).
   and topics updated to the framework positioning.
 
 ### Added
+
+- A dedicated DTO layer in generated projects: `generate resource` now also
+  renders `internal/dto/<name>_dto.go` with `Create<Name>Request` and
+  `Update<Name>Request` (validation tags plus a `Normalize()` trimmer) and a
+  `<Name>Response` with explicit `New<Name>Response` /
+  `New<Name>ResponseList` mappers — no `db`/`gorm` tags, and
+  credential-like fields (`password`, `secret`, `token`, `hash`) never appear
+  in responses. Services accept request DTOs and return domain values;
+  handlers wrap results in response DTOs. A standalone `gin-kit generate dto
+  <Name> --fields ...` command renders just the DTO file.
+- The auth scaffold ships typed DTOs in both editions (`RegisterRequest`,
+  `LoginRequest`, `RefreshRequest`, `UserResponse`, `TokenResponse`,
+  `AuthResponse`) replacing ad-hoc `gin.H` payloads and doc-only mirror
+  structs — the OpenAPI spec and the wire format now come from the same
+  types. The tasks example follows the same layout.
 
 - Thirteen additional built-in validation messages (`gte`, `lte`, `gt`, `lt`,
   `url`, `uuid`, `numeric`, `alphanum`, `datetime`, `eqfield`, `ne`,

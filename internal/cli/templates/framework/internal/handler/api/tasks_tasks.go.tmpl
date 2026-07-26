@@ -8,21 +8,12 @@ import (
 	"github.com/Alfian57/gin-kit/framework/openapi"
 	"github.com/Alfian57/gin-kit/framework/query"
 	"github.com/gin-gonic/gin"
+	"{{.Module}}/internal/dto"
 )
-
-type taskInput struct {
-	Title string `json:"title" validate:"required,max=255"`
-}
-
-type taskItem struct {
-	ID        string `json:"id"`
-	Title     string `json:"title"`
-	Completed bool   `json:"completed"`
-}
 
 // sampleTasks stands in for your repository; replace it with a service backed
 // by the application database.
-var sampleTasks = []taskItem{
+var sampleTasks = []dto.TaskResponse{
 	{ID: "1", Title: "Write the report", Completed: true},
 	{ID: "2", Title: "Review the report", Completed: false},
 	{ID: "3", Title: "Ship the release", Completed: false},
@@ -33,22 +24,22 @@ func registerTasks(router *gin.Engine, docs *openapi.Registry) {
 		openapi.Operation{
 			Method: http.MethodPost, Path: "/api/v1/tasks",
 			Summary: "Create a task", Tags: []string{"tasks"},
-			Request: taskInput{}, Response: taskItem{}, Status: http.StatusCreated,
+			Request: dto.CreateTaskRequest{}, Response: dto.TaskResponse{}, Status: http.StatusCreated,
 		},
 		openapi.Operation{
 			Method: http.MethodGet, Path: "/api/v1/tasks",
 			Summary: "List tasks", Tags: []string{"tasks"},
-			Response: taskItem{}, List: true,
+			Response: dto.TaskResponse{}, List: true,
 			Filters: []string{"completed", "title"},
 			Sorts:   []string{"id", "title"},
 		},
 	)
 	router.POST("/api/v1/tasks", func(c *gin.Context) {
-		input, ok := httpx.BindJSON[taskInput](c)
+		request, ok := httpx.BindJSON[dto.CreateTaskRequest](c)
 		if !ok {
 			return
 		}
-		httpx.Created(c, gin.H{"id": "example", "title": input.Title, "completed": false})
+		httpx.Created(c, dto.TaskResponse{ID: "example", Title: request.Title, Completed: false})
 	})
 	router.GET("/api/v1/tasks", func(c *gin.Context) {
 		result, err := query.Parse(c, query.Options{
@@ -62,7 +53,7 @@ func registerTasks(router *gin.Engine, docs *openapi.Registry) {
 		}
 		// In-memory filtering demonstrates the parsed query; with a database,
 		// use result.ApplyGORM or result.BuildSQL instead.
-		items := make([]taskItem, 0, len(sampleTasks))
+		items := make([]dto.TaskResponse, 0, len(sampleTasks))
 		for _, item := range sampleTasks {
 			if matches(item, result.Filters) {
 				items = append(items, item)
@@ -72,7 +63,7 @@ func registerTasks(router *gin.Engine, docs *openapi.Registry) {
 	})
 }
 
-func matches(item taskItem, filters []query.FilterValue) bool {
+func matches(item dto.TaskResponse, filters []query.FilterValue) bool {
 	for _, filter := range filters {
 		switch filter.Name {
 		case "completed":

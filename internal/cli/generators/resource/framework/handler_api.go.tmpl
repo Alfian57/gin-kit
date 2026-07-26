@@ -3,25 +3,15 @@ package {{if eq .Mode "ui"}}web{{else}}api{{end}}
 import (
 	"errors"
 	"net/http"
-{{if .HasTime}}	"time"
-{{end}}
+
 	"github.com/Alfian57/gin-kit/framework/httpx"
 	"github.com/Alfian57/gin-kit/framework/openapi"
 	"github.com/Alfian57/gin-kit/framework/query"
 	"github.com/gin-gonic/gin"
 	"{{.Module}}/internal/domain"
+	"{{.Module}}/internal/dto"
 	"{{.Module}}/internal/service"
 )
-
-type {{.Camel}}Input struct {
-{{range .Fields}}	{{.Pascal}} {{.GoType}} `json:"{{.Name}}"{{if .InputTag}} validate:"{{.InputTag}}"{{end}}`
-{{end}}}
-
-func (input {{.Camel}}Input) toService() service.{{.Name}}Input {
-	return service.{{.Name}}Input{
-{{range .Fields}}		{{.Pascal}}: input.{{.Pascal}},
-{{end}}	}
-}
 
 // Register{{.Plural}} wires the {{.Camel}} routes onto the router and
 // describes them for the auto-generated API docs.
@@ -30,25 +20,25 @@ func Register{{.Plural}}(router *gin.Engine, docs *openapi.Registry, {{.PluralCa
 		openapi.Operation{
 			Method: http.MethodPost, Path: "/api/v1/{{.PluralCamel}}",
 			Summary: "Create a {{.Camel}}", Tags: []string{"{{.PluralCamel}}"},
-			Request: {{.Camel}}Input{}, Response: domain.{{.Name}}{}, Status: http.StatusCreated,
+			Request: dto.Create{{.Name}}Request{}, Response: dto.{{.Name}}Response{}, Status: http.StatusCreated,
 		},
 		openapi.Operation{
 			Method: http.MethodGet, Path: "/api/v1/{{.PluralCamel}}",
 			Summary: "List {{.PluralCamel}}", Tags: []string{"{{.PluralCamel}}"},
-			Response: domain.{{.Name}}{}, List: true,
+			Response: dto.{{.Name}}Response{}, List: true,
 			Filters: []string{ {{range .Fields}}"{{.Name}}", {{end}} },
 			Sorts:   []string{"created_at"{{range .Fields}}, "{{.Name}}"{{end}}},
 		},
 		openapi.Operation{
 			Method: http.MethodGet, Path: "/api/v1/{{.PluralCamel}}/:id",
 			Summary: "Get a {{.Camel}}", Tags: []string{"{{.PluralCamel}}"},
-			Response: domain.{{.Name}}{},
+			Response: dto.{{.Name}}Response{},
 			ErrorCodes: []string{"{{.Snake}}_not_found"},
 		},
 		openapi.Operation{
 			Method: http.MethodPut, Path: "/api/v1/{{.PluralCamel}}/:id",
 			Summary: "Update a {{.Camel}}", Tags: []string{"{{.PluralCamel}}"},
-			Request: {{.Camel}}Input{}, Response: domain.{{.Name}}{},
+			Request: dto.Update{{.Name}}Request{}, Response: dto.{{.Name}}Response{},
 			ErrorCodes: []string{"{{.Snake}}_not_found"},
 		},
 		openapi.Operation{
@@ -59,16 +49,16 @@ func Register{{.Plural}}(router *gin.Engine, docs *openapi.Registry, {{.PluralCa
 		},
 	)
 	router.POST("/api/v1/{{.PluralCamel}}", func(c *gin.Context) {
-		input, ok := httpx.BindJSON[{{.Camel}}Input](c)
+		request, ok := httpx.BindJSON[dto.Create{{.Name}}Request](c)
 		if !ok {
 			return
 		}
-		created, err := {{.PluralCamel}}.Create(c.Request.Context(), input.toService())
+		created, err := {{.PluralCamel}}.Create(c.Request.Context(), request)
 		if err != nil {
 			{{.Camel}}Fail(c, err)
 			return
 		}
-		httpx.Created(c, created)
+		httpx.Created(c, dto.New{{.Name}}Response(created))
 	})
 	router.GET("/api/v1/{{.PluralCamel}}", func(c *gin.Context) {
 		q, err := query.Parse(c, query.Options{
@@ -85,7 +75,7 @@ func Register{{.Plural}}(router *gin.Engine, docs *openapi.Registry, {{.PluralCa
 			{{.Camel}}Fail(c, err)
 			return
 		}
-		httpx.List(c, items, q.Meta(total))
+		httpx.List(c, dto.New{{.Name}}ResponseList(items), q.Meta(total))
 	})
 	router.GET("/api/v1/{{.PluralCamel}}/:id", func(c *gin.Context) {
 		entity, err := {{.PluralCamel}}.Get(c.Request.Context(), c.Param("id"))
@@ -93,19 +83,19 @@ func Register{{.Plural}}(router *gin.Engine, docs *openapi.Registry, {{.PluralCa
 			{{.Camel}}Fail(c, err)
 			return
 		}
-		httpx.OK(c, entity)
+		httpx.OK(c, dto.New{{.Name}}Response(entity))
 	})
 	router.PUT("/api/v1/{{.PluralCamel}}/:id", func(c *gin.Context) {
-		input, ok := httpx.BindJSON[{{.Camel}}Input](c)
+		request, ok := httpx.BindJSON[dto.Update{{.Name}}Request](c)
 		if !ok {
 			return
 		}
-		entity, err := {{.PluralCamel}}.Update(c.Request.Context(), c.Param("id"), input.toService())
+		entity, err := {{.PluralCamel}}.Update(c.Request.Context(), c.Param("id"), request)
 		if err != nil {
 			{{.Camel}}Fail(c, err)
 			return
 		}
-		httpx.OK(c, entity)
+		httpx.OK(c, dto.New{{.Name}}Response(entity))
 	})
 	router.DELETE("/api/v1/{{.PluralCamel}}/:id", func(c *gin.Context) {
 		if err := {{.PluralCamel}}.Delete(c.Request.Context(), c.Param("id")); err != nil {
@@ -117,12 +107,9 @@ func Register{{.Plural}}(router *gin.Engine, docs *openapi.Registry, {{.PluralCa
 }
 
 func {{.Camel}}Fail(c *gin.Context, err error) {
-	switch {
-	case errors.Is(err, domain.Err{{.Name}}NotFound):
+	if errors.Is(err, domain.Err{{.Name}}NotFound) {
 		httpx.Fail(c, httpx.NewError(http.StatusNotFound, "{{.Snake}}_not_found", "{{.Name}} not found."))
-	case errors.Is(err, service.ErrInvalid{{.Name}}):
-		httpx.Fail(c, httpx.NewError(http.StatusBadRequest, "validation_failed", err.Error()))
-	default:
-		httpx.Handle(c, nil, err)
+		return
 	}
+	httpx.Handle(c, nil, err)
 }

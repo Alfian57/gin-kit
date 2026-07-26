@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"{{.Module}}/internal/domain"
+	"{{.Module}}/internal/dto"
 	"{{.Module}}/internal/middleware"
 	"{{.Module}}/internal/platform/config"
 	"{{.Module}}/internal/platform/database"
@@ -16,15 +17,6 @@ import (
 	"{{.Module}}/internal/repository"
 	"{{.Module}}/internal/service"
 )
-
-type credentialsInput struct {
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=8,max=128"`
-}
-
-type refreshInput struct {
-	RefreshToken string `json:"refresh_token" validate:"required"`
-}
 
 // Register wires the authentication routes onto the router.
 func Register(r *gin.Engine, db *database.Connection, cfg config.Config) {
@@ -41,47 +33,47 @@ func Register(r *gin.Engine, db *database.Connection, cfg config.Config) {
 func registerRoutes(r *gin.Engine, accounts *service.AuthService, secret []byte) {
 	group := r.Group("/api/v1/auth")
 	group.POST("/register", func(c *gin.Context) {
-		input, ok := httpx.BindJSON[credentialsInput](c)
+		request, ok := httpx.BindJSON[dto.RegisterRequest](c)
 		if !ok {
 			return
 		}
-		user, pair, err := accounts.Register(c.Request.Context(), input.Email, input.Password)
+		user, pair, err := accounts.Register(c.Request.Context(), request.Email, request.Password)
 		if err != nil {
 			authError(c, err)
 			return
 		}
-		httpx.Created(c, tokenResponse(user, pair))
+		httpx.Created(c, authResponse(user, pair))
 	})
 	group.POST("/login", func(c *gin.Context) {
-		input, ok := httpx.BindJSON[credentialsInput](c)
+		request, ok := httpx.BindJSON[dto.LoginRequest](c)
 		if !ok {
 			return
 		}
-		user, pair, err := accounts.Login(c.Request.Context(), input.Email, input.Password)
+		user, pair, err := accounts.Login(c.Request.Context(), request.Email, request.Password)
 		if err != nil {
 			authError(c, err)
 			return
 		}
-		httpx.OK(c, tokenResponse(user, pair))
+		httpx.OK(c, authResponse(user, pair))
 	})
 	group.POST("/refresh", func(c *gin.Context) {
-		input, ok := httpx.BindJSON[refreshInput](c)
+		request, ok := httpx.BindJSON[dto.RefreshRequest](c)
 		if !ok {
 			return
 		}
-		pair, err := accounts.Refresh(c.Request.Context(), input.RefreshToken)
+		pair, err := accounts.Refresh(c.Request.Context(), request.RefreshToken)
 		if err != nil {
 			authError(c, err)
 			return
 		}
-		httpx.OK(c, pair)
+		httpx.OK(c, tokenResponse(pair))
 	})
 	group.POST("/logout", func(c *gin.Context) {
-		input, ok := httpx.BindJSON[refreshInput](c)
+		request, ok := httpx.BindJSON[dto.RefreshRequest](c)
 		if !ok {
 			return
 		}
-		if err := accounts.Logout(c.Request.Context(), input.RefreshToken); err != nil {
+		if err := accounts.Logout(c.Request.Context(), request.RefreshToken); err != nil {
 			authError(c, err)
 			return
 		}
@@ -95,18 +87,16 @@ func registerRoutes(r *gin.Engine, accounts *service.AuthService, secret []byte)
 			authError(c, err)
 			return
 		}
-		httpx.OK(c, user)
+		httpx.OK(c, dto.NewUserResponse(user))
 	})
 }
 
-func tokenResponse(user domain.User, pair service.TokenPair) gin.H {
-	return gin.H{
-		"user":          user,
-		"access_token":  pair.AccessToken,
-		"refresh_token": pair.RefreshToken,
-		"token_type":    pair.TokenType,
-		"expires_in":    pair.ExpiresIn,
-	}
+func tokenResponse(pair service.TokenPair) dto.TokenResponse {
+	return dto.NewTokenResponse(pair.AccessToken, pair.RefreshToken, pair.TokenType, pair.ExpiresIn)
+}
+
+func authResponse(user domain.User, pair service.TokenPair) dto.AuthResponse {
+	return dto.NewAuthResponse(user, tokenResponse(pair))
 }
 
 func authError(c *gin.Context, err error) {

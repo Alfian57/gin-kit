@@ -78,6 +78,20 @@ List endpoints respond with the standard pagination metadata produced by the
 { "data": [...], "meta": { "page": 2, "per_page": 25, "total": 101, "total_pages": 5 } }
 ```
 
+### Request and response DTOs
+
+Generated code keeps transport shapes in `internal/dto`, one file per model:
+`Create<Name>Request` and `Update<Name>Request` carry `validate` tags and a
+`Normalize()` method that trims free text; `<Name>Response` decides exactly
+what leaves the API — no `db`/`gorm` tags, and credential-like fields
+(`password`, `secret`, `token`, `hash`) are excluded by the generator.
+Handlers bind requests with `httpx.BindJSON[dto.Create<Name>Request]`,
+services accept the request DTO and return domain values, and handlers wrap
+results with `dto.New<Name>Response`. The same layout ships with the auth
+scaffold (`RegisterRequest`, `TokenResponse`, `AuthResponse`, `UserResponse`)
+and the tasks example, and `gin-kit generate dto` produces the file on its
+own for existing models.
+
 ### Safe by default
 
 Responses never include submitted values, tokens, database errors, or stack

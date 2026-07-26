@@ -102,6 +102,7 @@ fi
   "$cli_path" generate middleware SmokeTimer
   "$cli_path" generate seeder Demo
   "$cli_path" generate domain SmokeProfile --fields "email:string,age:int"
+  "$cli_path" generate dto SmokeProfile --fields "email:string,age:int"
   "$cli_path" generate factory SmokeProfile --fields "email:string,age:int"
   if [[ "$edition" == "framework" ]]; then
     "$cli_path" generate job SmokeJob

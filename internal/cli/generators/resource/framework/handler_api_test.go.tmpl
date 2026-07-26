@@ -88,8 +88,8 @@ func Test{{.Plural}}Endpoints(t *testing.T) {
 	}
 
 	created := do(http.MethodPost, "/api/v1/{{.PluralCamel}}", `{{.SampleJSON}}`)
-	if created.Code != http.StatusCreated {
-		t.Fatalf("create: %d %s", created.Code, created.Body)
+	if created.Code != http.StatusCreated || !strings.Contains(created.Body.String(), `"created_at"`) {
+		t.Fatalf("create must return the response DTO: %d %s", created.Code, created.Body)
 	}
 {{if .StringFields}}
 	if invalid := do(http.MethodPost, "/api/v1/{{.PluralCamel}}", `{}`); invalid.Code != http.StatusUnprocessableEntity {
@@ -111,5 +111,8 @@ func Test{{.Plural}}Endpoints(t *testing.T) {
 	spec := do(http.MethodGet, "/openapi.json", "")
 	if spec.Code != http.StatusOK || !strings.Contains(spec.Body.String(), "/api/v1/{{.PluralCamel}}/{id}") {
 		t.Fatalf("openapi spec missing {{.Camel}} paths: %d", spec.Code)
+	}
+	if !strings.Contains(spec.Body.String(), "Create{{.Name}}Request") || !strings.Contains(spec.Body.String(), "{{.Name}}Response") {
+		t.Fatalf("openapi spec missing DTO component schemas: %s", spec.Body)
 	}
 }

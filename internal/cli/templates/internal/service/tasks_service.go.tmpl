@@ -2,16 +2,13 @@ package service
 
 import (
 	"context"
-	"errors"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"{{.Module}}/internal/domain"
+	"{{.Module}}/internal/dto"
 	"{{.Module}}/internal/platform/query"
 )
-
-var ErrInvalidTask = errors.New("task title must contain between 1 and 255 characters")
 
 type TaskService struct { repository domain.TaskRepository }
 
@@ -19,11 +16,10 @@ func NewTaskService(repository domain.TaskRepository) *TaskService {
 	return &TaskService{repository: repository}
 }
 
-func (s *TaskService) Create(ctx context.Context, title string) (domain.Task, error) {
-	title = strings.TrimSpace(title)
-	if len(title) == 0 || len(title) > 255 { return domain.Task{}, ErrInvalidTask }
+func (s *TaskService) Create(ctx context.Context, request dto.CreateTaskRequest) (domain.Task, error) {
+	request.Normalize()
 	now := time.Now().UTC()
-	task := domain.Task{ID: uuid.NewString(), Title: title, CreatedAt: now, UpdatedAt: now}
+	task := domain.Task{ID: uuid.NewString(), Title: request.Title, CreatedAt: now, UpdatedAt: now}
 	if err := s.repository.Create(ctx, &task); err != nil { return domain.Task{}, err }
 	return task, nil
 }
@@ -36,12 +32,11 @@ func (s *TaskService) Get(ctx context.Context, id string) (domain.Task, error) {
 	return s.repository.Get(ctx, id)
 }
 
-func (s *TaskService) Update(ctx context.Context, id, title string, completed bool) (domain.Task, error) {
-	title = strings.TrimSpace(title)
-	if len(title) == 0 || len(title) > 255 { return domain.Task{}, ErrInvalidTask }
+func (s *TaskService) Update(ctx context.Context, id string, request dto.UpdateTaskRequest) (domain.Task, error) {
+	request.Normalize()
 	task, err := s.repository.Get(ctx, id)
 	if err != nil { return domain.Task{}, err }
-	task.Title, task.Completed, task.UpdatedAt = title, completed, time.Now().UTC()
+	task.Title, task.Completed, task.UpdatedAt = request.Title, request.Completed, time.Now().UTC()
 	if err := s.repository.Update(ctx, &task); err != nil { return domain.Task{}, err }
 	return task, nil
 }

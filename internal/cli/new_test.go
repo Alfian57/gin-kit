@@ -240,6 +240,7 @@ func TestFrameworkScaffoldWiresAuth(t *testing.T) {
 	}
 	for _, rel := range []string{
 		"internal/domain/auth_user.go",
+		"internal/dto/auth_dto.go",
 		"internal/repository/auth_repository.go",
 		"internal/service/auth_service.go",
 		"internal/service/auth_service_test.go",
@@ -259,7 +260,7 @@ func TestFrameworkScaffoldWiresAuth(t *testing.T) {
 	if err := scaffold(plain, m); err != nil {
 		t.Fatal(err)
 	}
-	for _, rel := range []string{"internal/handler/auth/auth_handlers.go", "migrations/00002_auth_init.sql"} {
+	for _, rel := range []string{"internal/handler/auth/auth_handlers.go", "internal/dto/auth_dto.go", "migrations/00002_auth_init.sql"} {
 		if _, err := os.Stat(filepath.Join(plain, rel)); err == nil {
 			t.Fatalf("auth scaffold %s generated without --auth", rel)
 		}
@@ -278,7 +279,7 @@ func TestSeedScaffoldFollowsExampleFlag(t *testing.T) {
 	if err := scaffold(starterExample, m); err != nil {
 		t.Fatal(err)
 	}
-	for _, rel := range []string{"cmd/seed/main.go", "internal/database/seeders/seeders.go", "internal/database/seeders/tasks_seeder.go"} {
+	for _, rel := range []string{"cmd/seed/main.go", "internal/database/seeders/seeders.go", "internal/database/seeders/tasks_seeder.go", "internal/dto/tasks_dto.go"} {
 		if _, err := os.Stat(filepath.Join(starterExample, rel)); err != nil {
 			t.Fatalf("starter example scaffold missing %s: %v", rel, err)
 		}
@@ -372,6 +373,7 @@ func TestStarterScaffoldWiresAuth(t *testing.T) {
 	}
 	for _, rel := range []string{
 		"internal/domain/auth_user.go",
+		"internal/dto/auth_dto.go",
 		"internal/repository/auth_repository.go",
 		"internal/service/auth_service.go",
 		"internal/handler/auth/auth_handlers.go",

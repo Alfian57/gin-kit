@@ -4,9 +4,11 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"{{.Module}}/internal/dto"
 	"{{.Module}}/internal/platform/database"
 	"{{.Module}}/internal/platform/query"
 	"{{.Module}}/internal/platform/session"
+	"{{.Module}}/internal/platform/validation"
 	"{{.Module}}/internal/repository"
 	"{{.Module}}/internal/service"
 )
@@ -24,8 +26,14 @@ func registerTasks(r *gin.Engine, db *database.Connection) {
 		})
 	})
 	r.POST("/tasks", func(c *gin.Context) {
-		if _, err := tasks.Create(c.Request.Context(), c.PostForm("title")); err != nil {
-			c.String(http.StatusBadRequest, err.Error())
+		request := dto.CreateTaskRequest{Title: c.PostForm("title")}
+		request.Normalize()
+		if err := validation.Default.Struct(request); err != nil {
+			c.String(http.StatusBadRequest, "Task title must contain between 1 and 255 characters.")
+			return
+		}
+		if _, err := tasks.Create(c.Request.Context(), request); err != nil {
+			c.String(http.StatusInternalServerError, "Unable to create task.")
 			return
 		}
 		_ = session.PutFlash(c, "success", "Task created.")

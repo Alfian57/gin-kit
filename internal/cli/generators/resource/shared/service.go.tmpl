@@ -2,16 +2,13 @@ package service
 
 import (
 	"context"
-	"errors"
-{{if .StringFields}}	"strings"
-{{end}}	"time"
+	"time"
 
 	"github.com/google/uuid"
 	"{{.Module}}/internal/domain"
+	"{{.Module}}/internal/dto"
 	"{{.QueryImport}}"
 )
-
-var ErrInvalid{{.Name}} = errors.New("{{.Camel}} input is invalid")
 
 type {{.Name}}Service struct {
 	repository domain.{{.Name}}Repository
@@ -21,26 +18,12 @@ func New{{.Name}}Service(repository domain.{{.Name}}Repository) *{{.Name}}Servic
 	return &{{.Name}}Service{repository: repository}
 }
 
-type {{.Name}}Input struct {
-{{range .Fields}}	{{.Pascal}} {{.GoType}}
-{{end}}}
-
-func (input *{{.Name}}Input) validate() error {
-{{range .StringFields}}	input.{{.Pascal}} = strings.TrimSpace(input.{{.Pascal}})
-	if input.{{.Pascal}} == "" {
-		return ErrInvalid{{$.Name}}
-	}
-{{end}}	return nil
-}
-
-func (s *{{.Name}}Service) Create(ctx context.Context, input {{.Name}}Input) (domain.{{.Name}}, error) {
-	if err := input.validate(); err != nil {
-		return domain.{{.Name}}{}, err
-	}
+func (s *{{.Name}}Service) Create(ctx context.Context, request dto.Create{{.Name}}Request) (domain.{{.Name}}, error) {
+	request.Normalize()
 	now := time.Now().UTC()
 	entity := domain.{{.Name}}{
 		ID: uuid.NewString(),
-{{range .Fields}}		{{.Pascal}}: input.{{.Pascal}},
+{{range .Fields}}		{{.Pascal}}: request.{{.Pascal}},
 {{end}}		CreatedAt: now,
 		UpdatedAt: now,
 	}
@@ -58,15 +41,13 @@ func (s *{{.Name}}Service) Get(ctx context.Context, id string) (domain.{{.Name}}
 	return s.repository.Get(ctx, id)
 }
 
-func (s *{{.Name}}Service) Update(ctx context.Context, id string, input {{.Name}}Input) (domain.{{.Name}}, error) {
-	if err := input.validate(); err != nil {
-		return domain.{{.Name}}{}, err
-	}
+func (s *{{.Name}}Service) Update(ctx context.Context, id string, request dto.Update{{.Name}}Request) (domain.{{.Name}}, error) {
+	request.Normalize()
 	entity, err := s.repository.Get(ctx, id)
 	if err != nil {
 		return domain.{{.Name}}{}, err
 	}
-{{range .Fields}}	entity.{{.Pascal}} = input.{{.Pascal}}
+{{range .Fields}}	entity.{{.Pascal}} = request.{{.Pascal}}
 {{end}}	entity.UpdatedAt = time.Now().UTC()
 	if err := s.repository.Update(ctx, &entity); err != nil {
 		return domain.{{.Name}}{}, err

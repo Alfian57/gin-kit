@@ -1,0 +1,59 @@
+package dto
+
+import (
+	"strings"
+	"time"
+
+	"{{.Module}}/internal/domain"
+)
+
+// CreateTaskRequest is the payload for creating a task.
+type CreateTaskRequest struct {
+	Title string `json:"title" validate:"required,max=255"`
+}
+
+// Normalize cleans free-text input in place. Services call it before use.
+func (r *CreateTaskRequest) Normalize() {
+	r.Title = strings.TrimSpace(r.Title)
+}
+
+// UpdateTaskRequest is the payload for updating a task.
+type UpdateTaskRequest struct {
+	Title     string `json:"title" validate:"required,max=255"`
+	Completed bool   `json:"completed"`
+}
+
+// Normalize cleans free-text input in place. Services call it before use.
+func (r *UpdateTaskRequest) Normalize() {
+	r.Title = strings.TrimSpace(r.Title)
+}
+
+// TaskResponse is the representation of a task returned to API clients.
+type TaskResponse struct {
+	ID        string    `json:"id"`
+	Title     string    `json:"title"`
+	Completed bool      `json:"completed"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// NewTaskResponse maps a domain task to its API representation.
+func NewTaskResponse(task domain.Task) TaskResponse {
+	return TaskResponse{
+		ID:        task.ID,
+		Title:     task.Title,
+		Completed: task.Completed,
+		CreatedAt: task.CreatedAt,
+		UpdatedAt: task.UpdatedAt,
+	}
+}
+
+// NewTaskResponseList maps a list of domain tasks. It returns an empty slice,
+// never nil, so JSON lists render as [].
+func NewTaskResponseList(tasks []domain.Task) []TaskResponse {
+	responses := make([]TaskResponse, 0, len(tasks))
+	for _, task := range tasks {
+		responses = append(responses, NewTaskResponse(task))
+	}
+	return responses
+}

@@ -1,0 +1,80 @@
+// Package dto carries the request and response shapes exchanged between the
+// HTTP layer and services. Requests validate at bind time; responses decide
+// exactly what leaves the API.
+package dto
+
+import (
+	"time"
+
+	"{{.Module}}/internal/domain"
+)
+
+// RegisterRequest is the payload for creating an account.
+type RegisterRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8,max=128"`
+}
+
+// LoginRequest is the payload for signing in.
+type LoginRequest struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8,max=128"`
+}
+
+// RefreshRequest carries the refresh token being rotated or revoked.
+type RefreshRequest struct {
+	RefreshToken string `json:"refresh_token" validate:"required"`
+}
+
+// UserResponse is the public representation of an account. The password hash
+// never leaves the domain layer.
+type UserResponse struct {
+	ID        string    `json:"id"`
+	Email     string    `json:"email"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// NewUserResponse maps a domain user to its API representation.
+func NewUserResponse(user domain.User) UserResponse {
+	return UserResponse{ID: user.ID, Email: user.Email, CreatedAt: user.CreatedAt, UpdatedAt: user.UpdatedAt}
+}
+
+// TokenResponse is an issued token pair.
+type TokenResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int64  `json:"expires_in"`
+}
+
+// NewTokenResponse builds a TokenResponse from issued token values. It takes
+// explicit arguments so this package never depends on the service layer.
+func NewTokenResponse(accessToken, refreshToken, tokenType string, expiresIn int64) TokenResponse {
+	return TokenResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+		TokenType:    tokenType,
+		ExpiresIn:    expiresIn,
+	}
+}
+
+// AuthResponse is returned by register and login: the account plus its tokens.
+type AuthResponse struct {
+	User         UserResponse `json:"user"`
+	AccessToken  string       `json:"access_token"`
+	RefreshToken string       `json:"refresh_token"`
+	TokenType    string       `json:"token_type"`
+	ExpiresIn    int64        `json:"expires_in"`
+}
+
+// NewAuthResponse combines an account and its issued tokens.
+func NewAuthResponse(user domain.User, tokens TokenResponse) AuthResponse {
+	return AuthResponse{
+		User:         NewUserResponse(user),
+		AccessToken:  tokens.AccessToken,
+		RefreshToken: tokens.RefreshToken,
+		TokenType:    tokens.TokenType,
+		ExpiresIn:    tokens.ExpiresIn,
+	}
+}

@@ -31,6 +31,29 @@ func TestParseFieldsHappyPath(t *testing.T) {
 	}
 }
 
+func TestParseFieldsValidationTagsRespectNullability(t *testing.T) {
+	fields, err := parseFields("nickname:string?,bio:text?,password:string", "sqlite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]fieldSpec{}
+	for _, field := range fields {
+		byName[field.Name] = field
+	}
+	if byName["nickname"].InputTag != "omitempty,max=255" {
+		t.Fatalf("nullable string must not be required: %+v", byName["nickname"])
+	}
+	if byName["bio"].InputTag != "" {
+		t.Fatalf("nullable text must carry no constraints: %+v", byName["bio"])
+	}
+	if byName["password"].InputTag != "required,max=255" || !byName["password"].Sensitive {
+		t.Fatalf("password: %+v", byName["password"])
+	}
+	if byName["nickname"].Sensitive || byName["bio"].Sensitive {
+		t.Fatal("non-credential fields flagged sensitive")
+	}
+}
+
 func TestParseFieldsDialects(t *testing.T) {
 	for database, want := range map[string]string{
 		"postgres": "DOUBLE PRECISION",
