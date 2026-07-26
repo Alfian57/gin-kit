@@ -14,8 +14,10 @@ import (
 
 	frameworkdb "github.com/Alfian57/gin-kit/framework/database"
 	"github.com/Alfian57/gin-kit/framework/httpx"
+	"github.com/Alfian57/gin-kit/framework/metrics"
 	"github.com/Alfian57/gin-kit/framework/validation"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type Check func(context.Context) error
@@ -36,6 +38,22 @@ type HTTPOptions struct {
 	TrustedProxies []string
 }
 
+type MetricsOptions struct {
+	Enabled bool
+	// Path is the scrape endpoint, defaulting to /metrics.
+	Path string
+	// Registry optionally receives the HTTP collectors instead of a new
+	// registry with the standard Go and process collectors.
+	Registry *prometheus.Registry
+}
+
+type PProfOptions struct {
+	Enabled bool
+	// Prefix is the mount point, defaulting to /debug/pprof. The endpoints
+	// expose process internals and must never be reachable publicly.
+	Prefix string
+}
+
 type Options struct {
 	Environment string
 	Logger      *slog.Logger
@@ -44,6 +62,8 @@ type Options struct {
 	ErrorMapper httpx.Mapper
 	Readiness   map[string]Check
 	Database    *frameworkdb.Config
+	Metrics     MetricsOptions
+	PProf       PProfOptions
 }
 
 type Application struct {
@@ -54,6 +74,7 @@ type Application struct {
 	validator       *validation.Validator
 	readiness       map[string]Check
 	database        *frameworkdb.Connection
+	metrics         *metrics.Metrics
 	shutdownTimeout time.Duration
 	hooksMu         sync.Mutex
 	shutdownHooks   []func(context.Context) error
@@ -76,6 +97,14 @@ func New(options Options) (*Application, error) {
 	if err := router.SetTrustedProxies(options.HTTP.TrustedProxies); err != nil {
 		return nil, fmt.Errorf("framework: invalid trusted proxies: %w", err)
 	}
+	var httpMetrics *metrics.Metrics
+	if options.Metrics.Enabled {
+		var err error
+		httpMetrics, err = metrics.New(metrics.Options{Registry: options.Metrics.Registry})
+		if err != nil {
+			return nil, fmt.Errorf("framework: metrics: %w", err)
+		}
+	}
 	var connection *frameworkdb.Connection
 	if options.Database != nil {
 		var err error
@@ -91,6 +120,7 @@ func New(options Options) (*Application, error) {
 		validator:       options.Validator,
 		readiness:       options.Readiness,
 		database:        connection,
+		metrics:         httpMetrics,
 		shutdownTimeout: options.HTTP.ShutdownTimeout,
 	}
 	if connection != nil {
@@ -112,8 +142,11 @@ func New(options Options) (*Application, error) {
 		IdleTimeout:  options.HTTP.IdleTimeout,
 	}
 
+	router.Use(requestID(), contextLogger(options.Logger))
+	if httpMetrics != nil {
+		router.Use(httpMetrics.Middleware())
+	}
 	router.Use(
-		requestID(),
 		accessLog(options.Logger),
 		recovery(options.Logger, options.ErrorMapper),
 		errorHandler(options.Logger, options.ErrorMapper),
@@ -123,6 +156,12 @@ func New(options Options) (*Application, error) {
 	)
 	if options.HTTP.RateLimit.Enabled {
 		router.Use(NewRateLimiter(options.HTTP.RateLimit).Middleware())
+	}
+	if httpMetrics != nil {
+		router.GET(options.Metrics.Path, gin.WrapH(httpMetrics.Handler()))
+	}
+	if options.PProf.Enabled {
+		mountPProf(router, options.PProf.Prefix)
 	}
 	app.registerHealthRoutes()
 	router.NoRoute(func(c *gin.Context) {
@@ -165,6 +204,12 @@ func applyDefaults(options *Options) {
 	if options.HTTP.MaxBodyBytes == 0 {
 		options.HTTP.MaxBodyBytes = 1 << 20
 	}
+	if options.Metrics.Path == "" {
+		options.Metrics.Path = "/metrics"
+	}
+	if options.PProf.Prefix == "" {
+		options.PProf.Prefix = "/debug/pprof"
+	}
 }
 
 func (a *Application) Router() *gin.Engine { return a.router }
@@ -179,6 +224,14 @@ func (a *Application) Validator() *validation.Validator { return a.validator }
 
 // Database returns the selected SQL/GORM/sqlx connection, when configured.
 func (a *Application) Database() *frameworkdb.Connection { return a.database }
+
+// Metrics returns the Prometheus instrumentation, or nil when disabled. Use
+// its Registry to register custom application metrics.
+func (a *Application) Metrics() *metrics.Metrics { return a.metrics }
+
+// Logger returns the application's base structured logger. Handlers should
+// prefer the request-scoped httpx.Logger(c).
+func (a *Application) Logger() *slog.Logger { return a.logger }
 
 func (a *Application) OnShutdown(hook func(context.Context) error) {
 	if hook == nil {

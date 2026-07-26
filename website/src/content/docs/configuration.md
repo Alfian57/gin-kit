@@ -23,8 +23,8 @@ options := cfg.Options() // then set UI, Database, Readiness, ...
 `LoadDotenv` reads `KEY=VALUE` pairs and never overrides real environment
 variables, so the environment always wins over `.env`. `Load` reads `PORT`,
 `APP_ENV`, `DATABASE_URL`, `JWT_SECRET`, `TRUSTED_PROXY_CIDRS`,
-`CORS_ALLOWED_ORIGINS`, `RATE_LIMIT_*`, `MAX_BODY_BYTES`, and the
-`READ/WRITE/IDLE/SHUTDOWN_TIMEOUT` durations. Malformed values are startup
+`CORS_ALLOWED_ORIGINS`, `RATE_LIMIT_*`, `MAX_BODY_BYTES`, `METRICS_ENABLED`,
+`PPROF_ENABLED`, and the `READ/WRITE/IDLE/SHUTDOWN_TIMEOUT` durations. Malformed values are startup
 errors, and outside development `DATABASE_URL` and `CORS_ALLOWED_ORIGINS` are
 required.
 

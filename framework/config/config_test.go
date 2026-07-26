@@ -13,8 +13,8 @@ func clearEnv(t *testing.T) {
 	for _, key := range []string{
 		"PORT", "APP_ENV", "DATABASE_URL", "JWT_SECRET", "TRUSTED_PROXY_CIDRS",
 		"CORS_ALLOWED_ORIGINS", "RATE_LIMIT_ENABLED", "RATE_LIMIT_PER_MINUTE",
-		"RATE_LIMIT_BURST", "MAX_BODY_BYTES", "READ_TIMEOUT", "WRITE_TIMEOUT",
-		"IDLE_TIMEOUT", "SHUTDOWN_TIMEOUT",
+		"RATE_LIMIT_BURST", "MAX_BODY_BYTES", "METRICS_ENABLED", "PPROF_ENABLED",
+		"READ_TIMEOUT", "WRITE_TIMEOUT", "IDLE_TIMEOUT", "SHUTDOWN_TIMEOUT",
 	} {
 		t.Setenv(key, "")
 	}
@@ -129,6 +129,7 @@ func TestOptionsMapsAllFields(t *testing.T) {
 	t.Setenv("RATE_LIMIT_PER_MINUTE", "120")
 	t.Setenv("RATE_LIMIT_BURST", "20")
 	t.Setenv("MAX_BODY_BYTES", "2048")
+	t.Setenv("METRICS_ENABLED", "true")
 	t.Setenv("WRITE_TIMEOUT", "45s")
 	cfg, err := Load()
 	if err != nil {
@@ -147,5 +148,8 @@ func TestOptionsMapsAllFields(t *testing.T) {
 	if !options.HTTP.RateLimit.Enabled || options.HTTP.RateLimit.RequestsPerMinute != 120 ||
 		options.HTTP.RateLimit.Burst != 20 {
 		t.Fatalf("unexpected rate limit options: %+v", options.HTTP.RateLimit)
+	}
+	if !options.Metrics.Enabled || options.PProf.Enabled {
+		t.Fatalf("unexpected observability options: %+v %+v", options.Metrics, options.PProf)
 	}
 }

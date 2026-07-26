@@ -46,6 +46,7 @@ export default defineConfig({
           items: [
             { label: 'Database and ORM', slug: 'database-orm' },
             { label: 'Authentication and security', slug: 'auth-security' },
+            { label: 'Observability', slug: 'observability' },
             { label: 'CLI and generators', slug: 'cli-generators' },
             { label: 'Customizing the runtime', slug: 'customization' },
             { label: 'UI mode', slug: 'ui-mode' },

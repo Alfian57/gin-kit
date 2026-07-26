@@ -2,6 +2,7 @@ package httpx
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/Alfian57/gin-kit/framework/validation"
@@ -9,6 +10,23 @@ import (
 )
 
 const RequestIDKey = "request_id"
+
+// LoggerKey is the gin context key under which the framework stores the
+// request-scoped logger.
+const LoggerKey = "logger"
+
+// Logger returns the request-scoped logger stored by the framework,
+// pre-populated with the request ID, method, and path. It falls back to
+// slog.Default() when absent, for example in tests without the framework
+// middleware.
+func Logger(c *gin.Context) *slog.Logger {
+	if value, exists := c.Get(LoggerKey); exists {
+		if logger, ok := value.(*slog.Logger); ok && logger != nil {
+			return logger
+		}
+	}
+	return slog.Default()
+}
 
 type Envelope struct {
 	Data any `json:"data"`
