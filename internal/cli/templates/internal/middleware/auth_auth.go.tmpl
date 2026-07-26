@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"{{.Module}}/internal/platform/auth"
+	"{{.Module}}/internal/platform/httpx"
 )
 
 func RequireAuth(secret []byte) gin.HandlerFunc {
@@ -13,13 +14,13 @@ func RequireAuth(secret []byte) gin.HandlerFunc {
 		header := c.GetHeader("Authorization")
 		if !strings.HasPrefix(header, "Bearer ") {
 			c.Header("WWW-Authenticate", "Bearer")
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": gin.H{"code": "missing_token", "message": "Bearer token required."}})
+			httpx.Fail(c, httpx.NewError(http.StatusUnauthorized, "missing_token", "Bearer token required."))
 			return
 		}
 		claims, err := auth.Parse(strings.TrimPrefix(header, "Bearer "), secret)
 		if err != nil {
 			c.Header("WWW-Authenticate", "Bearer")
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": gin.H{"code": "invalid_token", "message": "Token is invalid or expired."}})
+			httpx.Fail(c, httpx.NewError(http.StatusUnauthorized, "invalid_token", "Token is invalid or expired."))
 			return
 		}
 		c.Set("user_id", claims.UserID)

@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"{{.Module}}/internal/platform/httpx"
 )
 
 const csrfSessionKey = "csrf"
@@ -56,7 +57,7 @@ func CSRF(options CSRFOptions) gin.HandlerFunc {
 			presented = c.PostForm(options.FieldName)
 		}
 		if expected == "" || subtle.ConstantTimeCompare([]byte(expected), []byte(presented)) != 1 {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": gin.H{"code": "csrf_token_mismatch", "message": "CSRF token missing or invalid"}})
+			httpx.Fail(c, httpx.NewError(http.StatusForbidden, "csrf_token_mismatch", "CSRF token missing or invalid."))
 			return
 		}
 		c.Next()

@@ -8,12 +8,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"{{.Module}}/internal/domain"
 	"{{.Module}}/internal/platform/query"
-	"{{.Module}}/internal/platform/response"
+	"{{.Module}}/internal/platform/httpx"
 	"{{.Module}}/internal/service"
 )
 
 type {{.Camel}}Input struct {
-{{range .Fields}}	{{.Pascal}} {{.GoType}} `json:"{{.Name}}"{{if .InputTag}} binding:"{{.InputTag}}"{{end}}`
+{{range .Fields}}	{{.Pascal}} {{.GoType}} `json:"{{.Name}}"{{if .InputTag}} validate:"{{.InputTag}}"{{end}}`
 {{end}}}
 
 func (input {{.Camel}}Input) toService() service.{{.Name}}Input {
@@ -25,9 +25,8 @@ func (input {{.Camel}}Input) toService() service.{{.Name}}Input {
 // Register{{.Plural}} wires the {{.Camel}} routes onto the API group.
 func Register{{.Plural}}(group *gin.RouterGroup, {{.PluralCamel}} *service.{{.Name}}Service) {
 	group.POST("/{{.PluralCamel}}", func(c *gin.Context) {
-		var input {{.Camel}}Input
-		if err := c.ShouldBindJSON(&input); err != nil {
-			response.Error(c, http.StatusBadRequest, "validation_failed", "Request validation failed")
+		input, ok := httpx.BindJSON[{{.Camel}}Input](c)
+		if !ok {
 			return
 		}
 		created, err := {{.PluralCamel}}.Create(c.Request.Context(), input.toService())
@@ -35,7 +34,7 @@ func Register{{.Plural}}(group *gin.RouterGroup, {{.PluralCamel}} *service.{{.Na
 			{{.Camel}}Error(c, err)
 			return
 		}
-		c.JSON(http.StatusCreated, gin.H{"data": created})
+		httpx.Created(c, created)
 	})
 	group.GET("/{{.PluralCamel}}", func(c *gin.Context) {
 		q, err := query.Parse(c, query.Options{
@@ -44,7 +43,7 @@ func Register{{.Plural}}(group *gin.RouterGroup, {{.PluralCamel}} *service.{{.Na
 			DefaultSort:    "-created_at",
 		})
 		if err != nil {
-			response.Error(c, http.StatusBadRequest, "invalid_query", err.Error())
+			httpx.Fail(c, httpx.WrapError(http.StatusBadRequest, "invalid_query", "The request query parameters are invalid.", err))
 			return
 		}
 		items, total, err := {{.PluralCamel}}.List(c.Request.Context(), q)
@@ -52,7 +51,7 @@ func Register{{.Plural}}(group *gin.RouterGroup, {{.PluralCamel}} *service.{{.Na
 			{{.Camel}}Error(c, err)
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"data": items, "meta": q.Meta(total)})
+		httpx.List(c, items, q.Meta(total))
 	})
 	group.GET("/{{.PluralCamel}}/:id", func(c *gin.Context) {
 		entity, err := {{.PluralCamel}}.Get(c.Request.Context(), c.Param("id"))
@@ -60,12 +59,11 @@ func Register{{.Plural}}(group *gin.RouterGroup, {{.PluralCamel}} *service.{{.Na
 			{{.Camel}}Error(c, err)
 			return
 		}
-		response.OK(c, entity)
+		httpx.OK(c, entity)
 	})
 	group.PUT("/{{.PluralCamel}}/:id", func(c *gin.Context) {
-		var input {{.Camel}}Input
-		if err := c.ShouldBindJSON(&input); err != nil {
-			response.Error(c, http.StatusBadRequest, "validation_failed", "Request validation failed")
+		input, ok := httpx.BindJSON[{{.Camel}}Input](c)
+		if !ok {
 			return
 		}
 		entity, err := {{.PluralCamel}}.Update(c.Request.Context(), c.Param("id"), input.toService())
@@ -73,24 +71,24 @@ func Register{{.Plural}}(group *gin.RouterGroup, {{.PluralCamel}} *service.{{.Na
 			{{.Camel}}Error(c, err)
 			return
 		}
-		response.OK(c, entity)
+		httpx.OK(c, entity)
 	})
 	group.DELETE("/{{.PluralCamel}}/:id", func(c *gin.Context) {
 		if err := {{.PluralCamel}}.Delete(c.Request.Context(), c.Param("id")); err != nil {
 			{{.Camel}}Error(c, err)
 			return
 		}
-		c.Status(http.StatusNoContent)
+		httpx.NoContent(c)
 	})
 }
 
 func {{.Camel}}Error(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, domain.Err{{.Name}}NotFound):
-		response.Error(c, http.StatusNotFound, "{{.Snake}}_not_found", "{{.Name}} not found")
+		httpx.Fail(c, httpx.NewError(http.StatusNotFound, "{{.Snake}}_not_found", "{{.Name}} not found."))
 	case errors.Is(err, service.ErrInvalid{{.Name}}):
-		response.Error(c, http.StatusBadRequest, "validation_failed", err.Error())
+		httpx.Fail(c, httpx.NewError(http.StatusBadRequest, "validation_failed", err.Error()))
 	default:
-		response.Error(c, http.StatusInternalServerError, "internal_error", "An internal error occurred")
+		httpx.Fail(c, httpx.NewError(http.StatusInternalServerError, "internal_error", "An internal error occurred."))
 	}
 }

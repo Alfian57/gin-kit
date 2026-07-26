@@ -7,7 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
-	"{{.Module}}/internal/platform/response"
+	"{{.Module}}/internal/platform/httpx"
 )
 
 type RateClass string
@@ -58,7 +58,7 @@ func (l *RateLimiter) Middleware(class RateClass) gin.HandlerFunc {
 		l.mu.Unlock()
 		if !allowed {
 			c.Header("Retry-After", "60")
-			response.Error(c, http.StatusTooManyRequests, "rate_limited", "Too many requests")
+			httpx.Fail(c, httpx.NewError(http.StatusTooManyRequests, "rate_limited", "Too many requests"))
 			c.Abort()
 			return
 		}

@@ -12,8 +12,10 @@ import (
 
 	"github.com/Alfian57/gin-kit/framework/httpx"
 	"github.com/Alfian57/gin-kit/framework/queue"
+	"github.com/Alfian57/gin-kit/framework/validation"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 )
 
 func TestNewInstallsHealthSecurityAndRequestIDDefaults(t *testing.T) {
@@ -31,6 +33,38 @@ func TestNewInstallsHealthSecurityAndRequestIDDefaults(t *testing.T) {
 	}
 	if recorder.Header().Get("X-Content-Type-Options") != "nosniff" {
 		t.Fatal("security headers not installed")
+	}
+}
+
+func TestBindersUseOptionsValidator(t *testing.T) {
+	custom := validation.New()
+	if err := custom.RegisterRule("adult", func(fl validator.FieldLevel) bool {
+		return fl.Field().Int() >= 18
+	}); err != nil {
+		t.Fatal(err)
+	}
+	custom.RegisterMessage("adult", "The {field} field requires an adult.")
+	app, err := New(Options{Validator: custom})
+	if err != nil {
+		t.Fatal(err)
+	}
+	type signupInput struct {
+		Age int `json:"age" validate:"adult"`
+	}
+	app.Router().POST("/signups", func(c *gin.Context) {
+		input, ok := httpx.BindJSON[signupInput](c)
+		if !ok {
+			return
+		}
+		httpx.Created(c, input)
+	})
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/signups", strings.NewReader(`{"age":12}`))
+	request.Header.Set("Content-Type", "application/json")
+	app.Router().ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusUnprocessableEntity ||
+		!strings.Contains(recorder.Body.String(), "The age field requires an adult.") {
+		t.Fatalf("binder ignored Options.Validator: %d %s", recorder.Code, recorder.Body)
 	}
 }
 

@@ -7,7 +7,32 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- The `httpx` binders (`BindJSON`/`BindQuery`/`BindURI`) validated with the
+  package-level `validation.Default` even when the application configured
+  `Options.Validator`, so custom rules and messages registered on the
+  application validator were silently ignored. The framework now exposes the
+  application validator to binders through the request context; resolution
+  order is explicit argument, then application validator, then
+  `validation.Default`.
+- Starter projects discarded binding errors and answered a bare
+  `400 validation_failed` with no field details, while the framework edition
+  answered `422` with per-field messages. Both editions now share the same
+  contract: `422 validation_failed` with `details.fields`, `400 invalid_json`
+  for malformed bodies (never echoing the submitted payload), and
+  `413 body_too_large` for oversized bodies.
+
 ### Changed
+
+- **Breaking (regenerated starter projects only):** the starter
+  `internal/platform/response` package is replaced by
+  `internal/platform/httpx` — a standalone copy of the framework envelope and
+  binders (`OK`, `Created`, `List`, `NoContent`, `Fail`, `BindJSON`,
+  `BindQuery`, `BindURI`) plus `internal/platform/validation`. Error
+  responses gain `details` and `request_id` fields. Existing generated
+  projects keep working; new scaffolds and newly generated resources use the
+  new packages.
 
 - Docs site landing page rebuilt on real Starlight components — fixing the
   card icon that never rendered (an empty MDX expression) — with a
@@ -17,6 +42,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
   and topics updated to the framework positioning.
 
 ### Added
+
+- Thirteen additional built-in validation messages (`gte`, `lte`, `gt`, `lt`,
+  `url`, `uuid`, `numeric`, `alphanum`, `datetime`, `eqfield`, `ne`,
+  `startswith`, `endswith`) with named parameters in field error details, in
+  both the framework `validation` package and the starter copy.
 
 - Auto-generated OpenAPI docs for framework-edition applications — zero
   annotations: `framework/openapi` builds the 3.0.3 spec at runtime from the

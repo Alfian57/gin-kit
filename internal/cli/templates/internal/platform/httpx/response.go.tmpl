@@ -1,37 +1,15 @@
+// Package httpx provides the canonical response envelope and request
+// binders. Standalone copy of the gin-kit framework httpx package.
 package httpx
 
 import (
-	"errors"
-	"log/slog"
 	"net/http"
 
-	"github.com/Alfian57/gin-kit/framework/validation"
 	"github.com/gin-gonic/gin"
+	"{{.Module}}/internal/platform/validation"
 )
 
 const RequestIDKey = "request_id"
-
-// LoggerKey is the gin context key under which the framework stores the
-// request-scoped logger.
-const LoggerKey = "logger"
-
-// ValidatorKey is the gin context key under which the framework stores the
-// application validator, so binders resolve app-registered rules and
-// messages without every call site passing the validator explicitly.
-const ValidatorKey = "validator"
-
-// Logger returns the request-scoped logger stored by the framework,
-// pre-populated with the request ID, method, and path. It falls back to
-// slog.Default() when absent, for example in tests without the framework
-// middleware.
-func Logger(c *gin.Context) *slog.Logger {
-	if value, exists := c.Get(LoggerKey); exists {
-		if logger, ok := value.(*slog.Logger); ok && logger != nil {
-			return logger
-		}
-	}
-	return slog.Default()
-}
 
 type Envelope struct {
 	Data any `json:"data"`
@@ -49,7 +27,8 @@ type ErrorBody struct {
 	RequestID string `json:"request_id,omitempty"`
 }
 
-// Error is a public HTTP error. Cause is retained for logging and never serialized.
+// Error is a public HTTP error. Cause is retained for logging and never
+// serialized.
 type Error struct {
 	Status  int
 	Code    string
@@ -85,20 +64,6 @@ func ValidationError(failures *validation.Errors) *Error {
 	}
 }
 
-type Mapper func(error, *gin.Context) *Error
-
-func DefaultMapper(err error, _ *gin.Context) *Error {
-	var public *Error
-	if errors.As(err, &public) {
-		return public
-	}
-	var failures *validation.Errors
-	if errors.As(err, &failures) {
-		return ValidationError(failures)
-	}
-	return WrapError(http.StatusInternalServerError, "internal_error", "An unexpected error occurred.", err)
-}
-
 func OK(c *gin.Context, data any) {
 	c.JSON(http.StatusOK, Envelope{Data: data})
 }
@@ -123,23 +88,10 @@ func Fail(c *gin.Context, err *Error) {
 	if status < 400 || status > 599 {
 		status = http.StatusInternalServerError
 	}
-	requestID, _ := c.Get(RequestIDKey)
 	c.AbortWithStatusJSON(status, ErrorEnvelope{Error: ErrorBody{
 		Code:      err.Code,
 		Message:   err.Message,
 		Details:   err.Details,
-		RequestID: stringValue(requestID),
+		RequestID: c.GetString(RequestIDKey),
 	}})
-}
-
-func Handle(c *gin.Context, mapper Mapper, err error) {
-	if mapper == nil {
-		mapper = DefaultMapper
-	}
-	Fail(c, mapper(err, c))
-}
-
-func stringValue(value any) string {
-	text, _ := value.(string)
-	return text
 }

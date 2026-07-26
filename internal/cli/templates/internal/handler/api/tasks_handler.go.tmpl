@@ -8,24 +8,24 @@ import (
 	"{{.Module}}/internal/domain"
 	"{{.Module}}/internal/platform/database"
 	"{{.Module}}/internal/platform/query"
-	"{{.Module}}/internal/platform/response"
+	"{{.Module}}/internal/platform/httpx"
 	"{{.Module}}/internal/repository"
 	"{{.Module}}/internal/service"
 )
 
 type taskInput struct {
-	Title string `json:"title" binding:"required,max=255"`
+	Title string `json:"title" validate:"required,max=255"`
 	Completed bool `json:"completed"`
 }
 
 func registerTasks(group *gin.RouterGroup, db *database.Connection) {
 	tasks := service.NewTaskService(repository.NewTaskRepository(db))
 	group.POST("/tasks", func(c *gin.Context) {
-		var input taskInput
-		if err := c.ShouldBindJSON(&input); err != nil { response.Error(c, http.StatusBadRequest, "validation_failed", "Request validation failed"); return }
+		input, ok := httpx.BindJSON[taskInput](c)
+		if !ok { return }
 		task, err := tasks.Create(c.Request.Context(), input.Title)
 		if err != nil { taskError(c, err); return }
-		c.JSON(http.StatusCreated, gin.H{"data": task})
+		httpx.Created(c, task)
 	})
 	group.GET("/tasks", func(c *gin.Context) {
 		q, err := query.Parse(c, query.Options{
@@ -34,36 +34,36 @@ func registerTasks(group *gin.RouterGroup, db *database.Connection) {
 			DefaultSort:    "-created_at",
 			DefaultPerPage: 20,
 		})
-		if err != nil { response.Error(c, http.StatusBadRequest, "invalid_query", err.Error()); return }
+		if err != nil { httpx.Fail(c, httpx.WrapError(http.StatusBadRequest, "invalid_query", "The request query parameters are invalid.", err)); return }
 		items, total, err := tasks.List(c.Request.Context(), q)
 		if err != nil { taskError(c, err); return }
-		c.JSON(http.StatusOK, gin.H{"data": items, "meta": q.Meta(total)})
+		httpx.List(c, items, q.Meta(total))
 	})
 	group.GET("/tasks/:id", func(c *gin.Context) {
 		task, err := tasks.Get(c.Request.Context(), c.Param("id"))
 		if err != nil { taskError(c, err); return }
-		response.OK(c, task)
+		httpx.OK(c, task)
 	})
 	group.PUT("/tasks/:id", func(c *gin.Context) {
-		var input taskInput
-		if err := c.ShouldBindJSON(&input); err != nil { response.Error(c, http.StatusBadRequest, "validation_failed", "Request validation failed"); return }
+		input, ok := httpx.BindJSON[taskInput](c)
+		if !ok { return }
 		task, err := tasks.Update(c.Request.Context(), c.Param("id"), input.Title, input.Completed)
 		if err != nil { taskError(c, err); return }
-		response.OK(c, task)
+		httpx.OK(c, task)
 	})
 	group.DELETE("/tasks/:id", func(c *gin.Context) {
 		if err := tasks.Delete(c.Request.Context(), c.Param("id")); err != nil { taskError(c, err); return }
-		c.Status(http.StatusNoContent)
+		httpx.NoContent(c)
 	})
 }
 
 func taskError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, domain.ErrTaskNotFound):
-		response.Error(c, http.StatusNotFound, "task_not_found", "Task not found")
+		httpx.Fail(c, httpx.NewError(http.StatusNotFound, "task_not_found", "Task not found."))
 	case errors.Is(err, service.ErrInvalidTask):
-		response.Error(c, http.StatusBadRequest, "validation_failed", err.Error())
+		httpx.Fail(c, httpx.NewError(http.StatusBadRequest, "validation_failed", err.Error()))
 	default:
-		response.Error(c, http.StatusInternalServerError, "internal_error", "An internal error occurred")
+		httpx.Fail(c, httpx.NewError(http.StatusInternalServerError, "internal_error", "An internal error occurred."))
 	}
 }
