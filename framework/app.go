@@ -30,6 +30,10 @@ type HTTPOptions struct {
 	UI              bool
 	CORSOrigins     []string
 	RateLimit       RateLimitOptions
+	// TrustedProxies lists proxy IPs or CIDRs whose forwarded headers
+	// (X-Forwarded-For) are honored when resolving client addresses. When
+	// empty, no proxy is trusted and the socket peer address is used.
+	TrustedProxies []string
 }
 
 type Options struct {
@@ -67,6 +71,11 @@ func New(options Options) (*Application, error) {
 	if options.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
+	router := gin.New()
+	router.HandleMethodNotAllowed = true
+	if err := router.SetTrustedProxies(options.HTTP.TrustedProxies); err != nil {
+		return nil, fmt.Errorf("framework: invalid trusted proxies: %w", err)
+	}
 	var connection *frameworkdb.Connection
 	if options.Database != nil {
 		var err error
@@ -75,8 +84,6 @@ func New(options Options) (*Application, error) {
 			return nil, err
 		}
 	}
-	router := gin.New()
-	router.HandleMethodNotAllowed = true
 	app := &Application{
 		router:          router,
 		logger:          options.Logger,

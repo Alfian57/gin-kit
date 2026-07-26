@@ -37,7 +37,9 @@ services; readiness checks may include the database with a short timeout.
 
 Default middleware provides request IDs, structured request logging, security
 headers, request body limits, restrictive CORS, trusted-proxy-aware client
-addresses, panic recovery, and endpoint-class rate limiting.
+addresses, panic recovery, and endpoint-class rate limiting. Forwarded client
+addresses are honored only from proxies listed in `HTTPOptions.TrustedProxies`
+(`TRUSTED_PROXY_CIDRS` in generated projects); by default no proxy is trusted.
 
 API handlers use the framework response and validation packages. Public error
 responses never contain Go internals, stack traces, database errors, tokens, or

@@ -4,16 +4,20 @@ description: Keep the defaults and change what your application needs.
 ---
 
 ```go
-app, err := framework.New(
-    framework.WithName("orders"),
-    framework.WithEnv(config.Load()),
-    framework.WithErrorMapper(mapDomainError),
-)
+app, err := framework.New(framework.Options{
+    Environment: os.Getenv("APP_ENV"),
+    ErrorMapper: mapDomainError,
+    HTTP: framework.HTTPOptions{
+        Address:        ":8080",
+        TrustedProxies: []string{"10.0.0.0/8"},
+        CORSOrigins:    []string{"https://app.example.com"},
+    },
+})
 if err != nil {
     return err
 }
 
-app.Router().Use(myMiddleware())
+app.Use(myMiddleware())
 app.OnShutdown(closeMetrics)
 return app.Run(ctx)
 ```

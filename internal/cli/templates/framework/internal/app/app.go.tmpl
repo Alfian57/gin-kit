@@ -1,12 +1,14 @@
 package app
 
 import (
-{{if ne .Database "sqlite"}}	"fmt"
+{{if or .Auth (ne .Database "sqlite")}}	"fmt"
+{{end}}	"os"
+	"strings"
+{{if .Auth}}	"time"
 {{end}}
-	"os"
-
 	"github.com/Alfian57/gin-kit/framework"
-	"github.com/Alfian57/gin-kit/framework/database"
+{{if .Auth}}	"github.com/Alfian57/gin-kit/framework/auth"
+{{end}}	"github.com/Alfian57/gin-kit/framework/database"
 	"github.com/gin-gonic/gin"
 
 {{if eq .Mode "ui"}}	"{{.Module}}/internal/handler/web"
@@ -31,15 +33,21 @@ func New() (*framework.Application, error) {
 		HTTP: framework.HTTPOptions{
 			Address: env("PORT", ":8080"),
 			UI:      {{if eq .Mode "ui"}}true{{else}}false{{end}},
+			// Forwarded client addresses are honored only from these proxies.
+			TrustedProxies: splitCSV(os.Getenv("TRUSTED_PROXY_CIDRS")),
 		},
 		Database: &connectionConfig,
 	})
 	if err != nil {
 		return nil, err
 	}
-	var router *gin.Engine = application.Router()
-{{if eq .Mode "ui"}}	web.Register(router)
-{{else}}	api.Register(router)
+{{if .Auth}}	tokens, err := auth.New([]byte(os.Getenv("JWT_SECRET")), "{{.Project}}", 15*time.Minute)
+	if err != nil {
+		return nil, fmt.Errorf("JWT_SECRET: %w", err)
+	}
+{{end}}	var router *gin.Engine = application.Router()
+{{if eq .Mode "ui"}}	web.Register(router{{if .Auth}}, tokens{{end}})
+{{else}}	api.Register(router{{if .Auth}}, tokens{{end}})
 {{end}}
 	return application, nil
 }
@@ -52,4 +60,14 @@ func env(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func splitCSV(value string) []string {
+	var items []string
+	for _, item := range strings.Split(value, ",") {
+		if trimmed := strings.TrimSpace(item); trimmed != "" {
+			items = append(items, trimmed)
+		}
+	}
+	return items
 }

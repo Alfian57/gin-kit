@@ -1,0 +1,16 @@
+package web
+
+import (
+	"github.com/Alfian57/gin-kit/framework/auth"
+	"github.com/Alfian57/gin-kit/framework/httpx"
+	"github.com/gin-gonic/gin"
+)
+
+// registerAuth installs a sample Bearer-protected JSON route. Issue access
+// tokens with the same manager (tokens.Issue(userID)) from your login handler.
+func registerAuth(router *gin.Engine, tokens *auth.Manager) {
+	protected := router.Group("/api/v1", auth.RequireAuth(tokens))
+	protected.GET("/me", func(c *gin.Context) {
+		httpx.OK(c, gin.H{"user_id": auth.UserID(c)})
+	})
+}
