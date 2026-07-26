@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"{{.Module}}/internal/platform/response"
+	"{{.Module}}/internal/platform/httpx"
 )
 
 func RequestID() gin.HandlerFunc {
@@ -72,7 +72,6 @@ func CORS(origins []string, development bool) gin.HandlerFunc {
 
 func JSONError(status int, code, message string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		response.Error(c, status, code, message)
-		c.Abort()
+		httpx.Fail(c, httpx.NewError(status, code, message))
 	}
 }

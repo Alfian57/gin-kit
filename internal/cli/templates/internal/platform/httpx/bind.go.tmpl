@@ -6,8 +6,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/Alfian57/gin-kit/framework/validation"
 	"github.com/gin-gonic/gin"
+	"{{.Module}}/internal/platform/validation"
 )
 
 // BindJSON decodes one JSON value, rejects unknown fields and trailing JSON,
@@ -29,8 +29,7 @@ func BindJSON[T any](c *gin.Context, validators ...*validation.Validator) (T, bo
 }
 
 // BindQuery binds query parameters through `form` struct tags, validates the
-// result, and writes a stable error response when it fails. Parameter values
-// are never echoed back to the client.
+// result, and writes a stable error response when it fails.
 func BindQuery[T any](c *gin.Context, validators ...*validation.Validator) (T, bool) {
 	var value T
 	if err := c.ShouldBindQuery(&value); err != nil {
@@ -41,8 +40,7 @@ func BindQuery[T any](c *gin.Context, validators ...*validation.Validator) (T, b
 }
 
 // BindURI binds path parameters through `uri` struct tags, validates the
-// result, and writes a stable error response when it fails. Give URI fields
-// matching `json` or `form` tags so validation errors use readable names.
+// result, and writes a stable error response when it fails.
 func BindURI[T any](c *gin.Context, validators ...*validation.Validator) (T, bool) {
 	var value T
 	if err := c.ShouldBindUri(&value); err != nil {
@@ -52,13 +50,8 @@ func BindURI[T any](c *gin.Context, validators ...*validation.Validator) (T, boo
 	return value, validateBound(c, value, validators)
 }
 
-// validateBound resolves the validator as: explicit argument, then the
-// application validator stored in the context, then validation.Default.
 func validateBound(c *gin.Context, value any, validators []*validation.Validator) bool {
 	instance := validation.Default
-	if fromContext := contextValidator(c); fromContext != nil {
-		instance = fromContext
-	}
 	if len(validators) > 0 && validators[0] != nil {
 		instance = validators[0]
 	}
@@ -72,15 +65,6 @@ func validateBound(c *gin.Context, value any, validators []*validation.Validator
 		return false
 	}
 	return true
-}
-
-func contextValidator(c *gin.Context) *validation.Validator {
-	if value, exists := c.Get(ValidatorKey); exists {
-		if v, ok := value.(*validation.Validator); ok && v != nil {
-			return v
-		}
-	}
-	return nil
 }
 
 func invalidJSON(cause error) *Error {

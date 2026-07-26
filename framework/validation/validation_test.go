@@ -60,3 +60,60 @@ func TestCustomRuleMessageAndTranslator(t *testing.T) {
 		t.Fatalf("unexpected translated message: %q", got)
 	}
 }
+
+func TestEnglishMessagesCoverCommonRules(t *testing.T) {
+	type profile struct {
+		Age      int    `json:"age" validate:"gte=18,lte=120"`
+		Score    int    `json:"score" validate:"gt=0,lt=100"`
+		Website  string `json:"website" validate:"url"`
+		OwnerID  string `json:"owner_id" validate:"uuid"`
+		Code     string `json:"code" validate:"numeric"`
+		Handle   string `json:"handle" validate:"alphanum"`
+		BornAt   string `json:"born_at" validate:"datetime=2006-01-02"`
+		Confirm  string `json:"confirm" validate:"eqfield=Handle"`
+		Status   string `json:"status" validate:"ne=banned"`
+		Slug     string `json:"slug" validate:"startswith=go-"`
+		Filename string `json:"filename" validate:"endswith=.txt"`
+	}
+	failures := New().Struct(profile{
+		Age:      12,
+		Score:    -1,
+		Website:  "not a url",
+		OwnerID:  "not-a-uuid",
+		Code:     "abc",
+		Handle:   "a b",
+		BornAt:   "yesterday",
+		Confirm:  "different",
+		Status:   "banned",
+		Slug:     "kit",
+		Filename: "notes.md",
+	}).(*Errors)
+	for field, expected := range map[string]struct {
+		message   string
+		parameter string
+		value     string
+	}{
+		"age":      {"The age field must be at least 18.", "min", "18"},
+		"score":    {"The score field must be greater than 0.", "greater_than", "0"},
+		"website":  {"The website field must be a valid URL.", "", ""},
+		"owner_id": {"The owner_id field must be a valid UUID.", "", ""},
+		"code":     {"The code field must be a number.", "", ""},
+		"handle":   {"The handle field must only contain letters and numbers.", "", ""},
+		"born_at":  {"The born_at field must match the 2006-01-02 format.", "layout", "2006-01-02"},
+		"confirm":  {"The confirm field must match the Handle field.", "other", "Handle"},
+		"status":   {"The status field must not be banned.", "disallowed", "banned"},
+		"slug":     {"The slug field must start with go-.", "prefix", "go-"},
+		"filename": {"The filename field must end with .txt.", "suffix", ".txt"},
+	} {
+		entries := failures.Fields[field]
+		if len(entries) == 0 {
+			t.Fatalf("no failure recorded for %s: %#v", field, failures.Fields)
+		}
+		if entries[0].Message != expected.message {
+			t.Errorf("%s message = %q, want %q", field, entries[0].Message, expected.message)
+		}
+		if expected.parameter != "" && entries[0].Parameters[expected.parameter] != expected.value {
+			t.Errorf("%s parameters = %#v, want %s=%s", field, entries[0].Parameters, expected.parameter, expected.value)
+		}
+	}
+}

@@ -236,7 +236,7 @@ func New(options Options) (*Application, error) {
 		IdleTimeout:  options.HTTP.IdleTimeout,
 	}
 
-	router.Use(requestID(), contextLogger(options.Logger))
+	router.Use(requestID(), contextLogger(options.Logger), validatorContext(options.Validator))
 	if httpMetrics != nil {
 		router.Use(httpMetrics.Middleware())
 	}

@@ -1,0 +1,58 @@
+package httpx
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/gin-gonic/gin"
+)
+
+type createInput struct {
+	Title string `json:"title" validate:"required,max=255"`
+}
+
+func TestBindJSONValidatesWithFieldDetails(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.POST("/items", func(c *gin.Context) {
+		input, ok := BindJSON[createInput](c)
+		if !ok {
+			return
+		}
+		Created(c, input)
+	})
+
+	valid := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/items", strings.NewReader(`{"title":"hello"}`))
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(valid, request)
+	if valid.Code != http.StatusCreated {
+		t.Fatalf("valid input rejected: %d %s", valid.Code, valid.Body)
+	}
+
+	invalid := httptest.NewRecorder()
+	request = httptest.NewRequest(http.MethodPost, "/items", strings.NewReader(`{"title":""}`))
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(invalid, request)
+	if invalid.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("validation status = %d", invalid.Code)
+	}
+	body := invalid.Body.String()
+	if !strings.Contains(body, `"validation_failed"`) || !strings.Contains(body, `"fields"`) ||
+		!strings.Contains(body, `"title"`) {
+		t.Fatalf("field details missing: %s", body)
+	}
+
+	malformed := httptest.NewRecorder()
+	request = httptest.NewRequest(http.MethodPost, "/items", strings.NewReader(`{broken`))
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(malformed, request)
+	if malformed.Code != http.StatusBadRequest || !strings.Contains(malformed.Body.String(), "invalid_json") {
+		t.Fatalf("malformed JSON: %d %s", malformed.Code, malformed.Body)
+	}
+	if strings.Contains(malformed.Body.String(), "{broken") {
+		t.Fatal("response echoed the submitted body")
+	}
+}

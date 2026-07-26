@@ -1,0 +1,39 @@
+package validation
+
+import (
+	"strings"
+	"testing"
+)
+
+type registrationInput struct {
+	Email string `json:"email" validate:"required,email"`
+	Name  string `json:"name" validate:"required,min=2"`
+}
+
+func TestStructReportsFieldErrors(t *testing.T) {
+	err := New().Struct(registrationInput{Email: "not-an-email", Name: "x"})
+	failures, ok := err.(*Errors)
+	if !ok {
+		t.Fatalf("expected *Errors, got %T", err)
+	}
+	if len(failures.Fields["email"]) != 1 || failures.Fields["email"][0].Rule != "email" {
+		t.Fatalf("email failure missing: %+v", failures.Fields)
+	}
+	if len(failures.Fields["name"]) != 1 || failures.Fields["name"][0].Parameters["min"] != "2" {
+		t.Fatalf("name failure missing parameters: %+v", failures.Fields)
+	}
+}
+
+func TestCustomMessageOverridesDefault(t *testing.T) {
+	v := New()
+	v.RegisterMessage("min", "Give {field} at least {parameter} characters.")
+	err := v.Struct(registrationInput{Email: "a@b.co", Name: "x"})
+	failures, ok := err.(*Errors)
+	if !ok {
+		t.Fatalf("expected *Errors, got %T", err)
+	}
+	message := failures.Fields["name"][0].Message
+	if !strings.Contains(message, "Give name at least 2 characters.") {
+		t.Fatalf("custom message not applied: %q", message)
+	}
+}

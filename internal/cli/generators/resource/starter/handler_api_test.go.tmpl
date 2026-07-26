@@ -90,8 +90,9 @@ func Test{{.Plural}}Endpoints(t *testing.T) {
 		t.Fatalf("create: %d %s", created.Code, created.Body)
 	}
 {{if .StringFields}}
-	if invalid := do(http.MethodPost, "/api/v1/{{.PluralCamel}}", `{}`); invalid.Code != http.StatusBadRequest {
-		t.Fatalf("invalid create accepted: %d %s", invalid.Code, invalid.Body)
+	invalid := do(http.MethodPost, "/api/v1/{{.PluralCamel}}", `{}`)
+	if invalid.Code != http.StatusUnprocessableEntity || !strings.Contains(invalid.Body.String(), `"fields"`) {
+		t.Fatalf("invalid create must return 422 with field details: %d %s", invalid.Code, invalid.Body)
 	}
 {{end}}
 	listed := do(http.MethodGet, "/api/v1/{{.PluralCamel}}", "")

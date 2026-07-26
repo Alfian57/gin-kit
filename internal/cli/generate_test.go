@@ -88,10 +88,19 @@ func TestRunGenerateResourceStarterAPI(t *testing.T) {
 	for _, want := range []string{
 		"package api", "RegisterTickets(group *gin.RouterGroup",
 		`query.Partial("title"), query.Exact("done").Bool()`,
-		`binding:"required,max=255"`, "response.Error",
+		`validate:"required,max=255"`, "httpx.BindJSON[ticketInput]", "httpx.Fail",
 	} {
 		if !strings.Contains(handler, want) {
 			t.Errorf("handler missing %q:\n%s", want, handler)
+		}
+	}
+	if strings.Contains(handler, "platform/response") {
+		t.Error("starter handler still imports legacy platform/response")
+	}
+	handlerTest := fileContent(t, files, "internal/handler/api/ticket_handler_test.go")
+	for _, want := range []string{"http.StatusUnprocessableEntity", `"fields"`} {
+		if !strings.Contains(handlerTest, want) {
+			t.Errorf("handler test missing %q:\n%s", want, handlerTest)
 		}
 	}
 

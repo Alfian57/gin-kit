@@ -73,6 +73,47 @@ func TestBindQueryUsesCustomValidator(t *testing.T) {
 	}
 }
 
+func TestBindUsesContextValidator(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	appValidator := validation.New()
+	appValidator.RegisterMessage("min", "Context says {field} is too short.")
+	router := gin.New()
+	router.Use(func(c *gin.Context) { c.Set(ValidatorKey, appValidator) })
+	router.GET("/search", func(c *gin.Context) {
+		if _, ok := BindQuery[searchQuery](c); !ok {
+			return
+		}
+		OK(c, "ok")
+	})
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/search?term=hi", nil))
+	if recorder.Code != http.StatusUnprocessableEntity ||
+		!strings.Contains(recorder.Body.String(), "Context says term is too short.") {
+		t.Fatalf("context validator not used: %d %s", recorder.Code, recorder.Body)
+	}
+}
+
+func TestExplicitValidatorBeatsContextValidator(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	fromContext := validation.New()
+	fromContext.RegisterMessage("min", "context message")
+	explicit := validation.New()
+	explicit.RegisterMessage("min", "explicit message")
+	router := gin.New()
+	router.Use(func(c *gin.Context) { c.Set(ValidatorKey, fromContext) })
+	router.GET("/search", func(c *gin.Context) {
+		if _, ok := BindQuery[searchQuery](c, explicit); !ok {
+			return
+		}
+		OK(c, "ok")
+	})
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/search?term=hi", nil))
+	if !strings.Contains(recorder.Body.String(), "explicit message") {
+		t.Fatalf("explicit validator did not win: %s", recorder.Body)
+	}
+}
+
 func TestBindURI(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	for _, test := range []struct {

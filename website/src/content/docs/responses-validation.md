@@ -52,6 +52,25 @@ malformed input; `BindURI` binds through `uri` tags and answers
 `400 invalid_path`. Both validate with the same rules and never echo submitted
 values.
 
+### Which validator runs
+
+Binders resolve the validator in a fixed order:
+
+1. An explicit argument — `httpx.BindJSON[T](c, myValidator)` — always wins.
+2. The application validator from `Options.Validator`. The framework places it
+   on the request context, so custom rules and messages registered through
+   `app.Validator()` apply to every binder without extra wiring.
+3. `validation.Default` as the fallback outside a gin-kit application (plain
+   `gin.Engine` in tests, for example).
+
+### Parity across editions
+
+Starter projects vendor the same contract in `internal/platform/httpx` and
+`internal/platform/validation`: identical envelope, identical `422` details,
+identical binder behavior. Code written against one edition reads the same in
+the other. In the starter, binders resolve an explicit argument first and fall
+back to `validation.Default`.
+
 List endpoints respond with the standard pagination metadata produced by the
 [query builder](/gin-kit/querying/):
 

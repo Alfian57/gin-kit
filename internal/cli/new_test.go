@@ -37,6 +37,9 @@ func TestScaffoldAPIPreservesSelections(t *testing.T) {
 		"internal/platform/database/database.go",
 		"internal/platform/factory/factory.go",
 		"internal/platform/query/query.go",
+		"internal/platform/httpx/response.go",
+		"internal/platform/httpx/bind.go",
+		"internal/platform/validation/validation.go",
 		"internal/middleware/security.go",
 		"internal/middleware/ratelimit.go",
 		"cmd/seed/main.go",
@@ -45,6 +48,12 @@ func TestScaffoldAPIPreservesSelections(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
 			t.Fatalf("expected runtime foundation %s: %v", rel, err)
 		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "internal/platform/response")); err == nil {
+		t.Fatal("legacy platform/response package should no longer be scaffolded")
+	}
+	if !strings.Contains(string(data), "github.com/go-playground/validator/v10") {
+		t.Fatalf("starter go.mod missing validator dependency:\n%s", data)
 	}
 }
 

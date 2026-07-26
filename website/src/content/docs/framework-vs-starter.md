@@ -16,3 +16,12 @@ compete.
 
 Neither edition hides your application code. Routes, handlers, domain types,
 services, repositories, migrations, and UI templates stay in your repository.
+
+## What the starter vendors
+
+Starter projects carry standalone copies of the runtime under
+`internal/platform/`: `config`, `database`, `factory`, `query`, `httpx`
+(response envelope and request binders), `validation`, and — for UI projects —
+`session`. The HTTP contract is identical in both editions: the same JSON
+envelope, the same `422` validation details, the same binder helpers. Handler
+code moves between editions with only an import-path change.

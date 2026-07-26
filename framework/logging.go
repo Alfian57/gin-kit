@@ -4,6 +4,7 @@ import (
 	"log/slog"
 
 	"github.com/Alfian57/gin-kit/framework/httpx"
+	"github.com/Alfian57/gin-kit/framework/validation"
 	"github.com/gin-gonic/gin"
 )
 
@@ -16,6 +17,15 @@ func contextLogger(base *slog.Logger) gin.HandlerFunc {
 			"method", c.Request.Method,
 			"path", c.Request.URL.Path,
 		))
+		c.Next()
+	}
+}
+
+// validatorContext exposes the application validator to the httpx binders,
+// so rules and messages registered on Options.Validator apply everywhere.
+func validatorContext(v *validation.Validator) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Set(httpx.ValidatorKey, v)
 		c.Next()
 	}
 }
