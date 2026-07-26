@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/Alfian57/gin-kit/framework"
+	"github.com/Alfian57/gin-kit/framework/mail"
+	"github.com/Alfian57/gin-kit/framework/storage"
 )
 
 // Config is the environment-shaped application configuration. Code-level
@@ -34,6 +36,26 @@ type Config struct {
 	RedisURL           string        // REDIS_URL, e.g. redis://localhost:6379/0
 	MetricsEnabled     bool          // METRICS_ENABLED, defaults to false
 	PProfEnabled       bool          // PPROF_ENABLED, defaults to false; never expose publicly
+	MailDriver         string        // MAIL_DRIVER, "log" (default) or "smtp"
+	MailHost           string        // MAIL_HOST
+	MailPort           int           // MAIL_PORT, defaults per encryption
+	MailUsername       string        // MAIL_USERNAME
+	MailPassword       string        // MAIL_PASSWORD
+	MailEncryption     string        // MAIL_ENCRYPTION, none|tls|starttls (default starttls)
+	MailFromAddress    string        // MAIL_FROM_ADDRESS
+	MailFromName       string        // MAIL_FROM_NAME
+	StorageDriver      string        // STORAGE_DRIVER, "local" (default) or "s3"
+	StorageLocalRoot   string        // STORAGE_LOCAL_ROOT, defaults to ./storage
+	StorageLocalURL    string        // STORAGE_LOCAL_BASE_URL
+	S3Endpoint         string        // S3_ENDPOINT, host[:port] without scheme
+	S3Region           string        // S3_REGION
+	S3Bucket           string        // S3_BUCKET
+	S3AccessKey        string        // S3_ACCESS_KEY
+	S3SecretKey        string        // S3_SECRET_KEY
+	S3UseSSL           bool          // S3_USE_SSL, defaults to true
+	S3UsePathStyle     bool          // S3_USE_PATH_STYLE, defaults to false (MinIO needs true)
+	S3PresignTTL       time.Duration // S3_PRESIGN_TTL, defaults to 15m
+	S3PublicBaseURL    string        // S3_PUBLIC_BASE_URL
 	ReadTimeout        time.Duration // READ_TIMEOUT, Go duration syntax such as 10s
 	WriteTimeout       time.Duration // WRITE_TIMEOUT
 	IdleTimeout        time.Duration // IDLE_TIMEOUT
@@ -53,6 +75,22 @@ func Load() (Config, error) {
 		CacheDriver:        stringValue("CACHE_DRIVER", "memory"),
 		QueueDriver:        stringValue("QUEUE_DRIVER", "sync"),
 		RedisURL:           os.Getenv("REDIS_URL"),
+		MailDriver:         stringValue("MAIL_DRIVER", "log"),
+		MailHost:           os.Getenv("MAIL_HOST"),
+		MailUsername:       os.Getenv("MAIL_USERNAME"),
+		MailPassword:       os.Getenv("MAIL_PASSWORD"),
+		MailEncryption:     stringValue("MAIL_ENCRYPTION", "starttls"),
+		MailFromAddress:    os.Getenv("MAIL_FROM_ADDRESS"),
+		MailFromName:       os.Getenv("MAIL_FROM_NAME"),
+		StorageDriver:      stringValue("STORAGE_DRIVER", "local"),
+		StorageLocalRoot:   stringValue("STORAGE_LOCAL_ROOT", "./storage"),
+		StorageLocalURL:    os.Getenv("STORAGE_LOCAL_BASE_URL"),
+		S3Endpoint:         os.Getenv("S3_ENDPOINT"),
+		S3Region:           os.Getenv("S3_REGION"),
+		S3Bucket:           os.Getenv("S3_BUCKET"),
+		S3AccessKey:        os.Getenv("S3_ACCESS_KEY"),
+		S3SecretKey:        os.Getenv("S3_SECRET_KEY"),
+		S3PublicBaseURL:    os.Getenv("S3_PUBLIC_BASE_URL"),
 	}
 	var err error
 	if cfg.RateLimitEnabled, err = boolValue("RATE_LIMIT_ENABLED", true); err != nil {
@@ -76,6 +114,18 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.PProfEnabled, err = boolValue("PPROF_ENABLED", false); err != nil {
+		return Config{}, err
+	}
+	if cfg.MailPort, err = intValue("MAIL_PORT", 0); err != nil {
+		return Config{}, err
+	}
+	if cfg.S3UseSSL, err = boolValue("S3_USE_SSL", true); err != nil {
+		return Config{}, err
+	}
+	if cfg.S3UsePathStyle, err = boolValue("S3_USE_PATH_STYLE", false); err != nil {
+		return Config{}, err
+	}
+	if cfg.S3PresignTTL, err = durationValue("S3_PRESIGN_TTL", 15*time.Minute); err != nil {
 		return Config{}, err
 	}
 	if cfg.ReadTimeout, err = durationValue("READ_TIMEOUT", 10*time.Second); err != nil {
@@ -140,6 +190,25 @@ func (c Config) validate() error {
 	if c.QueueConcurrency < 1 {
 		return errors.New("QUEUE_CONCURRENCY must be positive")
 	}
+	switch c.MailDriver {
+	case "log":
+	case "smtp":
+		if c.MailHost == "" || c.MailFromAddress == "" {
+			return errors.New("MAIL_HOST and MAIL_FROM_ADDRESS are required when MAIL_DRIVER is smtp")
+		}
+	default:
+		return fmt.Errorf("MAIL_DRIVER must be log or smtp, got %q", c.MailDriver)
+	}
+	switch c.MailEncryption {
+	case "none", "tls", "starttls":
+	default:
+		return fmt.Errorf("MAIL_ENCRYPTION must be none, tls, or starttls, got %q", c.MailEncryption)
+	}
+	switch c.StorageDriver {
+	case "local", "s3":
+	default:
+		return fmt.Errorf("STORAGE_DRIVER must be local or s3, got %q", c.StorageDriver)
+	}
 	if c.RedisURL != "" {
 		parsed, err := url.Parse(c.RedisURL)
 		if err != nil {
@@ -197,6 +266,45 @@ func (c Config) Options() framework.Options {
 			Driver:      c.QueueDriver,
 			RedisURL:    c.RedisURL,
 			Concurrency: c.QueueConcurrency,
+		},
+	}
+}
+
+// MailOptions converts the mail configuration for mail.New. The mailer is
+// constructed by application code, not by framework.New.
+func (c Config) MailOptions() mail.Options {
+	return mail.Options{
+		Driver:      c.MailDriver,
+		Host:        c.MailHost,
+		Port:        c.MailPort,
+		Username:    c.MailUsername,
+		Password:    c.MailPassword,
+		Encryption:  mail.Encryption(c.MailEncryption),
+		FromAddress: c.MailFromAddress,
+		FromName:    c.MailFromName,
+	}
+}
+
+// StorageOptions converts the storage configuration for storage.New. The
+// disk is constructed by application code, not by framework.New.
+func (c Config) StorageOptions() storage.Options {
+	useSSL := c.S3UseSSL
+	return storage.Options{
+		Driver: c.StorageDriver,
+		Local: storage.LocalOptions{
+			Root:    c.StorageLocalRoot,
+			BaseURL: c.StorageLocalURL,
+		},
+		S3: storage.S3Options{
+			Endpoint:      c.S3Endpoint,
+			Region:        c.S3Region,
+			Bucket:        c.S3Bucket,
+			AccessKey:     c.S3AccessKey,
+			SecretKey:     c.S3SecretKey,
+			UseSSL:        &useSSL,
+			UsePathStyle:  c.S3UsePathStyle,
+			PresignTTL:    c.S3PresignTTL,
+			PublicBaseURL: c.S3PublicBaseURL,
 		},
 	}
 }

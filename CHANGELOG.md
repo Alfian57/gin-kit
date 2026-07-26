@@ -9,6 +9,18 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `framework/mail`: Laravel-style mailer with a fluent message builder,
+  html/template rendering, an SMTP driver (wneessen/go-mail with
+  none/tls/starttls), and a development log driver that renders the full MIME
+  message; configured through `MAIL_*` variables and `config.MailOptions()`.
+  Framework compose scaffolds an opt-in Mailpit service
+  (`docker compose --profile mail up`).
+- `framework/storage`: disk abstraction with a path-confined, atomic local
+  driver and an S3-compatible driver (minio-go; AWS S3, MinIO, R2, Spaces)
+  with presigned or public URLs, a gin `SaveUpload` multipart helper, and
+  `STORAGE_*`/`S3_*` configuration via `config.StorageOptions()`; compose
+  scaffolds an opt-in MinIO service (`--profile storage`).
+
 - `framework/queue`: explicit background jobs with typed `Register`/`Dispatch`,
   an inline sync driver for development, and a Redis (asynq) driver with
   delays, retries, named queues, worker concurrency, and graceful drain,

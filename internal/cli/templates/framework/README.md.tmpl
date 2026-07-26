@@ -34,3 +34,12 @@ cron-style tasks with `framework/schedule` and register the scheduler with
 `application.Go("scheduler", scheduler.Run)` — single-instance per deployment.
 The cache is available through `application.Cache()` (`CACHE_DRIVER=memory`
 or `redis`).
+
+## Mail and storage
+
+Send email with `mail.New(cfg.MailOptions())` — the default `MAIL_DRIVER=log`
+renders messages into the logs, and `docker compose --profile mail up` starts
+Mailpit for a local inbox. Store files with
+`storage.New(cfg.StorageOptions())` — `STORAGE_DRIVER=local` keeps files
+under `./storage` with strict path confinement, `s3` targets any
+S3-compatible store, and `docker compose --profile storage up` starts MinIO.
