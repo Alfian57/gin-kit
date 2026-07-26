@@ -23,3 +23,14 @@ malformed values fail startup, and outside development `DATABASE_URL` and
 
 Generate secrets with `openssl rand -base64 48` (for example `JWT_SECRET`).
 Run `gin-kit doctor` for actionable diagnostics.
+
+## Background work
+
+Job handlers live in `internal/jobs` and are registered explicitly in
+`app.New`. The default `QUEUE_DRIVER=sync` executes jobs inline; set
+`QUEUE_DRIVER=redis` with `REDIS_URL` (the Docker Compose file ships a Redis
+service) for persistent jobs with retries and a supervised worker. Add
+cron-style tasks with `framework/schedule` and register the scheduler with
+`application.Go("scheduler", scheduler.Run)` — single-instance per deployment.
+The cache is available through `application.Cache()` (`CACHE_DRIVER=memory`
+or `redis`).

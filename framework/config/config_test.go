@@ -14,7 +14,7 @@ func clearEnv(t *testing.T) {
 		"PORT", "APP_ENV", "DATABASE_URL", "JWT_SECRET", "TRUSTED_PROXY_CIDRS",
 		"CORS_ALLOWED_ORIGINS", "RATE_LIMIT_ENABLED", "RATE_LIMIT_PER_MINUTE",
 		"RATE_LIMIT_BURST", "MAX_BODY_BYTES", "METRICS_ENABLED", "PPROF_ENABLED",
-		"CACHE_DRIVER", "REDIS_URL",
+		"CACHE_DRIVER", "REDIS_URL", "QUEUE_DRIVER", "QUEUE_CONCURRENCY",
 		"READ_TIMEOUT", "WRITE_TIMEOUT", "IDLE_TIMEOUT", "SHUTDOWN_TIMEOUT",
 	} {
 		t.Setenv(key, "")
@@ -71,6 +71,8 @@ func TestLoadRejectsMalformedValues(t *testing.T) {
 		want  string
 	}{
 		{"CACHE_DRIVER", "memcached", "CACHE_DRIVER"},
+		{"QUEUE_DRIVER", "kafka", "QUEUE_DRIVER"},
+		{"QUEUE_CONCURRENCY", "0", "QUEUE_CONCURRENCY"},
 		{"REDIS_URL", "http://not-redis", "REDIS_URL"},
 		{"RATE_LIMIT_ENABLED", "maybe", "RATE_LIMIT_ENABLED"},
 		{"RATE_LIMIT_PER_MINUTE", "sixty", "RATE_LIMIT_PER_MINUTE"},
@@ -180,5 +182,33 @@ func TestLoadCacheConfiguration(t *testing.T) {
 	options := cfg.Options()
 	if options.Cache.Driver != "redis" || options.Cache.RedisURL != "redis://localhost:6379/0" {
 		t.Fatalf("cache options not mapped: %+v", options.Cache)
+	}
+}
+
+func TestLoadQueueConfiguration(t *testing.T) {
+	clearEnv(t)
+	cfg, err := Load()
+	if err != nil || cfg.QueueDriver != "sync" || cfg.QueueConcurrency != 10 {
+		t.Fatalf("queue defaults: driver=%q concurrency=%d err=%v", cfg.QueueDriver, cfg.QueueConcurrency, err)
+	}
+
+	clearEnv(t)
+	t.Setenv("QUEUE_DRIVER", "redis")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "REDIS_URL") {
+		t.Fatalf("redis queue without URL accepted: %v", err)
+	}
+
+	clearEnv(t)
+	t.Setenv("QUEUE_DRIVER", "redis")
+	t.Setenv("QUEUE_CONCURRENCY", "4")
+	t.Setenv("REDIS_URL", "redis://localhost:6379/1")
+	cfg, err = Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	options := cfg.Options()
+	if options.Queue.Driver != "redis" || options.Queue.Concurrency != 4 ||
+		options.Queue.RedisURL != "redis://localhost:6379/1" {
+		t.Fatalf("queue options not mapped: %+v", options.Queue)
 	}
 }

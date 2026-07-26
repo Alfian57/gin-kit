@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Alfian57/gin-kit/framework/httpx"
+	"github.com/Alfian57/gin-kit/framework/queue"
 	"github.com/alicebob/miniredis/v2"
 	"github.com/gin-gonic/gin"
 )
@@ -397,6 +398,57 @@ func TestNewRejectsInvalidCacheConfiguration(t *testing.T) {
 				t.Fatal("expected constructor error")
 			}
 		})
+	}
+}
+
+func TestQueueDefaultsToSyncDriver(t *testing.T) {
+	app, err := New(Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := app.Queue()
+	if q == nil {
+		t.Fatal("queue accessor returned nil")
+	}
+	var handled bool
+	queue.Register(q, "inline", func(context.Context, struct{}) error {
+		handled = true
+		return nil
+	})
+	if err := queue.Dispatch(context.Background(), q, "inline", struct{}{}); err != nil {
+		t.Fatal(err)
+	}
+	if !handled {
+		t.Fatal("sync queue did not execute inline")
+	}
+}
+
+func TestNewRejectsInvalidQueueConfiguration(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		options QueueOptions
+	}{
+		{"unknown driver", QueueOptions{Driver: "kafka"}},
+		{"redis without url", QueueOptions{Driver: "redis"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := New(Options{Queue: test.options}); err == nil {
+				t.Fatal("expected constructor error")
+			}
+		})
+	}
+}
+
+func TestQueueRedisDriverRegistersReadiness(t *testing.T) {
+	server := miniredis.RunT(t)
+	app, err := New(Options{Queue: QueueOptions{Driver: "redis", RedisURL: "redis://" + server.Addr()}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ready := httptest.NewRecorder()
+	app.Router().ServeHTTP(ready, httptest.NewRequest(http.MethodGet, "/health/ready", nil))
+	if ready.Code != http.StatusOK {
+		t.Fatalf("readiness with live redis: %d %s", ready.Code, ready.Body)
 	}
 }
 

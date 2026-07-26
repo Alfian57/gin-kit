@@ -47,6 +47,7 @@ export default defineConfig({
           items: [
             { label: 'Database and ORM', slug: 'database-orm' },
             { label: 'Authentication and security', slug: 'auth-security' },
+            { label: 'Queues and scheduling', slug: 'background-work' },
             { label: 'Caching and events', slug: 'caching-events' },
             { label: 'Observability', slug: 'observability' },
             { label: 'CLI and generators', slug: 'cli-generators' },

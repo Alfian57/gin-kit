@@ -29,6 +29,8 @@ type Config struct {
 	RateLimitBurst     int           // RATE_LIMIT_BURST, 0 lets the framework derive it
 	MaxBodyBytes       int64         // MAX_BODY_BYTES, defaults to 1 MiB
 	CacheDriver        string        // CACHE_DRIVER, "memory" (default) or "redis"
+	QueueDriver        string        // QUEUE_DRIVER, "sync" (default) or "redis"
+	QueueConcurrency   int           // QUEUE_CONCURRENCY, defaults to 10
 	RedisURL           string        // REDIS_URL, e.g. redis://localhost:6379/0
 	MetricsEnabled     bool          // METRICS_ENABLED, defaults to false
 	PProfEnabled       bool          // PPROF_ENABLED, defaults to false; never expose publicly
@@ -49,6 +51,7 @@ func Load() (Config, error) {
 		TrustedProxyCIDRs:  splitCSV(os.Getenv("TRUSTED_PROXY_CIDRS")),
 		CORSAllowedOrigins: splitCSV(os.Getenv("CORS_ALLOWED_ORIGINS")),
 		CacheDriver:        stringValue("CACHE_DRIVER", "memory"),
+		QueueDriver:        stringValue("QUEUE_DRIVER", "sync"),
 		RedisURL:           os.Getenv("REDIS_URL"),
 	}
 	var err error
@@ -66,6 +69,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	cfg.MaxBodyBytes = int64(maxBody)
+	if cfg.QueueConcurrency, err = intValue("QUEUE_CONCURRENCY", 10); err != nil {
+		return Config{}, err
+	}
 	if cfg.MetricsEnabled, err = boolValue("METRICS_ENABLED", false); err != nil {
 		return Config{}, err
 	}
@@ -122,6 +128,18 @@ func (c Config) validate() error {
 	default:
 		return fmt.Errorf("CACHE_DRIVER must be memory or redis, got %q", c.CacheDriver)
 	}
+	switch c.QueueDriver {
+	case "sync":
+	case "redis":
+		if c.RedisURL == "" {
+			return errors.New("REDIS_URL is required when QUEUE_DRIVER is redis")
+		}
+	default:
+		return fmt.Errorf("QUEUE_DRIVER must be sync or redis, got %q", c.QueueDriver)
+	}
+	if c.QueueConcurrency < 1 {
+		return errors.New("QUEUE_CONCURRENCY must be positive")
+	}
 	if c.RedisURL != "" {
 		parsed, err := url.Parse(c.RedisURL)
 		if err != nil {
@@ -175,6 +193,11 @@ func (c Config) Options() framework.Options {
 		Metrics: framework.MetricsOptions{Enabled: c.MetricsEnabled},
 		PProf:   framework.PProfOptions{Enabled: c.PProfEnabled},
 		Cache:   framework.CacheOptions{Driver: c.CacheDriver, RedisURL: c.RedisURL},
+		Queue: framework.QueueOptions{
+			Driver:      c.QueueDriver,
+			RedisURL:    c.RedisURL,
+			Concurrency: c.QueueConcurrency,
+		},
 	}
 }
 

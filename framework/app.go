@@ -16,6 +16,7 @@ import (
 	frameworkdb "github.com/Alfian57/gin-kit/framework/database"
 	"github.com/Alfian57/gin-kit/framework/httpx"
 	"github.com/Alfian57/gin-kit/framework/metrics"
+	"github.com/Alfian57/gin-kit/framework/queue"
 	"github.com/Alfian57/gin-kit/framework/validation"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
@@ -50,6 +51,16 @@ type MetricsOptions struct {
 	Registry *prometheus.Registry
 }
 
+type QueueOptions struct {
+	// Driver selects the job backend: "sync" (default, inline execution) or
+	// "redis" (asynq worker supervised by Run).
+	Driver string
+	// RedisURL configures the redis driver, e.g. redis://localhost:6379/0.
+	RedisURL string
+	// Concurrency is the redis worker goroutine count, defaulting to 10.
+	Concurrency int
+}
+
 type CacheOptions struct {
 	// Driver selects the cache store: "memory" (default) or "redis".
 	Driver string
@@ -77,6 +88,7 @@ type Options struct {
 	Metrics     MetricsOptions
 	PProf       PProfOptions
 	Cache       CacheOptions
+	Queue       QueueOptions
 }
 
 type Application struct {
@@ -89,6 +101,7 @@ type Application struct {
 	database        *frameworkdb.Connection
 	metrics         *metrics.Metrics
 	cache           cache.Store
+	queue           *queue.Queue
 	shutdownTimeout time.Duration
 	hooksMu         sync.Mutex
 	shutdownHooks   []func(context.Context) error
@@ -132,6 +145,15 @@ func New(options Options) (*Application, error) {
 	if err != nil {
 		return nil, err
 	}
+	jobs, err := queue.New(queue.Options{
+		Driver:      options.Queue.Driver,
+		RedisURL:    options.Queue.RedisURL,
+		Concurrency: options.Queue.Concurrency,
+		Logger:      options.Logger,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("framework: %w", err)
+	}
 	var connection *frameworkdb.Connection
 	if options.Database != nil {
 		var err error
@@ -163,7 +185,11 @@ func New(options Options) (*Application, error) {
 	}
 	if err := app.installCache(options, redisOptions); err != nil {
 		hookErr := app.runShutdownHooks(context.Background())
-		return nil, errors.Join(err, hookErr)
+		return nil, errors.Join(err, hookErr, jobs.Close())
+	}
+	if err := app.installQueue(options, jobs); err != nil {
+		hookErr := app.runShutdownHooks(context.Background())
+		return nil, errors.Join(err, hookErr, jobs.Close())
 	}
 	app.server = &http.Server{
 		Addr:         options.HTTP.Address,
@@ -251,6 +277,33 @@ func (a *Application) installCache(options Options, redisOptions *redis.Options)
 	return nil
 }
 
+// installQueue stores the queue, and for the redis driver registers the
+// worker runner, a redis readiness check, and the drain hook. The close hook
+// registers after the cache's so LIFO shutdown drains jobs first.
+func (a *Application) installQueue(options Options, jobs *queue.Queue) error {
+	a.queue = jobs
+	a.OnShutdown(func(context.Context) error { return jobs.Close() })
+	if options.Queue.Driver != "redis" {
+		return nil
+	}
+	a.Go("queue", jobs.Start)
+	if a.readiness == nil {
+		a.readiness = make(map[string]Check)
+	}
+	if _, exists := a.readiness["redis"]; !exists {
+		parsed, err := redis.ParseURL(options.Queue.RedisURL)
+		if err != nil {
+			return fmt.Errorf("framework: invalid Redis URL: %w", err)
+		}
+		pingClient := redis.NewClient(parsed)
+		a.readiness["redis"] = func(ctx context.Context) error {
+			return pingClient.Ping(ctx).Err()
+		}
+		a.OnShutdown(func(context.Context) error { return pingClient.Close() })
+	}
+	return nil
+}
+
 func applyDefaults(options *Options) {
 	if options.Environment == "" {
 		options.Environment = "development"
@@ -310,6 +363,11 @@ func (a *Application) Metrics() *metrics.Metrics { return a.metrics }
 // Cache returns the application cache store. It is never nil: without
 // configuration an in-memory store is used, and CacheOptions selects Redis.
 func (a *Application) Cache() cache.Store { return a.cache }
+
+// Queue returns the application job queue. It is never nil: without
+// configuration the sync driver executes jobs inline, and QueueOptions
+// selects the supervised Redis worker.
+func (a *Application) Queue() *queue.Queue { return a.queue }
 
 // Logger returns the application's base structured logger. Handlers should
 // prefer the request-scoped httpx.Logger(c).
