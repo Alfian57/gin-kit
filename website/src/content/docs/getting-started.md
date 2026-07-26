@@ -28,6 +28,21 @@ gin-kit run
 Open `http://localhost:8080/health/live`. The generated `.env.example` lists
 the configuration your chosen database and features need.
 
+## First steps in a new project
+
+```bash
+gin-kit db up                     # apply the initial migrations
+gin-kit db seed                   # run the seeder registry
+gin-kit routes                    # print the routing table
+gin-kit generate resource Ticket --fields "title:string,done:bool"
+```
+
+`generate resource` prints the wiring snippet to paste into
+`internal/app/app.go`, then `gin-kit db up` applies its migration. In
+framework-edition development, interactive API docs are already live at
+`http://localhost:8080/docs`. Run `gin-kit check` before committing, and
+`gin-kit explain architecture` whenever the layout is unclear.
+
 ## The interactive path
 
 Run `gin-kit new ./orders` without `--non-interactive` to choose the edition,

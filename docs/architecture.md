@@ -9,14 +9,21 @@ project owns its business behavior and integration choices.
 ```text
 HTTP request
   -> router
-  -> handler (bind, validate, translate)
-  -> service (business rules)
+  -> handler (bind + validate request DTO, wrap response DTO)
+  -> service (business rules; DTO in, domain value out)
   -> repository (persistence)
   -> database
 ```
 
 Each application boundary has a small constructor. gin-kit does not use a
 reflection-based container or service locator.
+
+Transport shapes live in `internal/dto`, one file per model:
+`Create<Name>Request` and `Update<Name>Request` carry validation tags and a
+`Normalize()` trimmer; `<Name>Response` decides exactly what leaves the API
+through explicit `New<Name>Response` mappers — no persistence tags, and
+credential-like fields are excluded by the generator. `internal/domain` holds
+models and repository interfaces and never depends on HTTP types.
 
 ## Editions
 

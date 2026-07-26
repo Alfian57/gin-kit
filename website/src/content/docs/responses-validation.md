@@ -28,8 +28,9 @@ and include field-level details:
 ```
 
 Use `httpx.BindJSON[T]` in handlers. It maps malformed JSON to `400
-invalid_json`, validation to `422 validation_failed`, and resolves field names
-from JSON/form tags. `httpx.OK`, `Created`, `List`, `NoContent`, and `Fail`
+invalid_json`, validation to `422 validation_failed`, oversized bodies to
+`413 body_too_large` (see `MAX_BODY_BYTES`), and resolves field names from
+JSON/form tags. `httpx.OK`, `Created`, `List`, `NoContent`, and `Fail`
 keep success and failure shapes consistent.
 
 `httpx.BindQuery[T]` and `httpx.BindURI[T]` bring the same contract to query
@@ -54,14 +55,10 @@ values.
 
 ### Which validator runs
 
-Binders resolve the validator in a fixed order:
-
-1. An explicit argument — `httpx.BindJSON[T](c, myValidator)` — always wins.
-2. The application validator from `Options.Validator`. The framework places it
-   on the request context, so custom rules and messages registered through
-   `app.Validator()` apply to every binder without extra wiring.
-3. `validation.Default` as the fallback outside a gin-kit application (plain
-   `gin.Engine` in tests, for example).
+Binders resolve the validator in a fixed order: an explicit argument, then
+the application validator from `Options.Validator` (exposed via the request
+context), then `validation.Default`. The [Validation](/gin-kit/validation/)
+page covers the full rule catalogue, custom rules, and message overrides.
 
 ### Parity across editions
 
@@ -80,17 +77,10 @@ List endpoints respond with the standard pagination metadata produced by the
 
 ### Request and response DTOs
 
-Generated code keeps transport shapes in `internal/dto`, one file per model:
-`Create<Name>Request` and `Update<Name>Request` carry `validate` tags and a
-`Normalize()` method that trims free text; `<Name>Response` decides exactly
-what leaves the API — no `db`/`gorm` tags, and credential-like fields
-(`password`, `secret`, `token`, `hash`) are excluded by the generator.
-Handlers bind requests with `httpx.BindJSON[dto.Create<Name>Request]`,
-services accept the request DTO and return domain values, and handlers wrap
-results with `dto.New<Name>Response`. The same layout ships with the auth
-scaffold (`RegisterRequest`, `TokenResponse`, `AuthResponse`, `UserResponse`)
-and the tasks example, and `gin-kit generate dto` produces the file on its
-own for existing models.
+Generated code keeps transport shapes in `internal/dto`: requests carry
+`validate` tags and a `Normalize()` trimmer; responses decide exactly what
+leaves the API. See [Request and response DTOs](/gin-kit/dto/) for the full
+layout and rules.
 
 ### Safe by default
 

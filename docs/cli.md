@@ -33,6 +33,7 @@ gin-kit new ./services/orders --non-interactive \
 ```text
 gin-kit generate resource <Name> --fields "title:string,done:bool" [--table name]
 gin-kit generate domain <Name> [--fields ...]
+gin-kit generate dto <Name> [--fields ...]
 gin-kit generate repository <Name> [--fields ...]
 gin-kit generate handler <Name>
 gin-kit generate service <Name>
@@ -46,18 +47,27 @@ gin-kit generate mail <Name>     # framework edition only
 ```
 
 `generate resource` renders a complete vertical slice from real,
-manifest-aware templates: domain model with a repository interface, a GORM or
-sqlx repository (per the project manifest), a service with typed inputs and
-validation, an HTTP handler with query filtering/sorting/pagination, tests
-with in-memory repository fakes, and a timestamped goose migration with
-dialect-mapped column types.
+manifest-aware templates: domain model with a repository interface, request
+and response DTOs in `internal/dto`, a GORM or sqlx repository (per the
+project manifest), a service that accepts DTOs and returns domain values, an
+HTTP handler with query filtering/sorting/pagination, tests with in-memory
+repository fakes, and a timestamped goose migration with dialect-mapped
+column types.
+
+`generate dto` renders just the DTO file for an existing domain model:
+`Create<Name>Request` and `Update<Name>Request` with validation tags and a
+`Normalize()` trimmer, plus `<Name>Response` with explicit mappers.
+Credential-like fields (`password`, `secret`, `token`, `hash`) are excluded
+from the response type.
 
 The `--fields` grammar is `name:type` pairs separated by commas, with types
 `string`, `text`, `int`, `int64`, `float64`, `bool`, and `time` (aliases:
 `float`, `datetime`, `timestamp`); a trailing `?` makes a field nullable.
 `id`, `created_at`, and `updated_at` are always generated. String fields get
 partial-match filters, booleans exact boolean filters, and numeric/time
-fields comparison filters.
+fields comparison filters. Validation tags follow nullability: required
+strings validate as `required,max=255`, nullable strings as
+`omitempty,max=255`.
 
 ## Database
 
