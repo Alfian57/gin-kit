@@ -13,7 +13,9 @@ import (
 {{if eq .Mode "ui"}}	"{{.Module}}/internal/handler/web"
 {{else}}	"{{.Module}}/internal/handler/api"
 {{end}}	"{{.Module}}/internal/jobs"
-)
+{{if .Auth}}	"{{.Module}}/internal/repository"
+	"{{.Module}}/internal/service"
+{{end}})
 
 // New composes the opinionated gin-kit runtime. Application behavior remains
 // in this project: add routes and middleware through Configure.
@@ -46,10 +48,16 @@ func New() (*framework.Application, error) {
 	if err != nil {
 		return nil, fmt.Errorf("JWT_SECRET: %w", err)
 	}
+	accounts := service.NewAuthService(
+		repository.NewUserRepository(application.Database()),
+		repository.NewRefreshTokenRepository(application.Database()),
+		tokens,
+		30*24*time.Hour,
+	)
 {{end}}	jobs.Register(application.Queue(), application.Logger())
 	var router *gin.Engine = application.Router()
-{{if eq .Mode "ui"}}	web.Register(router{{if .Auth}}, tokens{{end}})
-{{else}}	api.Register(router{{if .Auth}}, tokens{{end}})
+{{if eq .Mode "ui"}}	web.Register(router{{if .Auth}}, tokens, accounts{{end}})
+{{else}}	api.Register(router{{if .Auth}}, tokens, accounts{{end}})
 {{end}}
 	return application, nil
 }

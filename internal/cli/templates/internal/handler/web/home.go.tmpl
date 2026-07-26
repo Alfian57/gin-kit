@@ -4,11 +4,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"os"
 	"path/filepath"
-{{if .Example}}	"{{.Module}}/internal/platform/database"
-{{end}}
-)
+{{if .Auth}}	authhandler "{{.Module}}/internal/handler/auth"
+	"{{.Module}}/internal/platform/config"
+{{end}}{{if or .Auth .Example}}	"{{.Module}}/internal/platform/database"
+{{end}})
 
-func Register(r *gin.Engine{{if .Example}}, db *database.Connection{{end}}) {
+func Register(r *gin.Engine{{if or .Auth .Example}}, db *database.Connection{{end}}{{if .Auth}}, cfg config.Config{{end}}) {
 	if matches, _ := filepath.Glob("web/templates/*.html"); len(matches) > 0 {
 		r.LoadHTMLGlob("web/templates/*.html")
 	}
@@ -20,6 +21,7 @@ func Register(r *gin.Engine{{if .Example}}, db *database.Connection{{end}}) {
 		}
 		c.HTML(200, "index.html", gin.H{"project": "{{.Project}}", "module": "{{.Module}}"})
 	})
-{{if .Example}}	registerTasks(r, db)
+{{if .Auth}}	authhandler.Register(r, db, cfg)
+{{end}}{{if .Example}}	registerTasks(r, db)
 {{end}}
 }

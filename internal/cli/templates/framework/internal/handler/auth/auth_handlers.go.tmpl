@@ -1,0 +1,110 @@
+// Package auth exposes the authentication endpoints: register, login,
+// single-use refresh-token rotation, logout, and the protected /me route.
+package auth
+
+import (
+	"errors"
+	"net/http"
+
+	jwtauth "github.com/Alfian57/gin-kit/framework/auth"
+	"github.com/Alfian57/gin-kit/framework/httpx"
+	"github.com/gin-gonic/gin"
+	"{{.Module}}/internal/domain"
+	"{{.Module}}/internal/service"
+)
+
+type credentialsInput struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=8,max=128"`
+}
+
+type refreshInput struct {
+	RefreshToken string `json:"refresh_token" validate:"required"`
+}
+
+// Register installs the authentication routes.
+func Register(router *gin.Engine, tokens *jwtauth.Manager, accounts *service.AuthService) {
+	group := router.Group("/api/v1/auth")
+	group.POST("/register", func(c *gin.Context) {
+		input, ok := httpx.BindJSON[credentialsInput](c)
+		if !ok {
+			return
+		}
+		user, pair, err := accounts.Register(c.Request.Context(), input.Email, input.Password)
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		httpx.Created(c, tokenResponse(user, pair))
+	})
+	group.POST("/login", func(c *gin.Context) {
+		input, ok := httpx.BindJSON[credentialsInput](c)
+		if !ok {
+			return
+		}
+		user, pair, err := accounts.Login(c.Request.Context(), input.Email, input.Password)
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		httpx.OK(c, tokenResponse(user, pair))
+	})
+	group.POST("/refresh", func(c *gin.Context) {
+		input, ok := httpx.BindJSON[refreshInput](c)
+		if !ok {
+			return
+		}
+		pair, err := accounts.Refresh(c.Request.Context(), input.RefreshToken)
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		httpx.OK(c, pair)
+	})
+	group.POST("/logout", func(c *gin.Context) {
+		input, ok := httpx.BindJSON[refreshInput](c)
+		if !ok {
+			return
+		}
+		if err := accounts.Logout(c.Request.Context(), input.RefreshToken); err != nil {
+			fail(c, err)
+			return
+		}
+		httpx.NoContent(c)
+	})
+
+	protected := router.Group("/api/v1", jwtauth.RequireAuth(tokens))
+	protected.GET("/me", func(c *gin.Context) {
+		user, err := accounts.User(c.Request.Context(), jwtauth.UserID(c))
+		if err != nil {
+			fail(c, err)
+			return
+		}
+		httpx.OK(c, user)
+	})
+}
+
+func tokenResponse(user domain.User, pair service.TokenPair) gin.H {
+	return gin.H{
+		"user":          user,
+		"access_token":  pair.AccessToken,
+		"refresh_token": pair.RefreshToken,
+		"token_type":    pair.TokenType,
+		"expires_in":    pair.ExpiresIn,
+	}
+}
+
+func fail(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, domain.ErrEmailTaken):
+		httpx.Fail(c, httpx.NewError(http.StatusConflict, "email_taken", "This email address is already registered."))
+	case errors.Is(err, service.ErrInvalidCredentials):
+		httpx.Fail(c, httpx.NewError(http.StatusUnauthorized, "invalid_credentials", "The email or password is incorrect."))
+	case errors.Is(err, service.ErrInvalidRefreshToken):
+		httpx.Fail(c, httpx.NewError(http.StatusUnauthorized, "invalid_refresh_token", "The refresh token is invalid or expired."))
+	case errors.Is(err, domain.ErrUserNotFound):
+		httpx.Fail(c, httpx.NewError(http.StatusUnauthorized, "invalid_token", "Token is invalid or expired."))
+	default:
+		httpx.Handle(c, nil, err)
+	}
+}

@@ -1,0 +1,174 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"sync"
+	"testing"
+	"time"
+
+	"{{.Module}}/internal/domain"
+	"{{.Module}}/internal/platform/auth"
+	"{{.Module}}/internal/platform/password"
+)
+
+var testAuthSecret = []byte("0123456789abcdef0123456789abcdef")
+
+type memoryUsers struct {
+	mu    sync.Mutex
+	users map[string]domain.User
+}
+
+func (m *memoryUsers) Create(_ context.Context, user *domain.User) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, existing := range m.users {
+		if existing.Email == user.Email {
+			return domain.ErrEmailTaken
+		}
+	}
+	m.users[user.ID] = *user
+	return nil
+}
+
+func (m *memoryUsers) FindByEmail(_ context.Context, email string) (domain.User, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, user := range m.users {
+		if user.Email == email {
+			return user, nil
+		}
+	}
+	return domain.User{}, domain.ErrUserNotFound
+}
+
+func (m *memoryUsers) FindByID(_ context.Context, id string) (domain.User, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	user, ok := m.users[id]
+	if !ok {
+		return domain.User{}, domain.ErrUserNotFound
+	}
+	return user, nil
+}
+
+type memoryRefresh struct {
+	mu     sync.Mutex
+	tokens map[string]domain.RefreshToken
+}
+
+func (m *memoryRefresh) Store(_ context.Context, token *domain.RefreshToken) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.tokens[token.TokenHash] = *token
+	return nil
+}
+
+func (m *memoryRefresh) FindByHash(_ context.Context, hash string) (domain.RefreshToken, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	token, ok := m.tokens[hash]
+	if !ok {
+		return domain.RefreshToken{}, domain.ErrRefreshTokenNotFound
+	}
+	return token, nil
+}
+
+func (m *memoryRefresh) DeleteByHash(_ context.Context, hash string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.tokens, hash)
+	return nil
+}
+
+func (m *memoryRefresh) DeleteForUser(_ context.Context, userID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for hash, token := range m.tokens {
+		if token.UserID == userID {
+			delete(m.tokens, hash)
+		}
+	}
+	return nil
+}
+
+func testAuthService() (*AuthService, *memoryRefresh) {
+	refresh := &memoryRefresh{tokens: map[string]domain.RefreshToken{}}
+	users := &memoryUsers{users: map[string]domain.User{}}
+	return NewAuthService(users, refresh, testAuthSecret, 15*time.Minute, time.Hour), refresh
+}
+
+func TestRegisterAndLoginFlow(t *testing.T) {
+	ctx := context.Background()
+	accounts, _ := testAuthService()
+
+	user, pair, err := accounts.Register(ctx, "  USER@Example.com ", "super-secret-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if user.Email != "user@example.com" {
+		t.Fatalf("email not normalized: %q", user.Email)
+	}
+	if !password.Compare("super-secret-1", user.PasswordHash) {
+		t.Fatal("stored hash does not verify")
+	}
+	if pair.AccessToken == "" || pair.RefreshToken == "" || pair.TokenType != "Bearer" {
+		t.Fatalf("token pair incomplete: %+v", pair)
+	}
+	if claims, err := auth.Parse(pair.AccessToken, testAuthSecret); err != nil || claims.UserID != user.ID {
+		t.Fatalf("access token invalid: %v", err)
+	}
+	if _, _, err := accounts.Register(ctx, "user@example.com", "other-secret-1"); !errors.Is(err, domain.ErrEmailTaken) {
+		t.Fatalf("duplicate email accepted: %v", err)
+	}
+	if _, _, err := accounts.Login(ctx, "user@example.com", "wrong-password"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("wrong password accepted: %v", err)
+	}
+	if _, _, err := accounts.Login(ctx, "ghost@example.com", "whatever-pass"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("unknown account accepted: %v", err)
+	}
+	if _, _, err := accounts.Login(ctx, "user@example.com", "super-secret-1"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestRefreshRotationAndLogout(t *testing.T) {
+	ctx := context.Background()
+	accounts, refresh := testAuthService()
+	_, pair, err := accounts.Register(ctx, "user@example.com", "super-secret-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rotated, err := accounts.Refresh(ctx, pair.RefreshToken)
+	if err != nil || rotated.RefreshToken == pair.RefreshToken {
+		t.Fatalf("rotation failed: err=%v", err)
+	}
+	if _, err := accounts.Refresh(ctx, pair.RefreshToken); !errors.Is(err, ErrInvalidRefreshToken) {
+		t.Fatalf("used token accepted: %v", err)
+	}
+
+	hash := auth.HashRefreshToken(rotated.RefreshToken)
+	refresh.mu.Lock()
+	expired := refresh.tokens[hash]
+	expired.ExpiresAt = time.Now().UTC().Add(-time.Minute)
+	refresh.tokens[hash] = expired
+	refresh.mu.Unlock()
+	if _, err := accounts.Refresh(ctx, rotated.RefreshToken); !errors.Is(err, ErrInvalidRefreshToken) {
+		t.Fatalf("expired token accepted: %v", err)
+	}
+
+	_, pair, err = accounts.Login(ctx, "user@example.com", "super-secret-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := accounts.Logout(ctx, pair.RefreshToken); err != nil {
+		t.Fatal(err)
+	}
+	if err := accounts.Logout(ctx, pair.RefreshToken); err != nil {
+		t.Fatal("second logout errored")
+	}
+	if _, err := accounts.Refresh(ctx, pair.RefreshToken); !errors.Is(err, ErrInvalidRefreshToken) {
+		t.Fatalf("refresh after logout accepted: %v", err)
+	}
+}

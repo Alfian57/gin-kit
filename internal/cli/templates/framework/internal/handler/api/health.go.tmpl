@@ -1,18 +1,20 @@
 package api
 
 import (
-{{if .Auth}}	"github.com/Alfian57/gin-kit/framework/auth"
+{{if .Auth}}	jwtauth "github.com/Alfian57/gin-kit/framework/auth"
 {{end}}	"github.com/Alfian57/gin-kit/framework/httpx"
 	"github.com/gin-gonic/gin"
-)
+{{if .Auth}}	authhandler "{{.Module}}/internal/handler/auth"
+	"{{.Module}}/internal/service"
+{{end}})
 
 // Register installs application-owned API routes. Generic middleware and
 // lifecycle behavior are supplied by the gin-kit framework runtime.
-func Register(router *gin.Engine{{if .Auth}}, tokens *auth.Manager{{end}}) {
+func Register(router *gin.Engine{{if .Auth}}, tokens *jwtauth.Manager, accounts *service.AuthService{{end}}) {
 	router.GET("/api/v1/ping", func(c *gin.Context) {
 		httpx.OK(c, gin.H{"message": "pong"})
 	})
-{{if .Auth}}	registerAuth(router, tokens)
+{{if .Auth}}	authhandler.Register(router, tokens, accounts)
 {{end}}{{if .Example}}	registerTasks(router)
 {{end}}
 }

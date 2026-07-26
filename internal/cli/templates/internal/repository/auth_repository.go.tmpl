@@ -1,0 +1,104 @@
+package repository
+
+import (
+	"context"
+{{if ne .ORM "gorm"}}	"database/sql"
+{{end}}	"errors"
+	"strings"
+
+	"{{.Module}}/internal/platform/database"
+	"{{.Module}}/internal/domain"
+{{if eq .ORM "gorm"}}	"gorm.io/gorm"
+{{end}})
+
+// isDuplicate best-effort detects unique-constraint violations across drivers.
+func isDuplicate(err error) bool {
+	if err == nil {
+		return false
+	}
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "unique") || strings.Contains(message, "duplicate")
+}
+
+type userRepository struct {
+{{if eq .ORM "gorm"}}	db *gorm.DB
+{{else}}	db sqlxExecutor
+{{end}}}
+
+{{if ne .ORM "gorm"}}type sqlxExecutor interface {
+	Rebind(string) string
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	GetContext(context.Context, any, string, ...any) error
+	SelectContext(context.Context, any, string, ...any) error
+}
+
+{{end}}func NewUserRepository(connection *database.Connection) domain.UserRepository {
+{{if eq .ORM "gorm"}}	return &userRepository{db: connection.GORM}
+{{else}}	return &userRepository{db: connection.SQLX}
+{{end}}}
+
+func (r *userRepository) Create(ctx context.Context, user *domain.User) error {
+{{if eq .ORM "gorm"}}	err := r.db.WithContext(ctx).Create(user).Error
+	if isDuplicate(err) { return domain.ErrEmailTaken }
+	return err
+{{else}}	query := r.db.Rebind("INSERT INTO users (id, email, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, ?)")
+	_, err := r.db.ExecContext(ctx, query, user.ID, user.Email, user.PasswordHash, user.CreatedAt, user.UpdatedAt)
+	if isDuplicate(err) { return domain.ErrEmailTaken }
+	return err
+{{end}}}
+
+func (r *userRepository) FindByEmail(ctx context.Context, email string) (domain.User, error) {
+	var user domain.User
+{{if eq .ORM "gorm"}}	err := r.db.WithContext(ctx).First(&user, "email = ?", email).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) { return user, domain.ErrUserNotFound }
+{{else}}	err := r.db.GetContext(ctx, &user, r.db.Rebind("SELECT id, email, password_hash, created_at, updated_at FROM users WHERE email = ?"), email)
+	if errors.Is(err, sql.ErrNoRows) { return user, domain.ErrUserNotFound }
+{{end}}	return user, err
+}
+
+func (r *userRepository) FindByID(ctx context.Context, id string) (domain.User, error) {
+	var user domain.User
+{{if eq .ORM "gorm"}}	err := r.db.WithContext(ctx).First(&user, "id = ?", id).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) { return user, domain.ErrUserNotFound }
+{{else}}	err := r.db.GetContext(ctx, &user, r.db.Rebind("SELECT id, email, password_hash, created_at, updated_at FROM users WHERE id = ?"), id)
+	if errors.Is(err, sql.ErrNoRows) { return user, domain.ErrUserNotFound }
+{{end}}	return user, err
+}
+
+type refreshTokenRepository struct {
+{{if eq .ORM "gorm"}}	db *gorm.DB
+{{else}}	db sqlxExecutor
+{{end}}}
+
+func NewRefreshTokenRepository(connection *database.Connection) domain.RefreshTokenRepository {
+{{if eq .ORM "gorm"}}	return &refreshTokenRepository{db: connection.GORM}
+{{else}}	return &refreshTokenRepository{db: connection.SQLX}
+{{end}}}
+
+func (r *refreshTokenRepository) Store(ctx context.Context, token *domain.RefreshToken) error {
+{{if eq .ORM "gorm"}}	return r.db.WithContext(ctx).Create(token).Error
+{{else}}	query := r.db.Rebind("INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)")
+	_, err := r.db.ExecContext(ctx, query, token.ID, token.UserID, token.TokenHash, token.ExpiresAt, token.CreatedAt)
+	return err
+{{end}}}
+
+func (r *refreshTokenRepository) FindByHash(ctx context.Context, hash string) (domain.RefreshToken, error) {
+	var token domain.RefreshToken
+{{if eq .ORM "gorm"}}	err := r.db.WithContext(ctx).First(&token, "token_hash = ?", hash).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) { return token, domain.ErrRefreshTokenNotFound }
+{{else}}	err := r.db.GetContext(ctx, &token, r.db.Rebind("SELECT id, user_id, token_hash, expires_at, created_at FROM refresh_tokens WHERE token_hash = ?"), hash)
+	if errors.Is(err, sql.ErrNoRows) { return token, domain.ErrRefreshTokenNotFound }
+{{end}}	return token, err
+}
+
+func (r *refreshTokenRepository) DeleteByHash(ctx context.Context, hash string) error {
+{{if eq .ORM "gorm"}}	return r.db.WithContext(ctx).Delete(&domain.RefreshToken{}, "token_hash = ?", hash).Error
+{{else}}	_, err := r.db.ExecContext(ctx, r.db.Rebind("DELETE FROM refresh_tokens WHERE token_hash = ?"), hash)
+	return err
+{{end}}}
+
+func (r *refreshTokenRepository) DeleteForUser(ctx context.Context, userID string) error {
+{{if eq .ORM "gorm"}}	return r.db.WithContext(ctx).Delete(&domain.RefreshToken{}, "user_id = ?", userID).Error
+{{else}}	_, err := r.db.ExecContext(ctx, r.db.Rebind("DELETE FROM refresh_tokens WHERE user_id = ?"), userID)
+	return err
+{{end}}}
