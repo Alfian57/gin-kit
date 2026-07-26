@@ -84,6 +84,18 @@ if [[ "$database" != "sqlite" ]]; then
   (echo >/dev/tcp/127.0.0.1/"$GIN_KIT_DB_PORT") >/dev/null 2>&1
 fi
 
+# Agent guidance must be emitted and rendered (no leftover template actions).
+for guidance in AGENTS.md CLAUDE.md .github/skills/gin-kit-development/SKILL.md; do
+  if [[ ! -f "$project_dir/$guidance" ]]; then
+    echo "missing agent guidance: $guidance" >&2
+    exit 1
+  fi
+done
+if grep -q '{{' "$project_dir/AGENTS.md"; then
+  echo "AGENTS.md contains unrendered template actions" >&2
+  exit 1
+fi
+
 (
   cd "$project_dir"
   go mod tidy

@@ -1,0 +1,104 @@
+---
+name: gin-kit-development
+description: Work on {{.Project}}, a gin-kit {{.Edition}}-edition {{.Mode}} project ({{.Database}}/{{.ORM}}) — add resources, endpoints, validation rules, background work, and tests while preserving the generated architecture.
+compatibility: Requires Go 1.26{{if eq .Mode "ui"}}; asset work requires Node.js 20+{{end}}.
+---
+
+# gin-kit development
+
+Read `AGENTS.md` before changing generated code. Keep the explicit
+router → handler → service → repository → database flow, pass
+`context.Context` through every boundary, and keep transport shapes in
+`internal/dto`.
+{{if eq .Edition "framework"}}
+This project consumes the versioned `github.com/Alfian57/gin-kit/framework`
+runtime; customize it through public options, hooks, middleware, and
+interfaces — never copy or edit gin-kit core.
+{{else}}
+This project vendors its runtime under `internal/platform/`; you may edit it
+directly, but keep the HTTP contract (envelope, error codes, validation
+shape) stable.
+{{end}}
+## Add a resource end-to-end
+
+```bash
+gin-kit generate resource Invoice --fields "number:string,amount:float64,paid:bool,note:text?"
+```
+
+Then: paste the printed wiring snippet into `internal/app/app.go`, run
+`gin-kit db up` for its migration, and `gin-kit routes` to confirm the
+routes. The generator produced the domain model, DTOs, repository, service,
+handler, factory, tests, and migration — nothing else needs hand-writing.
+To evolve it, edit the generated files directly (they are yours).
+
+## Add a custom validation rule
+
+{{if eq .Edition "framework"}}Register on the application validator during wiring, before `framework.New`:
+
+```go
+v := validation.New()
+_ = v.RegisterRule("slug", func(fl validator.FieldLevel) bool { ... })
+v.RegisterMessage("slug", "The {field} field must not contain spaces.")
+// framework.Options{Validator: v}
+```
+{{else}}Register on `validation.Default` during startup (`internal/app/app.go`):
+
+```go
+_ = validation.Default.RegisterRule("slug", func(fl validator.FieldLevel) bool { ... })
+validation.Default.RegisterMessage("slug", "The {field} field must not contain spaces.")
+```
+{{end}}
+Then use `validate:"slug"` in request DTOs — every `httpx.BindJSON/Query/URI`
+call enforces it and renders the message with field details.
+{{if eq .Edition "framework"}}
+## Background work
+
+```bash
+gin-kit generate job SendReceipt    # typed payload + handler + registration snippet
+gin-kit generate event InvoicePaid  # typed event + listener
+gin-kit generate mail ReceiptMail   # mailable + HTML template
+```
+
+The sync queue driver runs jobs inline in development; set
+`QUEUE_DRIVER=redis` + `REDIS_URL` in production. Schedule recurring work
+with `schedule.New` + `app.Go("scheduler", scheduler.Run)`.
+{{end}}
+## Testing
+
+- Handler tests drive real HTTP through the router with in-memory repository
+  fakes (see any generated `*_handler_test.go`).
+- Factories (`internal/database/factories/`) build realistic test data;
+  `.Seeded(n)` makes them deterministic.
+{{if eq .Edition "framework"}}- `framework/apptest` boots the full application for integration tests
+  (`apptest.New`, `OpenSQLite`, `Migrate`, `Seed`); `framework/browsertest`
+  adds Playwright browser tests{{if eq .Mode "ui"}} (see `e2e/`){{end}}.
+{{end}}- Run everything with `gin-kit check` (read-only: gofmt report, tests, vet).
+
+## Database workflow
+
+```bash
+gin-kit db up            # apply migrations
+gin-kit db create <name> # new empty migration (versioned SQL — never AutoMigrate)
+gin-kit db seed          # run the explicit seeder registry
+gin-kit db fresh --yes   # drop + migrate + seed (destructive)
+```
+
+Seeders and factories are registries you edit by hand; keep seeders
+idempotent.
+
+## Safety defaults
+
+Keep request IDs, security headers, trusted proxy configuration, body
+limits, readiness checks, and rate-limit middleware enabled. Never trust
+forwarded client IP headers without configuring `TRUSTED_PROXY_CIDRS`.
+Never put secrets in source files or migrations — configuration lives in
+`.env` (local) and the environment (deployed); update `.env.example` when
+you add a variable.
+
+## Troubleshooting
+
+`gin-kit doctor` diagnoses toolchain, manifest, and database issues.
+`gin-kit explain <topic>` answers architecture questions offline
+(`architecture`, `request-flow`, `database`, `auth`, `commands`). Every
+error response carries a `request_id` — correlate it with the structured
+logs.

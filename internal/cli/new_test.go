@@ -55,6 +55,39 @@ func TestScaffoldAPIPreservesSelections(t *testing.T) {
 	if !strings.Contains(string(data), "github.com/go-playground/validator/v10") {
 		t.Fatalf("starter go.mod missing validator dependency:\n%s", data)
 	}
+	assertAgentGuidance(t, dir, "example.com/sample")
+}
+
+// assertAgentGuidance verifies every AI-guidance file is emitted and that the
+// templated ones rendered with real manifest values.
+func assertAgentGuidance(t *testing.T, dir, module string) {
+	t.Helper()
+	for _, rel := range []string{
+		"AGENTS.md",
+		"CLAUDE.md",
+		"GEMINI.md",
+		".github/copilot-instructions.md",
+		".github/skills/gin-kit-development/SKILL.md",
+		".cursor/rules/gin-kit.mdc",
+	} {
+		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
+			t.Fatalf("agent guidance missing %s: %v", rel, err)
+		}
+	}
+	agents, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(agents), module) || strings.Contains(string(agents), "{{") {
+		t.Fatalf("AGENTS.md did not render manifest values:\n%s", agents)
+	}
+	skill, err := os.ReadFile(filepath.Join(dir, ".github", "skills", "gin-kit-development", "SKILL.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(string(skill), "---\nname: gin-kit-development\n") || strings.Contains(string(skill), "{{") {
+		t.Fatalf("SKILL.md missing frontmatter or unrendered:\n%.200s", skill)
+	}
 }
 
 func TestScaffoldUIHasEnglishLandingPage(t *testing.T) {
@@ -123,6 +156,7 @@ func TestFrameworkScaffoldIsThinAndPinsRuntime(t *testing.T) {
 			t.Fatalf("framework edition missing %s: %v", rel, err)
 		}
 	}
+	assertAgentGuidance(t, dir, "example.com/acme/orders")
 	for _, rel := range []string{"internal/platform/config/config.go", "internal/middleware/security.go"} {
 		if _, err := os.Stat(filepath.Join(dir, rel)); err == nil {
 			t.Fatalf("framework edition copied generic core %s", rel)

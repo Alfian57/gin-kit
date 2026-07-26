@@ -9,6 +9,18 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Complete AI-agent workflow: generated projects now render `AGENTS.md` from
+  the project manifest (edition, mode, database, ORM, auth/example flags,
+  module path) with the full command tree, DTO and error-contract rules, and
+  a documentation-discipline section; the generated skill gains YAML
+  frontmatter and concrete workflows (add a resource, custom validation
+  rule, background work, testing, troubleshooting); Claude, Gemini, Copilot,
+  and Cursor adapters carry the most-often-broken rules. The repository
+  itself gains a root `CLAUDE.md`, a rewritten `AGENTS.md` with a repository
+  map and a change-type documentation matrix, and a PR-template
+  documentation checklist. Scaffold tests and the smoke script now verify
+  the guidance files are emitted and rendered.
+
 - Documentation: four new site pages — Request and response DTOs, Validation
   (built-in rule catalogue plus custom rules), Seeding and factories, and
   Upgrade notes — plus a complete environment-variable reference on the
