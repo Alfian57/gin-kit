@@ -7,6 +7,31 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `framework/auth` Gin middleware: `RequireAuth`, `ClaimsFromContext`, and
+  `UserID` with canonical `401` envelopes and `WWW-Authenticate` headers.
+- `HTTPOptions.TrustedProxies` for explicit forwarded-header trust.
+- Framework-edition `--auth` scaffolding: JWT manager wiring from `JWT_SECRET`,
+  a Bearer-protected `/api/v1/me` sample route, and generated tests for both
+  API and UI modes.
+
+### Security
+
+- Framework applications no longer trust `X-Forwarded-For` from any peer by
+  default; list your proxies in `HTTPOptions.TrustedProxies`
+  (`TRUSTED_PROXY_CIDRS` in generated projects) to restore forwarded client
+  addresses. Rate limiting and access logs now key on non-spoofable client
+  IPs.
+
+### Fixed
+
+- `--auth` was silently ignored for framework-edition projects.
+- Framework-edition UI projects registered the Tasks example route only when
+  HTML templates were absent.
+- Documentation described a functional-options API and middleware order that
+  never existed; it now shows the real `framework.Options` API and order.
+
 ### Changed
 
 - **Breaking:** renamed the project from GinKit to gin-kit with no migration

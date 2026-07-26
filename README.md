@@ -69,7 +69,8 @@ gin-kit new my-project \
 ```
 
 Every application starts with request IDs, secure recovery, security headers,
-trusted-proxy handling, body limits, graceful shutdown, database-backed
+spoof-resistant client addresses (forwarded headers are honored only from
+proxies you explicitly trust), body limits, graceful shutdown, database-backed
 readiness checks, and endpoint-class rate limiting. API responses use one
 stable envelope, including detailed field-level validation errors.
 
