@@ -9,6 +9,18 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `framework/queue`: explicit background jobs with typed `Register`/`Dispatch`,
+  an inline sync driver for development, and a Redis (asynq) driver with
+  delays, retries, named queues, worker concurrency, and graceful drain,
+  supervised by the application lifecycle; configured via
+  `QUEUE_DRIVER`/`QUEUE_CONCURRENCY`/`REDIS_URL`. `app.Queue()` is always
+  available, and framework-edition projects scaffold an `internal/jobs`
+  example.
+- `framework/schedule`: cron scheduling on robfig/cron with
+  `Cron`/`Every`/`Daily`/`Hourly`, per-job panic recovery, optional
+  skip-if-still-running, and graceful stop as an application runner
+  (single-instance in this version).
+
 - `framework/cache`: Laravel-style cache with in-memory (default) and Redis
   drivers behind one interface, a JSON `Remember` helper, key prefixes,
   increments and TTLs; configured with `CACHE_DRIVER`/`REDIS_URL`, with an

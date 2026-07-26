@@ -12,7 +12,7 @@ import (
 
 {{if eq .Mode "ui"}}	"{{.Module}}/internal/handler/web"
 {{else}}	"{{.Module}}/internal/handler/api"
-{{end}}
+{{end}}	"{{.Module}}/internal/jobs"
 )
 
 // New composes the opinionated gin-kit runtime. Application behavior remains
@@ -46,7 +46,8 @@ func New() (*framework.Application, error) {
 	if err != nil {
 		return nil, fmt.Errorf("JWT_SECRET: %w", err)
 	}
-{{end}}	var router *gin.Engine = application.Router()
+{{end}}	jobs.Register(application.Queue(), application.Logger())
+	var router *gin.Engine = application.Router()
 {{if eq .Mode "ui"}}	web.Register(router{{if .Auth}}, tokens{{end}})
 {{else}}	api.Register(router{{if .Auth}}, tokens{{end}})
 {{end}}

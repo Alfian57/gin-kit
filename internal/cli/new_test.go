@@ -150,6 +150,12 @@ func TestFrameworkScaffoldUsesTypedConfig(t *testing.T) {
 		!strings.Contains(string(appSource), "config.Load()") {
 		t.Fatalf("framework app.go does not use typed configuration:\n%s", appSource)
 	}
+	if !strings.Contains(string(appSource), "jobs.Register(") {
+		t.Fatalf("framework app.go does not register jobs:\n%s", appSource)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "internal", "jobs", "ping.go")); err != nil {
+		t.Fatalf("framework scaffold missing jobs example: %v", err)
+	}
 	envExample, err := os.ReadFile(filepath.Join(dir, ".env.example"))
 	if err != nil {
 		t.Fatal(err)
