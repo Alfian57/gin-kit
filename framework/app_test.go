@@ -111,6 +111,44 @@ func TestRateLimitRejectsExcessRequests(t *testing.T) {
 	}
 }
 
+func TestTrustedProxiesControlClientIP(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		proxies   []string
+		remote    string
+		forwarded string
+		want      string
+	}{
+		{"default distrusts forwarded headers", nil, "203.0.113.7:1234", "1.2.3.4", "203.0.113.7"},
+		{"trusted proxy honored", []string{"10.0.0.0/8"}, "10.1.2.3:1234", "1.2.3.4", "1.2.3.4"},
+		{"untrusted peer ignored", []string{"10.0.0.0/8"}, "203.0.113.7:1234", "1.2.3.4", "203.0.113.7"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			app, err := New(Options{HTTP: HTTPOptions{TrustedProxies: test.proxies}})
+			if err != nil {
+				t.Fatal(err)
+			}
+			app.Router().GET("/ip", func(c *gin.Context) {
+				httpx.OK(c, gin.H{"ip": c.ClientIP()})
+			})
+			request := httptest.NewRequest(http.MethodGet, "/ip", nil)
+			request.RemoteAddr = test.remote
+			request.Header.Set("X-Forwarded-For", test.forwarded)
+			recorder := httptest.NewRecorder()
+			app.Router().ServeHTTP(recorder, request)
+			if !strings.Contains(recorder.Body.String(), `"ip":"`+test.want+`"`) {
+				t.Fatalf("client IP: %s", recorder.Body.String())
+			}
+		})
+	}
+}
+
+func TestNewRejectsInvalidTrustedProxy(t *testing.T) {
+	if _, err := New(Options{HTTP: HTTPOptions{TrustedProxies: []string{"not-a-proxy"}}}); err == nil {
+		t.Fatal("expected error for invalid trusted proxy")
+	}
+}
+
 func TestRunReturnsServerError(t *testing.T) {
 	app, err := New(Options{HTTP: HTTPOptions{Address: "bad address", ShutdownTimeout: time.Millisecond}})
 	if err != nil {
