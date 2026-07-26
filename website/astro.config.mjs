@@ -54,6 +54,7 @@ export default defineConfig({
             { label: 'CLI and generators', slug: 'cli-generators' },
             { label: 'Customizing the runtime', slug: 'customization' },
             { label: 'UI mode', slug: 'ui-mode' },
+            { label: 'Sessions and CSRF', slug: 'sessions' },
             { label: 'Deployment', slug: 'deployment' },
           ],
         },

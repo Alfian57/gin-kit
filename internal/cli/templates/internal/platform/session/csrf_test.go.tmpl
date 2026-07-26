@@ -1,0 +1,47 @@
+package session
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"testing"
+
+	"github.com/gin-gonic/gin"
+)
+
+func TestCSRFBlocksUnsafeRequestsWithoutToken(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	middleware, err := Middleware(Options{Secret: []byte(strings.Repeat("s", MinimumSecretLength))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	router := gin.New()
+	router.Use(middleware, CSRF(CSRFOptions{}))
+	router.GET("/form", func(c *gin.Context) { c.String(http.StatusOK, Token(c)) })
+	router.POST("/submit", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	form := httptest.NewRecorder()
+	router.ServeHTTP(form, httptest.NewRequest(http.MethodGet, "/form", nil))
+	token := form.Body.String()
+	if token == "" {
+		t.Fatal("GET did not mint a token")
+	}
+
+	blocked := httptest.NewRecorder()
+	router.ServeHTTP(blocked, httptest.NewRequest(http.MethodPost, "/submit", nil))
+	if blocked.Code != http.StatusForbidden {
+		t.Fatalf("request without token accepted: %d", blocked.Code)
+	}
+
+	allowed := httptest.NewRequest(http.MethodPost, "/submit", strings.NewReader(url.Values{"_csrf": []string{token}}.Encode()))
+	allowed.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	for _, cookie := range form.Result().Cookies() {
+		allowed.AddCookie(cookie)
+	}
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, allowed)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("valid token rejected: %d %s", recorder.Code, recorder.Body)
+	}
+}

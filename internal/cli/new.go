@@ -178,6 +178,9 @@ func scaffoldIntoWithOptions(target string, m Manifest, options scaffoldOptions)
 		if rel == "package.json" && m.Mode != "ui" {
 			return nil
 		}
+		if strings.Contains(rel, "internal/platform/session") && m.Mode != "ui" {
+			return nil
+		}
 		if (strings.Contains(rel, "auth_") || strings.Contains(rel, "/auth/")) && !m.Auth {
 			return nil
 		}

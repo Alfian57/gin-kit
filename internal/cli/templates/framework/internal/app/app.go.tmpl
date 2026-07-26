@@ -1,14 +1,17 @@
 package app
 
 import (
-{{if or .Auth (ne .Database "sqlite")}}	"fmt"
+{{if eq .Mode "ui"}}	"crypto/rand"
+	"errors"
+{{end}}{{if or .Auth (ne .Database "sqlite")}}	"fmt"
 {{end}}{{if .Auth}}	"time"
 {{end}}
 	"github.com/Alfian57/gin-kit/framework"
 {{if .Auth}}	"github.com/Alfian57/gin-kit/framework/auth"
 {{end}}	"github.com/Alfian57/gin-kit/framework/config"
 	"github.com/Alfian57/gin-kit/framework/database"
-	"github.com/gin-gonic/gin"
+{{if eq .Mode "ui"}}	"github.com/Alfian57/gin-kit/framework/session"
+{{end}}	"github.com/gin-gonic/gin"
 
 {{if eq .Mode "ui"}}	"{{.Module}}/internal/handler/web"
 {{else}}	"{{.Module}}/internal/handler/api"
@@ -44,6 +47,26 @@ func New() (*framework.Application, error) {
 	if err != nil {
 		return nil, err
 	}
+{{if eq .Mode "ui"}}	sessionSecret := cfg.SessionSecret
+	if len(sessionSecret) == 0 {
+		if !cfg.IsDevelopment() {
+			return nil, errors.New("SESSION_SECRET is required outside development")
+		}
+		sessionSecret = make([]byte, session.MinimumSecretLength)
+		if _, err := rand.Read(sessionSecret); err != nil {
+			return nil, err
+		}
+		application.Logger().Warn("SESSION_SECRET is empty; using an ephemeral development secret")
+	}
+	sessionMiddleware, err := session.Middleware(session.Options{
+		Secret: sessionSecret,
+		Secure: !cfg.IsDevelopment(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	application.Use(sessionMiddleware, session.CSRF(session.CSRFOptions{}))
+{{end}}
 {{if .Auth}}	tokens, err := auth.New(cfg.JWTSecret, "{{.Project}}", 15*time.Minute)
 	if err != nil {
 		return nil, fmt.Errorf("JWT_SECRET: %w", err)

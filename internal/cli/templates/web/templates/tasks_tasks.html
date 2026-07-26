@@ -4,7 +4,8 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Tasks · gin-kit</title><link rel="stylesheet" href="/assets/app.css"></head>
 <body><main><nav><strong>Tasks</strong><a href="/">Home</a></nav>
 <section class="next"><h1>Learn through a vertical slice.</h1>
-<form method="post" action="/tasks"><label for="title">New task</label><input id="title" name="title" maxlength="255" required><button class="primary" type="submit">Create task</button></form>
+{{range .flashes}}<p class="flash flash-{{.Kind}}">{{.Message}}</p>{{end}}
+<form method="post" action="/tasks">{{.csrf_field}}<label for="title">New task</label><input id="title" name="title" maxlength="255" required><button class="primary" type="submit">Create task</button></form>
 <ul>{{range .tasks}}<li><strong>{{.Title}}</strong> <small>{{.ID}}</small></li>{{else}}<li>No tasks yet. Create the first one.</li>{{end}}</ul>
 </section></main></body></html>
 {{end}}

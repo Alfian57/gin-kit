@@ -161,7 +161,7 @@ func TestFrameworkScaffoldUsesTypedConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(envExample), "READ_TIMEOUT") ||
-		strings.Contains(string(envExample), "SESSION_SECRET") {
+		strings.Contains(string(envExample), "RATE_LIMIT_GENERAL_PER_MINUTE") {
 		t.Fatalf("framework .env.example should use the framework variable set:\n%s", envExample)
 	}
 }
@@ -244,6 +244,42 @@ func TestFrameworkScaffoldWiresAuth(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(plain, rel)); err == nil {
 			t.Fatalf("auth scaffold %s generated without --auth", rel)
 		}
+	}
+}
+
+func TestPlatformSessionIsStarterUIOnly(t *testing.T) {
+	ui := filepath.Join(t.TempDir(), "webapp")
+	m := Manifest{Version: 2, Edition: "starter", Project: "webapp", Module: "example.com/webapp", Mode: "ui", Database: "sqlite", ORM: "gorm"}
+	if err := scaffold(ui, m); err != nil {
+		t.Fatal(err)
+	}
+	for _, rel := range []string{
+		"internal/platform/session/session.go",
+		"internal/platform/session/csrf.go",
+		"internal/platform/session/flash.go",
+	} {
+		if _, err := os.Stat(filepath.Join(ui, rel)); err != nil {
+			t.Fatalf("starter UI missing %s: %v", rel, err)
+		}
+	}
+	goMod, err := os.ReadFile(filepath.Join(ui, "go.mod"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(goMod), "gin-contrib/sessions") {
+		t.Fatalf("starter UI go.mod missing sessions dependency:\n%s", goMod)
+	}
+
+	apiDir := filepath.Join(t.TempDir(), "apionly")
+	m.Mode = "api"
+	m.ORM = "sqlx"
+	m.Project = "apionly"
+	m.Module = "example.com/apionly"
+	if err := scaffold(apiDir, m); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(apiDir, "internal", "platform", "session")); err == nil {
+		t.Fatal("platform session generated for api mode")
 	}
 }
 

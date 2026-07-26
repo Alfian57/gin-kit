@@ -9,6 +9,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `framework/session`: encrypted cookie sessions (gin-contrib/sessions) with
+  one-shot flash messages and constant-time CSRF protection (form field or
+  header, `/api/` exempt by default), wired automatically into UI-mode
+  projects in both editions; `SESSION_SECRET` is finally consumed, the tasks
+  form carries a CSRF field, and starter projects receive a standalone
+  `internal/platform/session` copy.
+
 - Full `--auth` scaffold in both editions (Laravel Breeze-API equivalent):
   `users` and `refresh_tokens` migrations, domain models, GORM and sqlx
   repositories, an auth service with Argon2id passwords, timing-leveled
