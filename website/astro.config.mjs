@@ -9,10 +9,27 @@ export default defineConfig({
       title: 'gin-kit',
       description: 'Everything included, nothing hidden — an opinionated Go framework built on Gin.',
       logo: {
-        light: './src/assets/gin-kit-mark-light.svg',
-        dark: './src/assets/gin-kit-mark-dark.svg',
-        alt: 'gin-kit',
+        light: './src/assets/gin-kit-gopher-light.png',
+        dark: './src/assets/gin-kit-gopher-dark.png',
+        alt: 'gin-kit gopher mascot',
       },
+      favicon: '/favicon.png',
+      head: [
+        {
+          tag: 'meta',
+          attrs: {
+            property: 'og:image',
+            content: 'https://alfian57.github.io/gin-kit/og-image.png',
+          },
+        },
+        {
+          tag: 'meta',
+          attrs: {
+            name: 'twitter:image',
+            content: 'https://alfian57.github.io/gin-kit/og-image.png',
+          },
+        },
+      ],
       social: [
         {
           icon: 'github',

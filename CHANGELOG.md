@@ -9,6 +9,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Visual identity: the gin-kit gopher mascot (tool belt included) becomes the
+  project logo, with light/dark variants in the site header, a hero
+  illustration on the landing page, a README header, a real favicon (the
+  previous reference 404'd — `website/public/` did not exist), and a social
+  preview image with `og:image`/`twitter:image` metadata (previously the
+  site declared `summary_large_image` with no image at all).
+
 - Complete AI-agent workflow: generated projects now render `AGENTS.md` from
   the project manifest (edition, mode, database, ORM, auth/example flags,
   module path) with the full command tree, DTO and error-contract rules, and
