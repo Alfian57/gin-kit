@@ -251,29 +251,52 @@ func TestFrameworkScaffoldWiresAuth(t *testing.T) {
 }
 
 func TestSeedScaffoldFollowsExampleFlag(t *testing.T) {
-	withExample := filepath.Join(t.TempDir(), "demo")
+	// The tasks seeder belongs to the starter edition only: the framework
+	// edition's tasks example is an in-memory stub without a tasks table.
+	starterExample := filepath.Join(t.TempDir(), "demo")
 	m := Manifest{
-		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+		Version: 2, Edition: "starter",
 		Project: "demo", Module: "example.com/demo",
 		Mode: "api", Database: "sqlite", ORM: "gorm", Example: true,
 	}
-	if err := scaffold(withExample, m); err != nil {
+	if err := scaffold(starterExample, m); err != nil {
 		t.Fatal(err)
 	}
 	for _, rel := range []string{"cmd/seed/main.go", "internal/database/seeders/seeders.go", "internal/database/seeders/tasks_seeder.go"} {
-		if _, err := os.Stat(filepath.Join(withExample, rel)); err != nil {
-			t.Fatalf("framework example scaffold missing %s: %v", rel, err)
+		if _, err := os.Stat(filepath.Join(starterExample, rel)); err != nil {
+			t.Fatalf("starter example scaffold missing %s: %v", rel, err)
 		}
 	}
-	registry, err := os.ReadFile(filepath.Join(withExample, "internal", "database", "seeders", "seeders.go"))
+	registry, err := os.ReadFile(filepath.Join(starterExample, "internal", "database", "seeders", "seeders.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(registry), "SeedTasks") {
-		t.Fatalf("example registry does not register SeedTasks:\n%s", registry)
+		t.Fatalf("starter example registry does not register SeedTasks:\n%s", registry)
+	}
+
+	frameworkExample := filepath.Join(t.TempDir(), "fwdemo")
+	m.Edition = "framework"
+	m.FrameworkVersion = "0.3.0"
+	m.Project = "fwdemo"
+	m.Module = "example.com/fwdemo"
+	if err := scaffold(frameworkExample, m); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(frameworkExample, "internal", "database", "seeders", "tasks_seeder.go")); err == nil {
+		t.Fatal("framework edition received the tasks seeder despite lacking a tasks table")
+	}
+	registry, err = os.ReadFile(filepath.Join(frameworkExample, "internal", "database", "seeders", "seeders.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(registry), "SeedTasks") {
+		t.Fatal("framework registry references SeedTasks")
 	}
 
 	plain := filepath.Join(t.TempDir(), "plain")
+	m.Edition = "starter"
+	m.FrameworkVersion = ""
 	m.Example = false
 	m.Project = "plain"
 	m.Module = "example.com/plain"
@@ -282,13 +305,6 @@ func TestSeedScaffoldFollowsExampleFlag(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(plain, "internal", "database", "seeders", "tasks_seeder.go")); err == nil {
 		t.Fatal("tasks seeder generated without --example")
-	}
-	registry, err = os.ReadFile(filepath.Join(plain, "internal", "database", "seeders", "seeders.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Contains(string(registry), "SeedTasks") {
-		t.Fatal("registry references SeedTasks without --example")
 	}
 }
 

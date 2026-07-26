@@ -15,6 +15,6 @@ type Seeder struct {
 // All lists every seeder in run order.
 func All() []Seeder {
 	return []Seeder{
-{{if .Example}}		{Name: "tasks", Run: SeedTasks},
+{{if and .Example (eq .Edition "starter")}}		{Name: "tasks", Run: SeedTasks},
 {{end}}	}
 }

@@ -315,7 +315,6 @@ func templateOutputPath(rel string, m Manifest) (string, bool) {
 			rel == ".cursor/rules/gin-kit.mdc",
 			rel == "cmd/migrate/main.go.tmpl",
 			rel == "internal/database/seeders/seeders.go.tmpl",
-			rel == "internal/database/seeders/tasks_seeder.go.tmpl",
 			rel == "package.json.tmpl",
 			rel == "migrations/00001_init.sql",
 			rel == "docker/docker-compose.yml.tmpl",
