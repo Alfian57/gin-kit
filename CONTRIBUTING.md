@@ -3,6 +3,8 @@
 Thank you for helping improve gin-kit. Contributions may target the framework
 runtime, CLI, generated editions, documentation, or delivery pipeline.
 
+Participation is covered by the [Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## Development setup
 
 Requirements:

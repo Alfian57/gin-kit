@@ -7,6 +7,16 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Documentation: four new site pages — Request and response DTOs, Validation
+  (built-in rule catalogue plus custom rules), Seeding and factories, and
+  Upgrade notes — plus a complete environment-variable reference on the
+  Configuration page, a stable error-code catalogue with an `ErrorMapper`
+  example, expanded CLI, deployment, and getting-started guides, and a
+  sidebar link to the changelog. `docs/cli.md` now documents `generate dto`,
+  and `docs/ai-agents.md` accurately describes where agent adapters live.
+
 ### Fixed
 
 - The `--fields` DSL marked nullable string fields (`nickname:string?`) as

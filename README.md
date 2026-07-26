@@ -110,6 +110,8 @@ the stable CLI.
 
 ## Contributing
 
+Participation is covered by the [Code of Conduct](CODE_OF_CONDUCT.md).
+
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md), and [SECURITY.md](SECURITY.md) before opening a pull request. Maintainers should also read [docs/releasing.md](docs/releasing.md).
 
 ## License

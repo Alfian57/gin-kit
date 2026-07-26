@@ -3,9 +3,9 @@ title: Sessions, flash, and CSRF
 description: Cookie sessions with CSRF protection for UI-mode projects.
 ---
 
-UI-mode projects in both editions ship encrypted cookie sessions
-(gin-contrib/sessions), one-shot flash messages, and CSRF protection wired
-into the application. `SESSION_SECRET` (32+ bytes) drives both the signing
+[UI-mode](/gin-kit/ui-mode/) projects in both editions ship encrypted
+cookie sessions (gin-contrib/sessions), one-shot flash messages, and CSRF
+protection wired into the application. `SESSION_SECRET` (32+ bytes) drives both the signing
 and encryption keys; in development an ephemeral secret is generated with a
 warning, outside development it is required.
 

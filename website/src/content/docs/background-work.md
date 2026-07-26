@@ -25,6 +25,11 @@ err := queue.Dispatch(ctx, app.Queue(), TypeWelcomeEmail,
     queue.Delay(time.Minute), queue.MaxRetry(5))
 ```
 
+Scaffold a typed job with `gin-kit generate job <Name>` — it renders the
+payload struct, handler, and registration snippet (framework edition only;
+`generate event` and `generate mail` do the same for typed events and
+mailables).
+
 The default `sync` driver executes jobs inline — perfect for development and
 tests. Set `QUEUE_DRIVER=redis` (with `REDIS_URL`) for production: jobs become
 persistent asynq tasks with exponential-backoff retries, delayed execution,
@@ -58,3 +63,7 @@ Both the queue worker and the scheduler build on `app.Go(name, fn)`: any
 long-running goroutine registered this way shares the application's lifecycle
 — it receives cancellation on shutdown, and its failure triggers a graceful
 shutdown instead of a silent hang.
+
+For tests and short-lived binaries, `app.Close(ctx)` runs shutdown hooks
+exactly once without serving HTTP — `apptest.New` calls it automatically via
+`t.Cleanup`.

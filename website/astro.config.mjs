@@ -38,6 +38,8 @@ export default defineConfig({
           items: [
             { label: 'Architecture', slug: 'architecture' },
             { label: 'Responses and validation', slug: 'responses-validation' },
+            { label: 'Request and response DTOs', slug: 'dto' },
+            { label: 'Validation', slug: 'validation' },
             { label: 'Filtering and pagination', slug: 'querying' },
             { label: 'Middleware and errors', slug: 'error-handling' },
             { label: 'Configuration', slug: 'configuration' },
@@ -47,6 +49,7 @@ export default defineConfig({
           label: 'Guides',
           items: [
             { label: 'Database and ORM', slug: 'database-orm' },
+            { label: 'Seeding and factories', slug: 'seeding-factories' },
             { label: 'Authentication and security', slug: 'auth-security' },
             { label: 'Queues and scheduling', slug: 'background-work' },
             { label: 'Caching and events', slug: 'caching-events' },
@@ -66,8 +69,14 @@ export default defineConfig({
           items: [
             { label: 'AI agents', slug: 'ai-agents' },
             { label: 'Contributing', slug: 'contributing' },
+            { label: 'Upgrade notes', slug: 'upgrading' },
             { label: 'Manifest v1 migration', slug: 'migration-v1' },
             { label: 'Releasing', slug: 'releasing' },
+            {
+              label: 'Changelog',
+              link: 'https://github.com/Alfian57/gin-kit/blob/main/CHANGELOG.md',
+              attrs: { target: '_blank' },
+            },
           ],
         },
       ],

@@ -24,6 +24,25 @@ protected.GET("/me", func(c *gin.Context) {
 `401` envelope (`missing_token` / `invalid_token`) and stores the verified
 claims; read them with `auth.ClaimsFromContext(c)` or `auth.UserID(c)`.
 
+## Password hashing
+
+`framework/password` provides the Argon2id primitives the auth service is
+built on, usable on their own:
+
+```go
+encoded, err := password.Hash(plain)          // Argon2id with sane defaults
+ok := password.Compare(plain, encoded)         // constant-time verify
+
+hasher := password.New(password.Parameters{    // tune costs explicitly
+    Memory: 64 * 1024, Iterations: 3, Parallelism: 2,
+    KeyLength: 32, SaltLength: 16,
+})
+if hasher.NeedsRehash(encoded) { /* re-hash on next successful login */ }
+```
+
+Parameters are encoded into the hash string, so `Compare` verifies old hashes
+after you raise costs, and `NeedsRehash` tells you when to upgrade them.
+
 Client addresses are spoof-resistant by default: `X-Forwarded-For` is honored
 only from proxies listed in `HTTPOptions.TrustedProxies` — set
 `TRUSTED_PROXY_CIDRS` in generated projects — and no proxy is trusted until you
