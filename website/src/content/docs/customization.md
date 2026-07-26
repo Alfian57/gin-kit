@@ -26,3 +26,22 @@ The raw `*gin.Engine` and selected database handles remain available. Add
 middleware, readiness checks, validation rules, translations, error mappers,
 and shutdown hooks through options and interfaces. If the framework itself must
 change, fork the module and use a standard Go `replace` directive.
+
+## Testing handlers
+
+The `framework/apptest` package removes the recorder boilerplate from handler
+tests while keeping assertions in plain Go:
+
+```go
+app := apptest.New(t, framework.Options{})
+app.Router().POST("/tasks", createTask)
+
+var task Task
+app.POST("/tasks", newTask).RequireStatus(http.StatusCreated).Data(&task)
+
+failure := app.GET("/tasks/absent").RequireStatus(http.StatusNotFound).Err()
+// failure.Code == "not_found"
+```
+
+`Do` sends JSON bodies and custom headers; `Data` decodes the `data` envelope
+field; `Err` decodes the error envelope.

@@ -9,6 +9,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `httpx.BindQuery` and `httpx.BindURI` generic binders with the same
+  validation behavior and error envelopes as `BindJSON` (`invalid_query` /
+  `invalid_path`).
+- `framework/apptest` test helpers: build an application, perform JSON
+  requests, and decode envelope responses without recorder boilerplate.
+
 - Opt-in Prometheus metrics endpoint (`MetricsOptions` / `METRICS_ENABLED`)
   with request count, duration histogram, and in-flight gauge labeled by route
   pattern, plus a registry accessor for custom metrics.

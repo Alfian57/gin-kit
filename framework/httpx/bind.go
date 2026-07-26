@@ -25,6 +25,34 @@ func BindJSON[T any](c *gin.Context, validators ...*validation.Validator) (T, bo
 		Fail(c, invalidJSON(err))
 		return value, false
 	}
+	return value, validateBound(c, value, validators)
+}
+
+// BindQuery binds query parameters through `form` struct tags, validates the
+// result, and writes a stable error response when it fails. Parameter values
+// are never echoed back to the client.
+func BindQuery[T any](c *gin.Context, validators ...*validation.Validator) (T, bool) {
+	var value T
+	if err := c.ShouldBindQuery(&value); err != nil {
+		Fail(c, WrapError(http.StatusBadRequest, "invalid_query", "The request query parameters are invalid.", err))
+		return value, false
+	}
+	return value, validateBound(c, value, validators)
+}
+
+// BindURI binds path parameters through `uri` struct tags, validates the
+// result, and writes a stable error response when it fails. Give URI fields
+// matching `json` or `form` tags so validation errors use readable names.
+func BindURI[T any](c *gin.Context, validators ...*validation.Validator) (T, bool) {
+	var value T
+	if err := c.ShouldBindUri(&value); err != nil {
+		Fail(c, WrapError(http.StatusBadRequest, "invalid_path", "The request path parameters are invalid.", err))
+		return value, false
+	}
+	return value, validateBound(c, value, validators)
+}
+
+func validateBound(c *gin.Context, value any, validators []*validation.Validator) bool {
 	instance := validation.Default
 	if len(validators) > 0 && validators[0] != nil {
 		instance = validators[0]
@@ -36,9 +64,9 @@ func BindJSON[T any](c *gin.Context, validators ...*validation.Validator) (T, bo
 		} else {
 			Fail(c, WrapError(http.StatusInternalServerError, "validation_unavailable", "Request validation is unavailable.", err))
 		}
-		return value, false
+		return false
 	}
-	return value, true
+	return true
 }
 
 func invalidJSON(cause error) *Error {
