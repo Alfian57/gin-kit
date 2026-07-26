@@ -1,0 +1,129 @@
+// Package auth exposes the authentication endpoints: register, login,
+// single-use refresh-token rotation, logout, and the protected /me route.
+package auth
+
+import (
+	"errors"
+	"net/http"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"{{.Module}}/internal/domain"
+	"{{.Module}}/internal/middleware"
+	"{{.Module}}/internal/platform/config"
+	"{{.Module}}/internal/platform/database"
+	"{{.Module}}/internal/platform/response"
+	"{{.Module}}/internal/repository"
+	"{{.Module}}/internal/service"
+)
+
+type credentialsInput struct {
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=8,max=128"`
+}
+
+type refreshInput struct {
+	RefreshToken string `json:"refresh_token" binding:"required"`
+}
+
+// Register wires the authentication routes onto the router.
+func Register(r *gin.Engine, db *database.Connection, cfg config.Config) {
+	accounts := service.NewAuthService(
+		repository.NewUserRepository(db),
+		repository.NewRefreshTokenRepository(db),
+		cfg.JWTSecret,
+		15*time.Minute,
+		30*24*time.Hour,
+	)
+	registerRoutes(r, accounts, cfg.JWTSecret)
+}
+
+func registerRoutes(r *gin.Engine, accounts *service.AuthService, secret []byte) {
+	group := r.Group("/api/v1/auth")
+	group.POST("/register", func(c *gin.Context) {
+		var input credentialsInput
+		if err := c.ShouldBindJSON(&input); err != nil {
+			response.Error(c, http.StatusBadRequest, "validation_failed", "Request validation failed")
+			return
+		}
+		user, pair, err := accounts.Register(c.Request.Context(), input.Email, input.Password)
+		if err != nil {
+			authError(c, err)
+			return
+		}
+		c.JSON(http.StatusCreated, gin.H{"data": tokenResponse(user, pair)})
+	})
+	group.POST("/login", func(c *gin.Context) {
+		var input credentialsInput
+		if err := c.ShouldBindJSON(&input); err != nil {
+			response.Error(c, http.StatusBadRequest, "validation_failed", "Request validation failed")
+			return
+		}
+		user, pair, err := accounts.Login(c.Request.Context(), input.Email, input.Password)
+		if err != nil {
+			authError(c, err)
+			return
+		}
+		response.OK(c, tokenResponse(user, pair))
+	})
+	group.POST("/refresh", func(c *gin.Context) {
+		var input refreshInput
+		if err := c.ShouldBindJSON(&input); err != nil {
+			response.Error(c, http.StatusBadRequest, "validation_failed", "Request validation failed")
+			return
+		}
+		pair, err := accounts.Refresh(c.Request.Context(), input.RefreshToken)
+		if err != nil {
+			authError(c, err)
+			return
+		}
+		response.OK(c, pair)
+	})
+	group.POST("/logout", func(c *gin.Context) {
+		var input refreshInput
+		if err := c.ShouldBindJSON(&input); err != nil {
+			response.Error(c, http.StatusBadRequest, "validation_failed", "Request validation failed")
+			return
+		}
+		if err := accounts.Logout(c.Request.Context(), input.RefreshToken); err != nil {
+			authError(c, err)
+			return
+		}
+		c.Status(http.StatusNoContent)
+	})
+
+	protected := r.Group("/api/v1", middleware.RequireAuth(secret))
+	protected.GET("/me", func(c *gin.Context) {
+		user, err := accounts.User(c.Request.Context(), c.GetString("user_id"))
+		if err != nil {
+			authError(c, err)
+			return
+		}
+		response.OK(c, user)
+	})
+}
+
+func tokenResponse(user domain.User, pair service.TokenPair) gin.H {
+	return gin.H{
+		"user":          user,
+		"access_token":  pair.AccessToken,
+		"refresh_token": pair.RefreshToken,
+		"token_type":    pair.TokenType,
+		"expires_in":    pair.ExpiresIn,
+	}
+}
+
+func authError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, domain.ErrEmailTaken):
+		response.Error(c, http.StatusConflict, "email_taken", "This email address is already registered")
+	case errors.Is(err, service.ErrInvalidCredentials):
+		response.Error(c, http.StatusUnauthorized, "invalid_credentials", "The email or password is incorrect")
+	case errors.Is(err, service.ErrInvalidRefreshToken):
+		response.Error(c, http.StatusUnauthorized, "invalid_refresh_token", "The refresh token is invalid or expired")
+	case errors.Is(err, domain.ErrUserNotFound):
+		response.Error(c, http.StatusUnauthorized, "invalid_token", "Token is invalid or expired")
+	default:
+		response.Error(c, http.StatusInternalServerError, "internal_error", "An internal error occurred")
+	}
+}

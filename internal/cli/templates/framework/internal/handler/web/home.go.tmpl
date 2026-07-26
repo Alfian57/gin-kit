@@ -6,13 +6,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 {{if .Auth}}
-	"github.com/Alfian57/gin-kit/framework/auth"
+	jwtauth "github.com/Alfian57/gin-kit/framework/auth"
+	authhandler "{{.Module}}/internal/handler/auth"
+	"{{.Module}}/internal/service"
 {{end}}
 )
 
 // Register installs the initial application-owned UI routes.
-func Register(router *gin.Engine{{if .Auth}}, tokens *auth.Manager{{end}}) {
-{{if .Auth}}	registerAuth(router, tokens)
+func Register(router *gin.Engine{{if .Auth}}, tokens *jwtauth.Manager, accounts *service.AuthService{{end}}) {
+{{if .Auth}}	authhandler.Register(router, tokens, accounts)
 {{end}}{{if .Example}}	registerTasks(router)
 {{end}}	if _, err := os.Stat("web/templates/index.html"); err == nil {
 		router.LoadHTMLGlob("web/templates/*.html")

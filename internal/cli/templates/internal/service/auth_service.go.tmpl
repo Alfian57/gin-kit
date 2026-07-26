@@ -1,0 +1,144 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+	"{{.Module}}/internal/domain"
+	"{{.Module}}/internal/platform/auth"
+	"{{.Module}}/internal/platform/password"
+)
+
+var (
+	ErrInvalidCredentials  = errors.New("invalid email or password")
+	ErrInvalidRefreshToken = errors.New("refresh token is invalid or expired")
+)
+
+// dummyAuthHash levels response timing when the account does not exist.
+var dummyAuthHash, _ = password.Hash("gin-kit-timing-equalizer")
+
+type TokenPair struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	TokenType    string `json:"token_type"`
+	ExpiresIn    int64  `json:"expires_in"`
+}
+
+type AuthService struct {
+	users      domain.UserRepository
+	refresh    domain.RefreshTokenRepository
+	secret     []byte
+	accessTTL  time.Duration
+	refreshTTL time.Duration
+}
+
+func NewAuthService(users domain.UserRepository, refresh domain.RefreshTokenRepository, secret []byte, accessTTL, refreshTTL time.Duration) *AuthService {
+	if accessTTL <= 0 {
+		accessTTL = 15 * time.Minute
+	}
+	if refreshTTL <= 0 {
+		refreshTTL = 30 * 24 * time.Hour
+	}
+	return &AuthService{users: users, refresh: refresh, secret: secret, accessTTL: accessTTL, refreshTTL: refreshTTL}
+}
+
+// Register creates the account and signs the user in.
+func (s *AuthService) Register(ctx context.Context, email, plainPassword string) (domain.User, TokenPair, error) {
+	email = normalizeEmail(email)
+	if _, err := s.users.FindByEmail(ctx, email); err == nil {
+		return domain.User{}, TokenPair{}, domain.ErrEmailTaken
+	} else if !errors.Is(err, domain.ErrUserNotFound) {
+		return domain.User{}, TokenPair{}, err
+	}
+	hash, err := password.Hash(plainPassword)
+	if err != nil {
+		return domain.User{}, TokenPair{}, err
+	}
+	now := time.Now().UTC()
+	user := domain.User{ID: uuid.NewString(), Email: email, PasswordHash: hash, CreatedAt: now, UpdatedAt: now}
+	if err := s.users.Create(ctx, &user); err != nil {
+		return domain.User{}, TokenPair{}, err
+	}
+	pair, err := s.issuePair(ctx, user.ID)
+	return user, pair, err
+}
+
+func (s *AuthService) Login(ctx context.Context, email, plainPassword string) (domain.User, TokenPair, error) {
+	user, err := s.users.FindByEmail(ctx, normalizeEmail(email))
+	if errors.Is(err, domain.ErrUserNotFound) {
+		password.Compare(plainPassword, dummyAuthHash)
+		return domain.User{}, TokenPair{}, ErrInvalidCredentials
+	}
+	if err != nil {
+		return domain.User{}, TokenPair{}, err
+	}
+	if !password.Compare(plainPassword, user.PasswordHash) {
+		return domain.User{}, TokenPair{}, ErrInvalidCredentials
+	}
+	pair, err := s.issuePair(ctx, user.ID)
+	return user, pair, err
+}
+
+// Refresh rotates a single-use refresh token.
+func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (TokenPair, error) {
+	hash := auth.HashRefreshToken(refreshToken)
+	stored, err := s.refresh.FindByHash(ctx, hash)
+	if errors.Is(err, domain.ErrRefreshTokenNotFound) {
+		return TokenPair{}, ErrInvalidRefreshToken
+	}
+	if err != nil {
+		return TokenPair{}, err
+	}
+	if err := s.refresh.DeleteByHash(ctx, hash); err != nil {
+		return TokenPair{}, err
+	}
+	if time.Now().UTC().After(stored.ExpiresAt) {
+		return TokenPair{}, ErrInvalidRefreshToken
+	}
+	return s.issuePair(ctx, stored.UserID)
+}
+
+// Logout revokes the refresh token and is idempotent.
+func (s *AuthService) Logout(ctx context.Context, refreshToken string) error {
+	return s.refresh.DeleteByHash(ctx, auth.HashRefreshToken(refreshToken))
+}
+
+// User loads the authenticated user's account.
+func (s *AuthService) User(ctx context.Context, id string) (domain.User, error) {
+	return s.users.FindByID(ctx, id)
+}
+
+func (s *AuthService) issuePair(ctx context.Context, userID string) (TokenPair, error) {
+	access, err := auth.Issue(userID, s.secret, s.accessTTL)
+	if err != nil {
+		return TokenPair{}, err
+	}
+	plain, hash, err := auth.NewRefreshToken()
+	if err != nil {
+		return TokenPair{}, err
+	}
+	now := time.Now().UTC()
+	err = s.refresh.Store(ctx, &domain.RefreshToken{
+		ID:        uuid.NewString(),
+		UserID:    userID,
+		TokenHash: hash,
+		ExpiresAt: now.Add(s.refreshTTL),
+		CreatedAt: now,
+	})
+	if err != nil {
+		return TokenPair{}, err
+	}
+	return TokenPair{
+		AccessToken:  access,
+		RefreshToken: plain,
+		TokenType:    "Bearer",
+		ExpiresIn:    int64(s.accessTTL / time.Second),
+	}, nil
+}
+
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}

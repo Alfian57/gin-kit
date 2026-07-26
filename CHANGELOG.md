@@ -9,6 +9,19 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Full `--auth` scaffold in both editions (Laravel Breeze-API equivalent):
+  `users` and `refresh_tokens` migrations, domain models, GORM and sqlx
+  repositories, an auth service with Argon2id passwords, timing-leveled
+  login, and single-use refresh-token rotation, plus JSON endpoints for
+  register, login, refresh, logout, and a database-backed `/api/v1/me` —
+  with DB-free generated tests.
+
+### Changed
+
+- Framework-edition `api.Register`/`web.Register` signatures for `--auth`
+  projects now receive the auth service; the previous sample-only
+  `/api/v1/me` handlers were replaced by the full auth handler package.
+
 - `framework/mail`: Laravel-style mailer with a fluent message builder,
   html/template rendering, an SMTP driver (wneessen/go-mail with
   none/tls/starttls), and a development log driver that renders the full MIME

@@ -35,7 +35,23 @@ cron-style tasks with `framework/schedule` and register the scheduler with
 The cache is available through `application.Cache()` (`CACHE_DRIVER=memory`
 or `redis`).
 
-## Mail and storage
+{{if .Auth}}## Authentication
+
+Ready-to-use JSON authentication backed by the `users` and `refresh_tokens`
+tables (run `gin-kit db up` first, and set a 32+ byte `JWT_SECRET`):
+
+| Route | Purpose |
+| --- | --- |
+| `POST /api/v1/auth/register` | Create an account and sign in |
+| `POST /api/v1/auth/login` | Exchange credentials for tokens |
+| `POST /api/v1/auth/refresh` | Rotate a single-use refresh token |
+| `POST /api/v1/auth/logout` | Revoke a refresh token |
+| `GET /api/v1/me` | The authenticated account (Bearer token) |
+
+Passwords use Argon2id; refresh tokens are stored hashed and rotate on every
+use.
+
+{{end}}## Mail and storage
 
 Send email with `mail.New(cfg.MailOptions())` — the default `MAIL_DRIVER=log`
 renders messages into the logs, and `docker compose --profile mail up` starts

@@ -3,9 +3,13 @@ title: Authentication and security
 description: Start with practical security defaults.
 ---
 
-Enable authentication during project creation (`--auth`) to receive JWT and
-refresh-token primitives, Argon2id password hashing, and a Bearer-protected
-sample route in both editions.
+Enable authentication during project creation (`--auth`) to receive a
+complete, working authentication vertical in both editions: `users` and
+`refresh_tokens` migrations, repositories for GORM and sqlx, an auth service
+with Argon2id password hashing and timing-leveled login, and JSON endpoints —
+`POST /api/v1/auth/register`, `/login`, `/refresh`, `/logout`, and a
+database-backed `GET /api/v1/me`. Refresh tokens are stored hashed and are
+single-use: every refresh rotates the token and revokes the old one.
 
 Framework-edition projects protect routes with the framework middleware:
 

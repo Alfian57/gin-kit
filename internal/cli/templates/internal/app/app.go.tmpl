@@ -48,8 +48,8 @@ func New() (*gin.Engine, func(), error) {
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "ready"})
 	})
-{{if eq .Mode "ui"}}	web.Register(r{{if .Example}}, db{{end}})
-{{else}}	api.Register(r{{if .Example}}, db{{end}})
+{{if eq .Mode "ui"}}	web.Register(r{{if or .Auth .Example}}, db{{end}}{{if .Auth}}, cfg{{end}})
+{{else}}	api.Register(r{{if or .Auth .Example}}, db{{end}}{{if .Auth}}, cfg{{end}})
 {{end}}
 	cleanup := func() { dbCleanup() }
 	return r, cleanup, nil
