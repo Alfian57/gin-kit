@@ -9,7 +9,8 @@ export default defineConfig({
       title: 'gin-kit',
       description: 'An opinionated Go framework built on Gin.',
       logo: {
-        src: './src/assets/gin-kit-mark.svg',
+        light: './src/assets/gin-kit-mark-light.svg',
+        dark: './src/assets/gin-kit-mark-dark.svg',
         alt: 'gin-kit',
       },
       social: [

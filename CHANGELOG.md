@@ -7,6 +7,15 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Docs site landing page rebuilt on real Starlight components — fixing the
+  card icon that never rendered (an empty MDX expression) — with a
+  feature grid covering the current framework, a quickstart, and edition
+  cards; the header logo now has light/dark variants (it was invisible in
+  dark mode) and the background grid is theme-aware. Repository description
+  and topics updated to the framework positioning.
+
 ### Added
 
 - Auto-generated OpenAPI docs for framework-edition applications — zero
