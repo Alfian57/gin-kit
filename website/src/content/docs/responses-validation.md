@@ -32,6 +32,26 @@ invalid_json`, validation to `422 validation_failed`, and resolves field names
 from JSON/form tags. `httpx.OK`, `Created`, `List`, `NoContent`, and `Fail`
 keep success and failure shapes consistent.
 
+`httpx.BindQuery[T]` and `httpx.BindURI[T]` bring the same contract to query
+and path parameters:
+
+```go
+type searchQuery struct {
+    Term string `form:"term" validate:"required,min=3"`
+    Page int    `form:"page"`
+}
+
+query, ok := httpx.BindQuery[searchQuery](c)
+if !ok {
+    return // 400 invalid_query or 422 validation_failed already written
+}
+```
+
+`BindQuery` binds through `form` tags and answers `400 invalid_query` on
+malformed input; `BindURI` binds through `uri` tags and answers
+`400 invalid_path`. Both validate with the same rules and never echo submitted
+values.
+
 ### Safe by default
 
 Responses never include submitted values, tokens, database errors, or stack
