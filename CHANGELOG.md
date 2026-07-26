@@ -9,6 +9,15 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Opt-in cursor (keyset) pagination in the query builder: setting
+  `Options.CursorSort` to an allowed sort switches a list endpoint to cursor
+  mode — `page` and `sort` are rejected, the `cursor` parameter carries an
+  opaque keyset token tie-broken on `id`, `BuildCursorSQL`/`ApplyCursorGORM`
+  fetch one probe row past `per_page`, and `NextCursor` plus `CursorMeta`
+  produce `{"next_cursor": ..., "per_page": ...}` metadata. Offset
+  pagination remains the default; the starter edition's vendored query
+  package gains the same API.
+
 - Visual identity: the gin-kit gopher mascot (tool belt included) becomes the
   project logo, with light/dark variants in the site header, a hero
   illustration on the landing page, a README header, a real favicon (the

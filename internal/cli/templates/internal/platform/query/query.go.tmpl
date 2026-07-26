@@ -12,6 +12,8 @@
 package query
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"math"
 	"regexp"
@@ -79,6 +81,12 @@ type Options struct {
 	DefaultSort    string
 	DefaultPerPage int // defaults to 25
 	MaxPerPage     int // defaults to 100
+	// CursorSort switches the endpoint to cursor (keyset) pagination on the
+	// named allowed sort. In cursor mode the page and sort parameters are
+	// rejected, the sort is forced to CursorSort (descending when DefaultSort
+	// starts with "-"), rows are tie-broken on the id column, and the cursor
+	// parameter carries the keyset position.
+	CursorSort string
 }
 
 type FilterValue struct {
@@ -107,6 +115,10 @@ type Result struct {
 	Sorts   []SortValue
 	Page    int
 	PerPage int
+	// CursorMode reports that the endpoint uses cursor (keyset) pagination.
+	CursorMode bool
+	// Cursor is the decoded keyset position, or nil on the first page.
+	Cursor *Cursor
 }
 
 func (r Result) Offset() int { return (r.Page - 1) * r.PerPage }
@@ -217,6 +229,33 @@ func Parse(c *gin.Context, options Options) (Result, error) {
 		}
 	}
 
+	if options.CursorSort != "" {
+		sort, allowed := sorts[options.CursorSort]
+		if !allowed {
+			return Result{}, fmt.Errorf("query configuration: cursor sort %q is not an allowed sort", options.CursorSort)
+		}
+		result.CursorMode = true
+		desc := strings.HasPrefix(options.DefaultSort, "-")
+		result.Sorts = []SortValue{
+			{Column: sort.column, Desc: desc},
+			{Column: "id", Desc: desc},
+		}
+		if c.Query("sort") != "" {
+			invalid = append(invalid, "sort")
+		}
+		if c.Query("page") != "" {
+			invalid = append(invalid, "page")
+		}
+		if raw := c.Query("cursor"); raw != "" {
+			cursor, err := DecodeCursor(raw)
+			if err != nil {
+				invalid = append(invalid, "cursor")
+			} else {
+				result.Cursor = &cursor
+			}
+		}
+	}
+
 	if len(invalid) > 0 {
 		return Result{}, fmt.Errorf("invalid query parameters: %s", strings.Join(invalid, ", "))
 	}
@@ -277,6 +316,89 @@ func splitNonEmpty(value string) []string {
 	return items
 }
 
+// Cursor is a decoded keyset-pagination position: the sort value and id of
+// the last row on the previous page. Both bind as strings, like Compare
+// filter values.
+type Cursor struct {
+	Value string
+	ID    string
+}
+
+// cursorPayload is the JSON wire shape of a cursor token.
+type cursorPayload struct {
+	Value string `json:"v"`
+	ID    string `json:"id"`
+}
+
+// EncodeCursor renders the cursor as an opaque, unpadded base64url token.
+func EncodeCursor(c Cursor) string {
+	payload, _ := json.Marshal(cursorPayload{Value: c.Value, ID: c.ID})
+	return base64.RawURLEncoding.EncodeToString(payload)
+}
+
+// DecodeCursor parses a token produced by EncodeCursor.
+func DecodeCursor(raw string) (Cursor, error) {
+	decoded, err := base64.RawURLEncoding.DecodeString(raw)
+	if err != nil {
+		return Cursor{}, fmt.Errorf("cursor is not valid base64url: %w", err)
+	}
+	var payload cursorPayload
+	if err := json.Unmarshal(decoded, &payload); err != nil {
+		return Cursor{}, fmt.Errorf("cursor payload is invalid: %w", err)
+	}
+	return Cursor{Value: payload.Value, ID: payload.ID}, nil
+}
+
+// CursorMeta is the pagination metadata for cursor mode. NextCursor is null
+// on the last page.
+type CursorMeta struct {
+	NextCursor *string `json:"next_cursor"`
+	PerPage    int     `json:"per_page"`
+}
+
+// CursorMeta builds cursor pagination metadata; next == "" marks the last
+// page and serializes next_cursor as null.
+func (r Result) CursorMeta(next string) CursorMeta {
+	meta := CursorMeta{PerPage: r.PerPage}
+	if next != "" {
+		meta.NextCursor = &next
+	}
+	return meta
+}
+
+// CursorLimit returns the row limit for cursor mode: PerPage plus one probe
+// row that detects whether a next page exists. Trim the probe row with
+// NextCursor before responding.
+func (r Result) CursorLimit() int { return r.PerPage + 1 }
+
+// keysetSQL renders the keyset predicate for the decoded cursor with '?'
+// placeholders, e.g. "(created_at < ? OR (created_at = ? AND id < ?))" for a
+// descending sort. It is empty on the first page.
+func (r Result) keysetSQL() (string, []any) {
+	if r.Cursor == nil || len(r.Sorts) == 0 {
+		return "", nil
+	}
+	op := ">"
+	if r.Sorts[0].Desc {
+		op = "<"
+	}
+	column := r.Sorts[0].Column
+	predicate := "(" + column + " " + op + " ? OR (" + column + " = ? AND id " + op + " ?))"
+	return predicate, []any{r.Cursor.Value, r.Cursor.Value, r.Cursor.ID}
+}
+
+// NextCursor trims the probe row fetched by CursorLimit and derives the next
+// request's cursor from the last visible item. It returns the visible page
+// and the encoded next cursor, or "" when the page was not full.
+func NextCursor[T any](r Result, items []T, key func(T) (value, id string)) ([]T, string) {
+	if len(items) <= r.PerPage {
+		return items, ""
+	}
+	items = items[:r.PerPage]
+	value, id := key(items[len(items)-1])
+	return items, EncodeCursor(Cursor{Value: value, ID: id})
+}
+
 // likeEscaper escapes LIKE wildcards with '!', the one escape character that
 // behaves identically across MySQL, MariaDB, PostgreSQL, and SQLite.
 var likeEscaper = strings.NewReplacer("!", "!!", "%", "!%", "_", "!_")
@@ -334,6 +456,24 @@ func (r Result) CountGORM(db *gorm.DB) (int64, error) {
 	var total int64
 	err := r.FiltersGORM(db.Session(&gorm.Session{})).Count(&total).Error
 	return total, err
+}
+
+// ApplyCursorGORM applies filters, the keyset predicate, the forced cursor
+// ordering, and the probe-row limit (CursorLimit — never an offset) to a
+// GORM chain. Trim the probe row with NextCursor before responding.
+func (r Result) ApplyCursorGORM(db *gorm.DB) *gorm.DB {
+	db = r.FiltersGORM(db)
+	if keyset, args := r.keysetSQL(); keyset != "" {
+		db = db.Where(keyset, args...)
+	}
+	for _, sort := range r.Sorts {
+		direction := " ASC"
+		if sort.Desc {
+			direction = " DESC"
+		}
+		db = db.Order(sort.Column + direction)
+	}
+	return db.Limit(r.CursorLimit())
 }
 {{else}}
 // WhereSQL renders the filters as a parameterized condition with '?'
@@ -399,6 +539,31 @@ func (r Result) BuildCountSQL(base string) (string, []any) {
 	if where != "" {
 		base += " WHERE " + where
 	}
+	return base, args
+}
+
+// BuildCursorSQL appends WHERE (filters plus the keyset predicate), ORDER BY,
+// and "LIMIT ?" bound to CursorLimit — never OFFSET — to a base statement
+// such as "SELECT id, title FROM tasks". Pass the final statement through
+// Rebind for the dialect.
+func (r Result) BuildCursorSQL(base string) (string, []any) {
+	where, args := r.WhereSQL()
+	if keyset, keysetArgs := r.keysetSQL(); keyset != "" {
+		if where != "" {
+			where += " AND " + keyset
+		} else {
+			where = keyset
+		}
+		args = append(args, keysetArgs...)
+	}
+	if where != "" {
+		base += " WHERE " + where
+	}
+	if order := r.OrderSQL(); order != "" {
+		base += " " + order
+	}
+	base += " LIMIT ?"
+	args = append(args, r.CursorLimit())
 	return base, args
 }
 {{end}}
