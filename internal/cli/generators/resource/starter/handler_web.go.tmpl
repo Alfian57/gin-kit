@@ -4,8 +4,10 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"{{.Module}}/internal/dto"
 	"{{.Module}}/internal/platform/query"
 	"{{.Module}}/internal/platform/session"
+	"{{.Module}}/internal/platform/validation"
 	"{{.Module}}/internal/service"
 )
 
@@ -25,11 +27,16 @@ func Register{{.Plural}}(r *gin.Engine, {{.PluralCamel}} *service.{{.Name}}Servi
 		})
 	})
 	r.POST("/{{.PluralCamel}}", func(c *gin.Context) {
-		input := service.{{.Name}}Input{
+		request := dto.Create{{.Name}}Request{
 {{range .StringFields}}			{{.Pascal}}: c.PostForm("{{.Name}}"),
 {{end}}		}
-		if _, err := {{.PluralCamel}}.Create(c.Request.Context(), input); err != nil {
-			c.String(http.StatusBadRequest, err.Error())
+		request.Normalize()
+		if err := validation.Default.Struct(request); err != nil {
+			c.String(http.StatusBadRequest, "Please fill in all required fields.")
+			return
+		}
+		if _, err := {{.PluralCamel}}.Create(c.Request.Context(), request); err != nil {
+			c.String(http.StatusInternalServerError, "Unable to create {{.Camel}}.")
 			return
 		}
 		_ = session.PutFlash(c, "success", "{{.Name}} created.")

@@ -33,6 +33,8 @@ type genData struct {
 	FactoryImport  string      // edition-specific factory package import path
 	HasNullable    bool        // any nullable field (factory ptr helper)
 	HasStringFake  bool        // any FakeExpr using the strings package
+	HasSensitive   bool        // any credential-like field (kept out of responses)
+	SensitiveNames string      // comma-separated names of excluded fields
 	SQLiteSchema   string      // CREATE TABLE statement for sqlite-backed integration tests
 
 	// Precomputed SQL fragments for the sqlx repository variant.
@@ -92,6 +94,13 @@ func buildGenData(m Manifest, name, fieldsSpec, table string) (genData, error) {
 		}
 		if strings.Contains(field.FakeExpr, "strings.") {
 			data.HasStringFake = true
+		}
+		if field.Sensitive {
+			data.HasSensitive = true
+			if data.SensitiveNames != "" {
+				data.SensitiveNames += ", "
+			}
+			data.SensitiveNames += field.Name
 		}
 		columns = append(columns, field.Name)
 		insertArgs = append(insertArgs, "entity."+field.Pascal)
@@ -200,6 +209,7 @@ func runGenerate(rootDir string, m Manifest, request generateRequest) (map[strin
 	case "resource":
 		steps := []struct{ rel, tmpl string }{
 			{filepath.Join("internal", "domain", data.Snake+".go"), "generators/resource/shared/domain.go.tmpl"},
+			{filepath.Join("internal", "dto", data.Snake+"_dto.go"), "generators/resource/shared/dto.go.tmpl"},
 			{filepath.Join("internal", "repository", data.Snake+"_repository.go"), "generators/resource/shared/repository.go.tmpl"},
 			{filepath.Join("internal", "service", data.Snake+"_service.go"), "generators/resource/shared/service.go.tmpl"},
 			{filepath.Join("internal", "service", data.Snake+"_service_test.go"), "generators/resource/shared/service_test.go.tmpl"},
@@ -240,6 +250,11 @@ func runGenerate(rootDir string, m Manifest, request generateRequest) (map[strin
 			return nil, "", err
 		}
 		nextSteps = fmt.Sprintf("Generated the %s model and %sRepository interface. Pair it with:\n  gin-kit generate repository %s --fields %q", data.Name, data.Name, data.Name, request.Fields)
+	case "dto":
+		if err := add(filepath.Join("internal", "dto", data.Snake+"_dto.go"), "generators/resource/shared/dto.go.tmpl"); err != nil {
+			return nil, "", err
+		}
+		nextSteps = fmt.Sprintf("Generated Create%sRequest, Update%sRequest, and %sResponse. The response mapper needs the domain model:\n  gin-kit generate domain %s --fields %q", data.Name, data.Name, data.Name, data.Name, request.Fields)
 	case "repository":
 		if err := add(filepath.Join("internal", "repository", data.Snake+"_repository.go"), "generators/resource/shared/repository.go.tmpl"); err != nil {
 			return nil, "", err
@@ -397,6 +412,15 @@ func generateCommand() *cobra.Command {
 	domainFields := domain.Flags().String("fields", "", fieldsGrammar)
 	domain.RunE = runKind("domain", domainFields, nil)
 	generate.AddCommand(domain)
+
+	dtoCommand := &cobra.Command{
+		Use:   "dto <Name>",
+		Short: "Generate request and response DTOs for an existing domain model",
+		Args:  cobra.ExactArgs(1),
+	}
+	dtoFields := dtoCommand.Flags().String("fields", "", fieldsGrammar+" (must match the domain model)")
+	dtoCommand.RunE = runKind("dto", dtoFields, nil)
+	generate.AddCommand(dtoCommand)
 
 	factoryCommand := &cobra.Command{
 		Use:   "factory <Name>",

@@ -1,0 +1,13 @@
+package dto
+
+// CreateTaskRequest is the payload for creating a task.
+type CreateTaskRequest struct {
+	Title string `json:"title" validate:"required,max=255"`
+}
+
+// TaskResponse is the representation of a task returned by the API.
+type TaskResponse struct {
+	ID        string `json:"id"`
+	Title     string `json:"title"`
+	Completed bool   `json:"completed"`
+}

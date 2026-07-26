@@ -3,38 +3,28 @@ package api
 import (
 	"errors"
 	"net/http"
-{{if .HasTime}}	"time"
-{{end}}
+
 	"github.com/gin-gonic/gin"
 	"{{.Module}}/internal/domain"
-	"{{.Module}}/internal/platform/query"
+	"{{.Module}}/internal/dto"
 	"{{.Module}}/internal/platform/httpx"
+	"{{.Module}}/internal/platform/query"
 	"{{.Module}}/internal/service"
 )
-
-type {{.Camel}}Input struct {
-{{range .Fields}}	{{.Pascal}} {{.GoType}} `json:"{{.Name}}"{{if .InputTag}} validate:"{{.InputTag}}"{{end}}`
-{{end}}}
-
-func (input {{.Camel}}Input) toService() service.{{.Name}}Input {
-	return service.{{.Name}}Input{
-{{range .Fields}}		{{.Pascal}}: input.{{.Pascal}},
-{{end}}	}
-}
 
 // Register{{.Plural}} wires the {{.Camel}} routes onto the API group.
 func Register{{.Plural}}(group *gin.RouterGroup, {{.PluralCamel}} *service.{{.Name}}Service) {
 	group.POST("/{{.PluralCamel}}", func(c *gin.Context) {
-		input, ok := httpx.BindJSON[{{.Camel}}Input](c)
+		request, ok := httpx.BindJSON[dto.Create{{.Name}}Request](c)
 		if !ok {
 			return
 		}
-		created, err := {{.PluralCamel}}.Create(c.Request.Context(), input.toService())
+		created, err := {{.PluralCamel}}.Create(c.Request.Context(), request)
 		if err != nil {
 			{{.Camel}}Error(c, err)
 			return
 		}
-		httpx.Created(c, created)
+		httpx.Created(c, dto.New{{.Name}}Response(created))
 	})
 	group.GET("/{{.PluralCamel}}", func(c *gin.Context) {
 		q, err := query.Parse(c, query.Options{
@@ -51,7 +41,7 @@ func Register{{.Plural}}(group *gin.RouterGroup, {{.PluralCamel}} *service.{{.Na
 			{{.Camel}}Error(c, err)
 			return
 		}
-		httpx.List(c, items, q.Meta(total))
+		httpx.List(c, dto.New{{.Name}}ResponseList(items), q.Meta(total))
 	})
 	group.GET("/{{.PluralCamel}}/:id", func(c *gin.Context) {
 		entity, err := {{.PluralCamel}}.Get(c.Request.Context(), c.Param("id"))
@@ -59,19 +49,19 @@ func Register{{.Plural}}(group *gin.RouterGroup, {{.PluralCamel}} *service.{{.Na
 			{{.Camel}}Error(c, err)
 			return
 		}
-		httpx.OK(c, entity)
+		httpx.OK(c, dto.New{{.Name}}Response(entity))
 	})
 	group.PUT("/{{.PluralCamel}}/:id", func(c *gin.Context) {
-		input, ok := httpx.BindJSON[{{.Camel}}Input](c)
+		request, ok := httpx.BindJSON[dto.Update{{.Name}}Request](c)
 		if !ok {
 			return
 		}
-		entity, err := {{.PluralCamel}}.Update(c.Request.Context(), c.Param("id"), input.toService())
+		entity, err := {{.PluralCamel}}.Update(c.Request.Context(), c.Param("id"), request)
 		if err != nil {
 			{{.Camel}}Error(c, err)
 			return
 		}
-		httpx.OK(c, entity)
+		httpx.OK(c, dto.New{{.Name}}Response(entity))
 	})
 	group.DELETE("/{{.PluralCamel}}/:id", func(c *gin.Context) {
 		if err := {{.PluralCamel}}.Delete(c.Request.Context(), c.Param("id")); err != nil {
@@ -83,12 +73,9 @@ func Register{{.Plural}}(group *gin.RouterGroup, {{.PluralCamel}} *service.{{.Na
 }
 
 func {{.Camel}}Error(c *gin.Context, err error) {
-	switch {
-	case errors.Is(err, domain.Err{{.Name}}NotFound):
+	if errors.Is(err, domain.Err{{.Name}}NotFound) {
 		httpx.Fail(c, httpx.NewError(http.StatusNotFound, "{{.Snake}}_not_found", "{{.Name}} not found."))
-	case errors.Is(err, service.ErrInvalid{{.Name}}):
-		httpx.Fail(c, httpx.NewError(http.StatusBadRequest, "validation_failed", err.Error()))
-	default:
-		httpx.Fail(c, httpx.NewError(http.StatusInternalServerError, "internal_error", "An internal error occurred."))
+		return
 	}
+	httpx.Fail(c, httpx.NewError(http.StatusInternalServerError, "internal_error", "An internal error occurred."))
 }

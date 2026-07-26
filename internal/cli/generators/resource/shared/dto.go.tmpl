@@ -1,0 +1,62 @@
+// Package dto carries the request and response shapes exchanged between the
+// HTTP layer and services. Requests validate at bind time; responses decide
+// exactly what leaves the API.
+package dto
+
+import (
+{{if .StringFields}}	"strings"
+{{end}}	"time"
+
+	"{{.Module}}/internal/domain"
+)
+
+// Create{{.Name}}Request is the payload accepted when creating a {{.Camel}}.
+type Create{{.Name}}Request struct {
+{{range .Fields}}	{{.Pascal}} {{.GoType}} `json:"{{.Name}}"{{if .InputTag}} validate:"{{.InputTag}}"{{end}}`
+{{end}}}
+
+// Normalize cleans free-text input in place. Services call it before use.
+func (r *Create{{.Name}}Request) Normalize() {
+{{range .StringFields}}	r.{{.Pascal}} = strings.TrimSpace(r.{{.Pascal}})
+{{end}}}
+
+// Update{{.Name}}Request is the payload accepted when updating a {{.Camel}}.
+// Kept separate from Create{{.Name}}Request so the two can diverge freely.
+type Update{{.Name}}Request struct {
+{{range .Fields}}	{{.Pascal}} {{.GoType}} `json:"{{.Name}}"{{if .InputTag}} validate:"{{.InputTag}}"{{end}}`
+{{end}}}
+
+// Normalize cleans free-text input in place. Services call it before use.
+func (r *Update{{.Name}}Request) Normalize() {
+{{range .StringFields}}	r.{{.Pascal}} = strings.TrimSpace(r.{{.Pascal}})
+{{end}}}
+
+// {{.Name}}Response is the representation of a {{.Camel}} returned to API
+// clients{{if .HasSensitive}}. Credential-like fields ({{.SensitiveNames}}) are deliberately
+// excluded; add them back only if they are safe to expose{{end}}.
+type {{.Name}}Response struct {
+	ID string `json:"id"`
+{{range .Fields}}{{if not .Sensitive}}	{{.Pascal}} {{.GoType}} `json:"{{.Name}}"`
+{{end}}{{end}}	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// New{{.Name}}Response maps a domain {{.Camel}} to its API representation.
+func New{{.Name}}Response(entity domain.{{.Name}}) {{.Name}}Response {
+	return {{.Name}}Response{
+		ID: entity.ID,
+{{range .Fields}}{{if not .Sensitive}}		{{.Pascal}}: entity.{{.Pascal}},
+{{end}}{{end}}		CreatedAt: entity.CreatedAt,
+		UpdatedAt: entity.UpdatedAt,
+	}
+}
+
+// New{{.Name}}ResponseList maps a list of domain {{.PluralCamel}}. It returns an
+// empty slice, never nil, so JSON lists render as [].
+func New{{.Name}}ResponseList(entities []domain.{{.Name}}) []{{.Name}}Response {
+	responses := make([]{{.Name}}Response, 0, len(entities))
+	for _, entity := range entities {
+		responses = append(responses, New{{.Name}}Response(entity))
+	}
+	return responses
+}

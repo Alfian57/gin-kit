@@ -44,8 +44,24 @@ func TestRunGenerateResourceStarterAPI(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(files) != 8 {
-		t.Fatalf("expected 8 files, got %d", len(files))
+	if len(files) != 9 {
+		t.Fatalf("expected 9 files, got %d", len(files))
+	}
+
+	dtoFile := fileContent(t, files, "internal/dto/ticket_dto.go")
+	for _, want := range []string{
+		"type CreateTicketRequest struct", "type UpdateTicketRequest struct",
+		"type TicketResponse struct", "func NewTicketResponse(entity domain.Ticket) TicketResponse",
+		"func NewTicketResponseList(entities []domain.Ticket) []TicketResponse",
+		"func (r *CreateTicketRequest) Normalize()",
+		"CreatedAt time.Time `json:\"created_at\"`",
+	} {
+		if !strings.Contains(dtoFile, want) {
+			t.Errorf("dto missing %q:\n%s", want, dtoFile)
+		}
+	}
+	if strings.Contains(dtoFile, "db:") || strings.Contains(dtoFile, "gorm:") {
+		t.Errorf("dto carries persistence tags:\n%s", dtoFile)
 	}
 
 	factoryFile := fileContent(t, files, "internal/database/factories/ticket_factory.go")
@@ -88,7 +104,8 @@ func TestRunGenerateResourceStarterAPI(t *testing.T) {
 	for _, want := range []string{
 		"package api", "RegisterTickets(group *gin.RouterGroup",
 		`query.Partial("title"), query.Exact("done").Bool()`,
-		`validate:"required,max=255"`, "httpx.BindJSON[ticketInput]", "httpx.Fail",
+		"httpx.BindJSON[dto.CreateTicketRequest]", "httpx.BindJSON[dto.UpdateTicketRequest]",
+		"dto.NewTicketResponse(created)", "dto.NewTicketResponseList(items)", "httpx.Fail",
 	} {
 		if !strings.Contains(handler, want) {
 			t.Errorf("handler missing %q:\n%s", want, handler)
@@ -130,6 +147,9 @@ func TestRunGenerateResourceFrameworkGORM(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(files) != 10 {
+		t.Fatalf("expected 10 files, got %d", len(files))
+	}
 	repository := fileContent(t, files, "internal/repository/ticket_repository.go")
 	for _, want := range []string{
 		"github.com/Alfian57/gin-kit/framework/database", "ApplyGORM", "CountGORM", "gorm.ErrRecordNotFound",
@@ -140,12 +160,19 @@ func TestRunGenerateResourceFrameworkGORM(t *testing.T) {
 	}
 	handler := fileContent(t, files, "internal/handler/api/ticket_handler.go")
 	for _, want := range []string{
-		"httpx.BindJSON[ticketInput]", `validate:"required,max=255"`,
-		"github.com/Alfian57/gin-kit/framework/query", "httpx.List(c, items, q.Meta(total))",
+		"httpx.BindJSON[dto.CreateTicketRequest]",
+		"Request: dto.CreateTicketRequest{}, Response: dto.TicketResponse{}",
+		"github.com/Alfian57/gin-kit/framework/query",
+		"httpx.List(c, dto.NewTicketResponseList(items), q.Meta(total))",
 	} {
 		if !strings.Contains(handler, want) {
 			t.Errorf("framework handler missing %q:\n%s", want, handler)
 		}
+	}
+	serviceFile := fileContent(t, files, "internal/service/ticket_service.go")
+	if !strings.Contains(serviceFile, "Create(ctx context.Context, request dto.CreateTicketRequest)") ||
+		strings.Contains(serviceFile, "ErrInvalidTicket") {
+		t.Errorf("service must take DTOs and drop sentinel validation:\n%s", serviceFile)
 	}
 	if !strings.Contains(nextSteps, "application.Database()") {
 		t.Errorf("framework wiring snippet wrong:\n%s", nextSteps)
@@ -239,6 +266,41 @@ func TestRunGenerateFactoryKind(t *testing.T) {
 	}
 	if !strings.Contains(nextSteps, "NewProfileFactory().Create(ctx, repo.Create)") {
 		t.Errorf("factory next steps wrong:\n%s", nextSteps)
+	}
+}
+
+func TestRunGenerateDTOKind(t *testing.T) {
+	m := Manifest{
+		Version: 2, Edition: "starter", Project: "shop", Module: "example.com/shop",
+		Mode: "api", Database: "sqlite", ORM: "gorm",
+	}
+	rootDir := generatedProject(t, m)
+	files, nextSteps, err := runGenerate(rootDir, m, generateRequest{
+		Kind: "dto", Name: "Profile", Fields: "email:string,nickname:string?,password:string",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := fileContent(t, files, "internal/dto/profile_dto.go")
+	for _, want := range []string{
+		"type CreateProfileRequest struct", "type ProfileResponse struct",
+		`validate:"required,max=255"`, `Nickname *string ` + "`" + `json:"nickname" validate:"omitempty,max=255"` + "`",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("dto missing %q:\n%s", want, content)
+		}
+	}
+	if strings.Contains(nextSteps, "generate domain Profile") == false {
+		t.Errorf("dto next steps wrong:\n%s", nextSteps)
+	}
+
+	// The response type must exclude the credential-like field entirely.
+	responseSection := content[strings.Index(content, "type ProfileResponse struct"):]
+	if strings.Contains(responseSection, "Password") {
+		t.Errorf("sensitive field leaked into response:\n%s", responseSection)
+	}
+	if !strings.Contains(content, "Password string") {
+		t.Error("sensitive field missing from create request")
 	}
 }
 

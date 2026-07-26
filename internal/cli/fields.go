@@ -18,6 +18,7 @@ type fieldSpec struct {
 	FilterExpr string // query allowlist constructor, e.g. query.Partial("title")
 	InputTag   string // extra validation constraints, e.g. "required,max=255"
 	FakeExpr   string // factory value expression, e.g. f.Email()
+	Sensitive  bool   // credential-like fields stay out of response DTOs
 }
 
 const fieldsGrammar = `--fields "name:type,other:type?" with types string, text, int, int64, float64, bool, time (aliases: float, datetime, timestamp); a trailing ? makes the field nullable`
@@ -136,6 +137,17 @@ func fakeExpression(field fieldSpec) string {
 	}
 }
 
+// isSensitiveField reports whether a field name looks like a credential.
+// Response DTOs exclude these fields so secrets never reach API clients.
+func isSensitiveField(name string) bool {
+	for _, fragment := range []string{"password", "secret", "token", "hash"} {
+		if strings.Contains(name, fragment) {
+			return true
+		}
+	}
+	return false
+}
+
 func isSnakeIdentifier(name string) bool {
 	if name == "" || !(name[0] >= 'a' && name[0] <= 'z') {
 		return false
@@ -162,13 +174,11 @@ func buildField(name, kind string, nullable bool, database string) (fieldSpec, e
 		field.GoType = "string"
 		field.SQLType = "VARCHAR(255)"
 		field.FilterExpr = fmt.Sprintf("query.Partial(%q)", name)
-		field.InputTag = "required,max=255"
 		gormSize = "size:255"
 	case "text":
 		field.GoType = "string"
 		field.SQLType = "TEXT"
 		field.FilterExpr = fmt.Sprintf("query.Partial(%q)", name)
-		field.InputTag = "required"
 	case "int":
 		field.GoType = "int"
 		field.SQLType = "INTEGER"
@@ -206,6 +216,21 @@ func buildField(name, kind string, nullable bool, database string) (fieldSpec, e
 	} else {
 		field.SQLType += " NOT NULL"
 	}
+	// Validation constraints depend on nullability: a nullable field must never
+	// carry "required".
+	switch kind {
+	case "string":
+		if nullable {
+			field.InputTag = "omitempty,max=255"
+		} else {
+			field.InputTag = "required,max=255"
+		}
+	case "text":
+		if !nullable {
+			field.InputTag = "required"
+		}
+	}
+	field.Sensitive = isSensitiveField(name)
 	field.FakeExpr = fakeExpression(field)
 	gorm := []string{}
 	if gormSize != "" {
