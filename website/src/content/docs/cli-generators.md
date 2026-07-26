@@ -13,6 +13,7 @@ application wiring stays explicit and reviewable.
 ```text
 gin-kit new <path>        # create a project (interactive, or --non-interactive)
 gin-kit run               # run the server with .env loaded
+gin-kit dev               # hot-reload dev server behind a holding proxy
 gin-kit build             # build a production binary
 gin-kit check             # read-only: report gofmt drift, run tests and vet
 gin-kit doctor            # diagnose toolchain, manifest, and database issues
@@ -28,6 +29,10 @@ Non-interactive creation requires `--module`, `--mode`, `--database`, and
 
 `routes` boots the application, so it needs a reachable database (SQLite
 always works) and valid required secrets.
+
+`dev` rebuilds the server binary on every change, holds requests behind its
+proxy while a rebuild is in flight, and renders compile errors as a browser
+overlay until the next successful build; `run` remains the simple runner.
 
 ## Generators
 

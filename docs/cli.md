@@ -5,11 +5,21 @@
 ```text
 gin-kit new <name>
 gin-kit run
+gin-kit dev [--port]
 gin-kit build
 gin-kit check
 gin-kit doctor
 gin-kit explain <topic>
 ```
+
+`gin-kit dev` is the hot-reload development server: it builds `./cmd/server`
+to a binary, watches the project, and rebuilds on change. A local reverse
+proxy on `--port` (default 8080) holds incoming requests while a rebuild is in
+flight instead of dropping them, and compile errors render as a browser
+overlay (plain text for non-HTML clients) until the next successful build. The
+application itself listens on `--app-port` (default: an automatically chosen
+free port, passed to the server as `PORT`). `gin-kit run` remains the simple
+`go run`-based runner.
 
 `gin-kit new` defaults to `--edition framework`. Use `--edition starter` for the
 standalone source-visible edition. Use `--example` to include the runnable

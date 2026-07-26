@@ -9,6 +9,12 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `gin-kit dev`: a hot-reload development server that builds `./cmd/server`
+  to a binary, watches the project, and serves it through a local reverse
+  proxy that holds requests while a rebuild is in flight; compile errors
+  render as a browser error overlay (plain text for non-HTML clients) until
+  the next successful build. `gin-kit run` remains the simple `go run`-based
+  runner.
 - Opt-in cursor (keyset) pagination in the query builder: setting
   `Options.CursorSort` to an allowed sort switches a list endpoint to cursor
   mode — `page` and `sort` are rejected, the `cursor` parameter carries an
