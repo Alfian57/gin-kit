@@ -10,6 +10,15 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${GIN_KIT_REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 {{if eq .Database "postgres"}}    depends_on:
       database:
         condition: service_healthy

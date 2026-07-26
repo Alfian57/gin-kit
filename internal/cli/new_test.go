@@ -160,6 +160,41 @@ func TestFrameworkScaffoldUsesTypedConfig(t *testing.T) {
 	}
 }
 
+func TestComposeRedisServiceIsFrameworkOnly(t *testing.T) {
+	frameworkDir := filepath.Join(t.TempDir(), "fw")
+	m := Manifest{
+		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+		Project: "fw", Module: "example.com/fw",
+		Mode: "api", Database: "postgres", ORM: "gorm", Docker: true,
+	}
+	if err := scaffold(frameworkDir, m); err != nil {
+		t.Fatal(err)
+	}
+	compose, err := os.ReadFile(filepath.Join(frameworkDir, "docker", "docker-compose.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(compose), "redis:") {
+		t.Fatalf("framework compose missing redis service:\n%s", compose)
+	}
+
+	starterDir := filepath.Join(t.TempDir(), "st")
+	m.Edition = "starter"
+	m.FrameworkVersion = ""
+	m.Project = "st"
+	m.Module = "example.com/st"
+	if err := scaffold(starterDir, m); err != nil {
+		t.Fatal(err)
+	}
+	compose, err = os.ReadFile(filepath.Join(starterDir, "docker", "docker-compose.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(compose), "redis:") {
+		t.Fatalf("starter compose unexpectedly gained redis:\n%s", compose)
+	}
+}
+
 func TestFrameworkScaffoldWiresAuth(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "secure")
 	m := Manifest{
