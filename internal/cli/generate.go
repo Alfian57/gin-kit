@@ -522,6 +522,7 @@ func generateCommand() *cobra.Command {
 			return err
 		}
 		source := from
+		var spec *clientSpec
 		if source == "" {
 			if m.Edition == "starter" {
 				source = filepath.Join(root, "api", "openapi.yaml")
@@ -534,12 +535,14 @@ func generateCommand() *cobra.Command {
 				if !bytes.Contains(d, []byte("--openapi")) {
 					return diagnostic("openapi_flag_missing", "generate client", p, errors.New("server does not support --openapi"), "Add --openapi or pass --from URL|file")
 				}
-				source = "http://127.0.0.1:8080/openapi.json"
+				spec, err = loadFrameworkOpenAPI(root)
 			}
 		}
-		spec, e := loadClientSpec(source)
-		if e != nil {
-			return diagnostic("openapi_load_failed", "generate client", source, e, "Pass a valid OpenAPI file or URL")
+		if spec == nil && err == nil {
+			spec, err = loadClientSpec(source)
+		}
+		if err != nil {
+			return diagnostic("openapi_load_failed", "generate client", source, err, "Pass a valid OpenAPI file or URL")
 		}
 		if out == "" {
 			out = filepath.Join(root, "web", "client", "api.ts")
@@ -548,8 +551,8 @@ func generateCommand() *cobra.Command {
 			fmt.Println(out)
 			return nil
 		}
-		if e = os.MkdirAll(filepath.Dir(out), 0755); e != nil {
-			return e
+		if err = os.MkdirAll(filepath.Dir(out), 0755); err != nil {
+			return err
 		}
 		return os.WriteFile(out, renderTSClient(spec), 0644)
 	}}

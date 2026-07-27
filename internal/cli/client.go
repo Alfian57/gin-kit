@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -14,6 +15,20 @@ import (
 
 	"gopkg.in/yaml.v3"
 )
+
+func loadFrameworkOpenAPI(root string) (*clientSpec, error) {
+	cmd := exec.Command("go", "run", "./cmd/server", "--openapi")
+	cmd.Dir = root
+	output, err := cmd.Output()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			return nil, fmt.Errorf("run server --openapi: %s", strings.TrimSpace(string(exitErr.Stderr)))
+		}
+		return nil, fmt.Errorf("run server --openapi: %w", err)
+	}
+	return parseClientSpec(output)
+}
 
 type clientSpec struct {
 	Paths      map[string]map[string]clientOp `json:"paths"`
@@ -25,9 +40,19 @@ type clientComponents struct {
 type clientOp struct {
 	OperationID string        `json:"operationId"`
 	Parameters  []clientParam `json:"parameters"`
+	RequestBody *clientBody   `json:"requestBody,omitempty"`
 }
 type clientParam struct {
-	Name   string       `json:"name"`
+	Name     string       `json:"name"`
+	In       string       `json:"in"`
+	Required bool         `json:"required"`
+	Schema   clientSchema `json:"schema"`
+}
+type clientBody struct {
+	Required bool                     `json:"required"`
+	Content  map[string]clientContent `json:"content"`
+}
+type clientContent struct {
 	Schema clientSchema `json:"schema"`
 }
 type clientSchema struct {
@@ -37,6 +62,28 @@ type clientSchema struct {
 	Items      *clientSchema           `json:"items"`
 	Properties map[string]clientSchema `json:"properties"`
 	Enum       []string                `json:"enum"`
+}
+
+func parseClientSpec(b []byte) (*clientSpec, error) {
+	if !json.Valid(b) {
+		var v any
+		if err := yaml.Unmarshal(b, &v); err != nil {
+			return nil, err
+		}
+		var err error
+		b, err = json.Marshal(v)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var s clientSpec
+	if err := json.Unmarshal(b, &s); err != nil {
+		return nil, fmt.Errorf("parse OpenAPI document: %w", err)
+	}
+	if s.Paths == nil {
+		return nil, errors.New("OpenAPI document has no paths")
+	}
+	return &s, nil
 }
 
 func loadClientSpec(source string) (*clientSpec, error) {
@@ -58,24 +105,7 @@ func loadClientSpec(source string) (*clientSpec, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !json.Valid(b) {
-		var v any
-		if err = yaml.Unmarshal(b, &v); err != nil {
-			return nil, err
-		}
-		b, err = json.Marshal(v)
-		if err != nil {
-			return nil, err
-		}
-	}
-	var s clientSpec
-	if err = json.Unmarshal(b, &s); err != nil {
-		return nil, fmt.Errorf("parse OpenAPI document: %w", err)
-	}
-	if s.Paths == nil {
-		return nil, errors.New("OpenAPI document has no paths")
-	}
-	return &s, nil
+	return parseClientSpec(b)
 }
 func safeTSName(s string) string {
 	var b strings.Builder
@@ -181,16 +211,59 @@ func renderTSClient(s *clientSpec) []byte {
 				n = fmt.Sprintf("%s%d", n, seen[n])
 			}
 			args := []string{}
-			for _, q := range o.Parameters {
-				args = append(args, safeTSName(q.Name)+"?: "+tsType(q.Schema))
+			pathParams := []clientParam{}
+			queryParams := []clientParam{}
+			for _, parameter := range o.Parameters {
+				optional := "?"
+				if parameter.Required || parameter.In == "path" {
+					optional = ""
+				}
+				args = append(args, safeTSName(parameter.Name)+optional+": "+tsType(parameter.Schema))
+				switch parameter.In {
+				case "path":
+					pathParams = append(pathParams, parameter)
+				case "query":
+					queryParams = append(queryParams, parameter)
+				}
 			}
-			b.WriteString("  async " + safeTSName(n) + "(" + strings.Join(args, ", ") + "): Promise<unknown> {\n    return this.request('" + strings.ToUpper(m) + "', '" + p + "');\n  }\n")
+			hasBody := false
+			if o.RequestBody != nil {
+				if content, ok := o.RequestBody.Content["application/json"]; ok {
+					optional := "?"
+					if o.RequestBody.Required {
+						optional = ""
+					}
+					args = append(args, "body"+optional+": "+tsType(content.Schema))
+					hasBody = true
+				}
+			}
+			b.WriteString("  async " + safeTSName(n) + "(" + strings.Join(args, ", ") + "): Promise<unknown> {\n")
+			pathExpr := fmt.Sprintf("%q", p)
+			for _, parameter := range pathParams {
+				name := safeTSName(parameter.Name)
+				pathExpr += `.replace(` + fmt.Sprintf("%q", "{"+parameter.Name+"}") + `, encodeURIComponent(String(` + name + `)))`
+			}
+			b.WriteString("    let path = " + pathExpr + ";\n")
+			if len(queryParams) > 0 {
+				b.WriteString("    const query = new URLSearchParams();\n")
+				for _, parameter := range queryParams {
+					name := safeTSName(parameter.Name)
+					b.WriteString("    if (" + name + " !== undefined) query.set(" + fmt.Sprintf("%q", parameter.Name) + ", String(" + name + "));\n")
+				}
+				b.WriteString("    const queryString = query.toString(); if (queryString) path += '?' + queryString;\n")
+			}
+			bodyArg := "undefined"
+			if hasBody {
+				bodyArg = "body"
+			}
+			b.WriteString("    return this.request('" + strings.ToUpper(m) + "', path, " + bodyArg + ");\n  }\n")
 		}
 	}
-	b.WriteString(`  private async request(method: string, path: string): Promise<unknown> {
+	b.WriteString(`  private async request(method: string, path: string, body?: unknown): Promise<unknown> {
     const headers: Record<string,string> = {"Accept":"application/json"};
+    if (body !== undefined) headers["Content-Type"] = "application/json";
     const token = this.tokenProvider?.(); if (token) headers["Authorization"] = "Bearer " + token;
-    const response = await fetch(this.baseUrl + path, {method, headers});
+    const response = await fetch(this.baseUrl + path, {method, headers, body: body === undefined ? undefined : JSON.stringify(body)});
     const body = await response.json().catch(() => undefined);
     if (!response.ok) throw {...(body ?? {}), status: response.status} as ApiError;
     return body;

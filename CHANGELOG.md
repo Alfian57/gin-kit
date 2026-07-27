@@ -18,6 +18,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
   bounded client buffers with slow-client eviction, a compact subscribe /
   unsubscribe protocol, graceful application-runner shutdown, and a typed
   `events` forwarding bridge.
+- `gin-kit generate client --lang ts` generates a deterministic, dependency-free
+  TypeScript API client from a local or remote OpenAPI document. Framework
+  projects can emit their runtime document with `cmd/server --openapi`;
+  starter projects use `api/openapi.yaml`.
 
 - Development dashboard (framework edition): the new `framework/devtools`
   package serves `/_ginkit` in development — a request log (paths, statuses,

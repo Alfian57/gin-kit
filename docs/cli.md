@@ -43,6 +43,7 @@ gin-kit new ./services/orders --non-interactive \
 
 ```text
 gin-kit generate resource <Name> --fields "title:string,done:bool" [--table name] [--soft-delete]
+gin-kit generate client --lang ts [--from URL|file] [--out web/client/api.ts] [--dry-run]
 gin-kit generate domain <Name> [--fields ...]
 gin-kit generate dto <Name> [--fields ...]
 gin-kit generate repository <Name> [--fields ...]
@@ -191,3 +192,8 @@ Starter-edition rate limiting is enabled by default and exposes separate
 per-minute settings for general, authentication, and expensive endpoint
 classes. In both editions, forwarded client IP headers are trusted only when
 `TRUSTED_PROXY_CIDRS` is configured.
+`generate client` reads OpenAPI JSON or YAML and emits a dependency-free
+TypeScript `ApiClient`, schema aliases, a token-provider hook, path/query/body
+parameters, and the canonical error shape. Framework projects generate the
+document from `go run ./cmd/server --openapi`; starter projects default to
+`api/openapi.yaml`. Use `--from` to override either source.
