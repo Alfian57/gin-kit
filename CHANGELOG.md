@@ -9,6 +9,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Boolean feature flags for framework-edition applications: the new
+  `framework/flags` package parses comma-separated names from `FLAGS`, supports
+  concurrency-safe runtime updates, and keeps wiring explicit without global
+  state or persistence.
+
 - Development dashboard (framework edition): the new `framework/devtools`
   package serves `/_ginkit` in development — a request log (paths, statuses,
   durations, mapped error codes; never bodies, query strings, or headers

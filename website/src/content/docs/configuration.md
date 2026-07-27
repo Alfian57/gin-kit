@@ -105,6 +105,12 @@ by subsystem. Durations use Go syntax (`15s`, `2m`).
 | `DEVTOOLS_ENABLED` | on in development only | Enabling it outside development is a startup error. |
 | `DEVTOOLS_PATH` | `/_ginkit` | Dashboard mount point. |
 
+### Feature flags (framework edition)
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `FLAGS` | *(empty)* | Comma-separated boolean flags read by `flags.FromEnv`; surrounding whitespace and empty items are ignored. |
+
 ### Observability
 
 | Variable | Default | Notes |
