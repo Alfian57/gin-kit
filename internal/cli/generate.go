@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"bytes"
 	"embed"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -510,5 +512,50 @@ func generateCommand() *cobra.Command {
 			return writeGeneratedFiles(rootDir, map[string][]byte{path: []byte("-- +goose Up\n\n-- +goose Down\n")}, dryRun)
 		},
 	})
+	var from, out, lang string
+	client := &cobra.Command{Use: "client", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+		if lang != "ts" {
+			return errors.New("only --lang ts is supported")
+		}
+		root, m, err := projectRoot()
+		if err != nil {
+			return err
+		}
+		source := from
+		if source == "" {
+			if m.Edition == "starter" {
+				source = filepath.Join(root, "api", "openapi.yaml")
+			} else {
+				p := filepath.Join(root, "cmd", "server", "main.go")
+				d, e := os.ReadFile(p)
+				if e != nil {
+					return e
+				}
+				if !bytes.Contains(d, []byte("--openapi")) {
+					return diagnostic("openapi_flag_missing", "generate client", p, errors.New("server does not support --openapi"), "Add --openapi or pass --from URL|file")
+				}
+				source = "http://127.0.0.1:8080/openapi.json"
+			}
+		}
+		spec, e := loadClientSpec(source)
+		if e != nil {
+			return diagnostic("openapi_load_failed", "generate client", source, e, "Pass a valid OpenAPI file or URL")
+		}
+		if out == "" {
+			out = filepath.Join(root, "web", "client", "api.ts")
+		}
+		if dryRun {
+			fmt.Println(out)
+			return nil
+		}
+		if e = os.MkdirAll(filepath.Dir(out), 0755); e != nil {
+			return e
+		}
+		return os.WriteFile(out, renderTSClient(spec), 0644)
+	}}
+	client.Flags().StringVar(&lang, "lang", "ts", "client language")
+	client.Flags().StringVar(&from, "from", "", "OpenAPI URL or file")
+	client.Flags().StringVar(&out, "out", "", "output file")
+	generate.AddCommand(client)
 	return generate
 }

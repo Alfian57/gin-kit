@@ -462,6 +462,19 @@ func (a *Application) Queue() *queue.Queue { return a.queue }
 // only when DocsOptions.Enabled is set.
 func (a *Application) OpenAPI() *openapi.Registry { return a.docs }
 
+// OpenAPIDocument builds the current OpenAPI document independent of docs
+// endpoint configuration.
+func (a *Application) OpenAPIDocument() *openapi.Document {
+	routes := make([]openapi.Route, 0, len(a.router.Routes()))
+	for _, route := range a.router.Routes() {
+		routes = append(routes, openapi.Route{Method: route.Method, Path: route.Path})
+	}
+	return a.docs.Build(openapi.BuildOptions{
+		Info:   openapi.Info{Title: "API", Version: "0.1.0"},
+		Routes: routes, ExcludePaths: []string{"/docs", "/openapi.json"},
+	})
+}
+
 // DevTools returns the development dashboard, or nil when disabled. Guard
 // uses accordingly, e.g. wrap the mailer into the devtools outbox only when
 // the dashboard is on.
