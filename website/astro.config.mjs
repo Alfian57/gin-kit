@@ -68,6 +68,7 @@ export default defineConfig({
             { label: 'Database and ORM', slug: 'database-orm' },
             { label: 'Seeding and factories', slug: 'seeding-factories' },
             { label: 'Authentication and security', slug: 'auth-security' },
+            { label: 'Authorization', slug: 'authorization' },
             { label: 'Queues and scheduling', slug: 'background-work' },
             { label: 'Caching and events', slug: 'caching-events' },
             { label: 'Mail and file storage', slug: 'mail-storage' },

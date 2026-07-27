@@ -361,6 +361,85 @@ func TestRunGenerateFrameworkOnlyKinds(t *testing.T) {
 	}
 }
 
+func TestRunGeneratePolicyKind(t *testing.T) {
+	framework := Manifest{
+		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+		Project: "shop", Module: "example.com/shop",
+		Mode: "api", Database: "sqlite", ORM: "gorm",
+	}
+	rootDir := generatedProject(t, framework)
+	files, nextSteps, err := runGenerate(rootDir, framework, generateRequest{Kind: "policy", Name: "Ticket"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("expected 2 files, got %d", len(files))
+	}
+	content := fileContent(t, files, "internal/policy/ticket_policy.go")
+	for _, want := range []string{
+		"github.com/Alfian57/gin-kit/framework/authz",
+		"authz.Decision", `authz.Deny("unauthenticated")`, "authz.Allow()",
+		"func (p *TicketPolicy) CanView(ctx context.Context, subjectID string, resource domain.Ticket) authz.Decision",
+		"func (p *TicketPolicy) CanCreate(ctx context.Context, subjectID string) authz.Decision",
+		"func (p *TicketPolicy) CanUpdate(ctx context.Context, subjectID string, resource domain.Ticket) authz.Decision",
+		"func (p *TicketPolicy) CanDelete(ctx context.Context, subjectID string, resource domain.Ticket) authz.Decision",
+	} {
+		if !strings.Contains(content, want) {
+			t.Errorf("policy missing %q:\n%s", want, content)
+		}
+	}
+	if !strings.Contains(nextSteps, "auth.UserID(c)") || !strings.Contains(nextSteps, "generate domain Ticket") {
+		t.Errorf("framework policy next steps wrong:\n%s", nextSteps)
+	}
+
+	// A scaffolded starter project already vendors internal/platform/authz,
+	// so the generator emits only the policy pair.
+	starter := Manifest{
+		Version: 2, Edition: "starter", Project: "plain", Module: "example.com/plain",
+		Mode: "api", Database: "sqlite", ORM: "gorm",
+	}
+	starterDir := generatedProject(t, starter)
+	files, nextSteps, err = runGenerate(starterDir, starter, generateRequest{Kind: "policy", Name: "Ticket"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 2 {
+		t.Fatalf("expected 2 files on a scaffolded starter, got %d", len(files))
+	}
+	content = fileContent(t, files, "internal/policy/ticket_policy.go")
+	if !strings.Contains(content, "example.com/plain/internal/platform/authz") {
+		t.Errorf("starter policy missing vendored authz import:\n%s", content)
+	}
+	if !strings.Contains(nextSteps, `c.GetString("user_id")`) {
+		t.Errorf("starter policy next steps wrong:\n%s", nextSteps)
+	}
+
+	// A starter project missing the vendored package gets it back-filled.
+	bareDir := t.TempDir()
+	files, _, err = runGenerate(bareDir, starter, generateRequest{Kind: "policy", Name: "Ticket"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 3 {
+		t.Fatalf("expected 3 files with the authz back-fill, got %d", len(files))
+	}
+	platform := fileContent(t, files, "internal/platform/authz/authz.go")
+	for _, want := range []string{
+		"package authz", "example.com/plain/internal/platform/httpx",
+		`"forbidden"`, "You are not allowed to perform this action.",
+	} {
+		if !strings.Contains(platform, want) {
+			t.Errorf("back-filled authz missing %q:\n%s", want, platform)
+		}
+	}
+	testFile := fileContent(t, files, "internal/policy/ticket_policy_test.go")
+	for _, want := range []string{"CanView", "CanCreate", "CanUpdate", "CanDelete", "example.com/plain/internal/domain"} {
+		if !strings.Contains(testFile, want) {
+			t.Errorf("policy test missing %q:\n%s", want, testFile)
+		}
+	}
+}
+
 func TestWriteGeneratedFilesFormatsStagedGo(t *testing.T) {
 	rootDir := t.TempDir()
 	unformatted := []byte("package demo\n\nfunc   Weird(  ) {}\n")

@@ -1,0 +1,39 @@
+package policy
+
+import (
+	"context"
+	"testing"
+
+	"{{.Module}}/internal/domain"
+)
+
+func Test{{.Name}}PolicyDeniesEmptySubjects(t *testing.T) {
+	p := New{{.Name}}Policy()
+	ctx := context.Background()
+	resource := domain.{{.Name}}{}
+
+	cases := []struct {
+		name      string
+		subjectID string
+		allowed   bool
+	}{
+		{name: "empty subject is denied", subjectID: "", allowed: false},
+		{name: "non-empty subject is allowed", subjectID: "user-1", allowed: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := p.CanView(ctx, tc.subjectID, resource); got.Allowed != tc.allowed {
+				t.Fatalf("CanView allowed = %v, want %v", got.Allowed, tc.allowed)
+			}
+			if got := p.CanCreate(ctx, tc.subjectID); got.Allowed != tc.allowed {
+				t.Fatalf("CanCreate allowed = %v, want %v", got.Allowed, tc.allowed)
+			}
+			if got := p.CanUpdate(ctx, tc.subjectID, resource); got.Allowed != tc.allowed {
+				t.Fatalf("CanUpdate allowed = %v, want %v", got.Allowed, tc.allowed)
+			}
+			if got := p.CanDelete(ctx, tc.subjectID, resource); got.Allowed != tc.allowed {
+				t.Fatalf("CanDelete allowed = %v, want %v", got.Allowed, tc.allowed)
+			}
+		})
+	}
+}

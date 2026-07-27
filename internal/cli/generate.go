@@ -29,6 +29,7 @@ type genData struct {
 	StringFields   []fieldSpec // required string/text fields (service validation)
 	SampleJSON     string      // JSON body with valid sample values for tests
 	QueryImport    string      // edition-specific query package import path
+	AuthzImport    string      // edition-specific authz package import path
 	DatabaseImport string      // edition-specific database package import path
 	FactoryImport  string      // edition-specific factory package import path
 	HasNullable    bool        // any nullable field (factory ptr helper)
@@ -71,10 +72,12 @@ func buildGenData(m Manifest, name, fieldsSpec, table string) (genData, error) {
 	}
 	if m.Edition == "framework" {
 		data.QueryImport = "github.com/Alfian57/gin-kit/framework/query"
+		data.AuthzImport = "github.com/Alfian57/gin-kit/framework/authz"
 		data.DatabaseImport = "github.com/Alfian57/gin-kit/framework/database"
 		data.FactoryImport = "github.com/Alfian57/gin-kit/framework/factory"
 	} else {
 		data.QueryImport = m.Module + "/internal/platform/query"
+		data.AuthzImport = m.Module + "/internal/platform/authz"
 		data.DatabaseImport = m.Module + "/internal/platform/database"
 		data.FactoryImport = m.Module + "/internal/platform/factory"
 	}
@@ -305,6 +308,40 @@ func runGenerate(rootDir string, m Manifest, request generateRequest) (map[strin
 			return nil, "", err
 		}
 		nextSteps = fmt.Sprintf("Register the seeder in internal/database/seeders/seeders.go inside All():\n\n    {Name: %q, Run: Seed%s},\n\nThen run it with:\n\n    gin-kit db seed", data.Snake, data.Name)
+	case "policy":
+		if err := add(filepath.Join("internal", "policy", data.Snake+"_policy.go"), "generators/single/policy.go.tmpl"); err != nil {
+			return nil, "", err
+		}
+		if err := add(filepath.Join("internal", "policy", data.Snake+"_policy_test.go"), "generators/single/policy_test.go.tmpl"); err != nil {
+			return nil, "", err
+		}
+		if m.Edition == "starter" {
+			// Back-fill the vendored authz package for starter projects
+			// scaffolded before it existed.
+			if _, statErr := os.Stat(filepath.Join(rootDir, "internal", "platform", "authz", "authz.go")); os.IsNotExist(statErr) {
+				if err := add(filepath.Join("internal", "platform", "authz", "authz.go"), "generators/single/platform_authz.go.tmpl"); err != nil {
+					return nil, "", err
+				}
+			}
+		}
+		subjectExpr := "auth.UserID(c)"
+		if m.Edition != "framework" {
+			subjectExpr = `c.GetString("user_id")`
+		}
+		nextSteps = fmt.Sprintf(`Enforce the policy in the handler before acting (explicit wiring):
+
+    p := policy.New%sPolicy()
+    if !authz.Authorize(c, p.CanUpdate(c.Request.Context(), %s, entity)) {
+        return
+    }
+
+Import %q and %q.
+The subject %s is empty for unauthenticated requests, which the
+generated placeholder rules deny. The policy references domain.%s — run
+gin-kit generate domain %s first if it does not exist.`,
+			data.Name, subjectExpr,
+			data.AuthzImport, m.Module+"/internal/policy",
+			subjectExpr, data.Name, data.Name)
 	case "middleware":
 		if err := add(filepath.Join("internal", "middleware", data.Snake+".go"), "generators/single/middleware.go.tmpl"); err != nil {
 			return nil, "", err
@@ -440,7 +477,7 @@ func generateCommand() *cobra.Command {
 	repository.RunE = runKind("repository", repositoryFields, nil)
 	generate.AddCommand(repository)
 
-	for _, kind := range []string{"service", "handler", "middleware", "seeder", "job", "event", "mail"} {
+	for _, kind := range []string{"service", "handler", "middleware", "policy", "seeder", "job", "event", "mail"} {
 		k := kind
 		generate.AddCommand(&cobra.Command{
 			Use:   k + " <Name>",

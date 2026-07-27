@@ -1,0 +1,50 @@
+// Package policy centralizes authorization decisions.
+package policy
+
+import (
+	"context"
+
+	"{{.AuthzImport}}"
+	"{{.Module}}/internal/domain"
+)
+
+// {{.Name}}Policy decides who may act on {{.Camel}} resources.
+type {{.Name}}Policy struct{}
+
+func New{{.Name}}Policy() *{{.Name}}Policy { return &{{.Name}}Policy{} }
+
+// CanView decides whether subjectID may read the given {{.Camel}}.
+// Replace the placeholder rule with the real ownership or role check.
+func (p *{{.Name}}Policy) CanView(ctx context.Context, subjectID string, resource domain.{{.Name}}) authz.Decision {
+	if subjectID == "" {
+		return authz.Deny("unauthenticated")
+	}
+	return authz.Allow()
+}
+
+// CanCreate decides whether subjectID may create a {{.Camel}}.
+// Replace the placeholder rule with the real ownership or role check.
+func (p *{{.Name}}Policy) CanCreate(ctx context.Context, subjectID string) authz.Decision {
+	if subjectID == "" {
+		return authz.Deny("unauthenticated")
+	}
+	return authz.Allow()
+}
+
+// CanUpdate decides whether subjectID may modify the given {{.Camel}}.
+// Replace the placeholder rule with the real ownership or role check.
+func (p *{{.Name}}Policy) CanUpdate(ctx context.Context, subjectID string, resource domain.{{.Name}}) authz.Decision {
+	if subjectID == "" {
+		return authz.Deny("unauthenticated")
+	}
+	return authz.Allow()
+}
+
+// CanDelete decides whether subjectID may delete the given {{.Camel}}.
+// Replace the placeholder rule with the real ownership or role check.
+func (p *{{.Name}}Policy) CanDelete(ctx context.Context, subjectID string, resource domain.{{.Name}}) authz.Decision {
+	if subjectID == "" {
+		return authz.Deny("unauthenticated")
+	}
+	return authz.Allow()
+}
