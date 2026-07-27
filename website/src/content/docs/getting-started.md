@@ -37,6 +37,11 @@ gin-kit routes                    # print the routing table
 gin-kit generate resource Ticket --fields "title:string,done:bool"
 ```
 
+For day-to-day development, `gin-kit dev` is the recommended loop: it
+rebuilds on save, holds browser requests during rebuilds instead of dropping
+them, and shows compile errors as an in-browser overlay (`gin-kit run` is the
+simpler alternative).
+
 `generate resource` prints the wiring snippet to paste into
 `internal/app/app.go`, then `gin-kit db up` applies its migration. In
 framework-edition development, interactive API docs are already live at
