@@ -36,6 +36,33 @@ site (`website/src/content/docs/`), a `CHANGELOG.md` entry under
 `[Unreleased]`, and — when the CLI surface changes — an update to
 `docs/cli.md`. The full change-type matrix lives in `AGENTS.md`.
 
+## Git and pull request workflow
+
+AI agents must make changes on a focused branch and open a pull request rather
+than pushing directly to `main`. Branch commits and pull request titles use
+concise Conventional Commit-style subjects, but the merge commit deliberately
+uses GitHub's default message:
+
+```text
+Merge pull request #<number> from <owner>/<branch>
+
+<pull request title>
+```
+
+Wait for every required CI and security check to pass, then merge with:
+
+```bash
+gh pr merge <number> --merge
+git fetch origin main
+git show -s --format='%s%n%P' origin/main
+```
+
+Do not pass `--subject` or `--body` to `gh pr merge`, select squash/rebase
+merging, or use `--admin` without explicit maintainer authorization. The final
+verification must show the canonical GitHub subject and two parent hashes.
+Never rewrite published `main` history or move a release tag solely to make an
+older merge message match this convention.
+
 ## CI and release safety
 
 AI agents may prepare a release checklist, but must not create or push a Git tag without explicit maintainer authorization for the exact version. The release version comes from an annotated `v0.x.y` tag, not from a hand-edited source constant.

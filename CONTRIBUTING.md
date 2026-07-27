@@ -38,6 +38,25 @@ MySQL, MariaDB, and SQLite.
 4. Run the relevant generated-project matrix before requesting review.
 5. Keep commits focused. A separate CLA is not required.
 
+### Merging
+
+Branch commits and pull request titles should use concise Conventional
+Commit-style subjects. The merge commit itself must keep GitHub's default
+message so first-parent history remains consistent:
+
+```text
+Merge pull request #<number> from <owner>/<branch>
+
+<pull request title>
+```
+
+Maintainers and AI agents must wait for all required checks, then merge with
+`gh pr merge <number> --merge`. Do not pass `--subject` or `--body`, use
+squash/rebase merging, push directly to `main`, or bypass branch protection
+unless a maintainer explicitly authorizes the exact bypass. After merging,
+verify that the commit has two parents and do not rewrite published history
+solely to change a merge message.
+
 ## Documentation discipline
 
 Every behavior change updates the documents it affects, in the same pull
