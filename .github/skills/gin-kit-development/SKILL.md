@@ -93,6 +93,24 @@ and must never echo submitted values. Malformed JSON is a `400 invalid_json`;
 semantic validation is a `422 validation_failed`; oversized bodies are a
 `413 body_too_large`. Response DTOs never include credential-like fields.
 
+## Git and pull request workflow
+
+Work on a focused branch and submit changes through a pull request. Use
+Conventional Commit-style subjects for branch commits and pull request titles,
+then wait for every required check before merging. Preserve GitHub's canonical
+merge commit with:
+
+```bash
+gh pr merge <number> --merge
+```
+
+Do not pass `--subject` or `--body`, use squash/rebase merging, push directly
+to `main`, or bypass branch protection without explicit maintainer
+authorization. After the merge, fetch `main` and confirm that the commit
+subject is `Merge pull request #<number> from <owner>/<branch>` and that it has
+two parents. Do not rewrite published history solely to normalize a merge
+message.
+
 Release tags are maintainer-only operations: never create or push an
 annotated `v0.x.y` tag without explicit authorization for the exact version.
 Read `docs/releasing.md` before preparing a release.

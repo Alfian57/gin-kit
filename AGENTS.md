@@ -119,6 +119,26 @@ Change-type matrix — update at minimum:
 - Never add long-lived release credentials to the repository. Release provenance uses GitHub Actions OIDC.
 - Read `docs/releasing.md` before preparing a release or asking an AI agent to push one.
 
+## Git and pull request workflow
+
+- Work on a focused branch and submit every change through a pull request.
+  Never push commits directly to `main`.
+- Use concise Conventional Commit-style subjects for branch commits and pull
+  request titles, such as `feat:`, `fix:`, `docs:`, or `chore:`.
+- Merge only after all required CI and security checks pass. Do not bypass
+  branch protection with `--admin` unless a maintainer explicitly authorizes
+  that exact bypass.
+- Preserve the repository's merge-commit history. Use
+  `gh pr merge <number> --merge` without `--subject` or `--body`; do not use
+  squash or rebase merges.
+- Let GitHub create the canonical merge message:
+  `Merge pull request #<number> from <owner>/<branch>`, with the pull request
+  title in the commit body. Do not replace it with a Conventional Commit
+  subject.
+- After merging, fetch `main` and verify that the new commit has two parents
+  and the canonical GitHub subject. Do not rewrite published `main` history or
+  move release tags merely to normalize an older commit message.
+
 ## AI workflow
 
 Read `.github/skills/gin-kit-development/SKILL.md` when changing the
