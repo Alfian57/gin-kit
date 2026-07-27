@@ -23,7 +23,7 @@ type fieldSpec struct {
 
 const fieldsGrammar = `--fields "name:type,other:type?" with types string, text, int, int64, float64, bool, time (aliases: float, datetime, timestamp); a trailing ? makes the field nullable`
 
-var reservedFieldNames = map[string]bool{"id": true, "created_at": true, "updated_at": true}
+var reservedFieldNames = map[string]bool{"id": true, "created_at": true, "updated_at": true, "deleted_at": true}
 
 // parseFields parses the --fields DSL for the manifest's database dialect.
 func parseFields(spec, database string) ([]fieldSpec, error) {
@@ -49,7 +49,7 @@ func parseFields(spec, database string) ([]fieldSpec, error) {
 			return nil, fmt.Errorf("field name %q must be snake_case starting with a letter", name)
 		}
 		if reservedFieldNames[name] {
-			return nil, fmt.Errorf("field %q is implicit: id, created_at, and updated_at are always generated", name)
+			return nil, fmt.Errorf("field %q is reserved: id, created_at, and updated_at are always generated, and deleted_at is managed by --soft-delete", name)
 		}
 		if seen[name] {
 			return nil, fmt.Errorf("field %q is declared twice", name)
@@ -104,6 +104,9 @@ func fakeExpression(field fieldSpec) string {
 	switch field.Kind {
 	case "string":
 		switch {
+		case strings.HasSuffix(name, "_id"):
+			// Foreign keys must carry the shape of a real key, not a word.
+			return "f.UUID()"
 		case contains("email"):
 			return "f.Email()"
 		case contains("name"):

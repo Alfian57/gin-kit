@@ -30,6 +30,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
   `upgrade --apply`. Framework-edition projects keep upgrading via
   `go get github.com/Alfian57/gin-kit@vX.Y.Z` and get a diagnostic saying so.
 
+- `gin-kit generate resource --soft-delete`: opts a resource into explicit
+  soft deletion. The domain model gains `DeletedAt *time.Time` (hidden from
+  JSON), every repository query filters on a visible `deleted_at IS NULL` —
+  no implicit ORM scoping — `Delete` becomes an `UPDATE` that stamps
+  `deleted_at`, and the migration adds the nullable column plus an index.
+  `deleted_at` joins the reserved field names, and the framework-edition
+  repository integration test verifies the row survives deletion.
 - `gin-kit dev`: a hot-reload development server that builds `./cmd/server`
   to a binary, watches the project, and serves it through a local reverse
   proxy that holds requests while a rebuild is in flight; compile errors
@@ -83,6 +90,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Generated factories faked foreign-key-shaped string fields (`user_id`,
+  `parent_id`, ...) as nonsense word strings, the wrong shape for a 36-char
+  key. String fields ending in `_id` now fake as `f.UUID()`.
 - The `--fields` DSL marked nullable string fields (`nickname:string?`) as
   `validate:"required"`, rejecting the very requests the schema allows. Tags
   now follow nullability: nullable strings validate as

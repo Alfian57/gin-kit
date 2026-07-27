@@ -54,6 +54,29 @@ func TestParseFieldsValidationTagsRespectNullability(t *testing.T) {
 	}
 }
 
+func TestFakeExpressionForeignKeys(t *testing.T) {
+	fields, err := parseFields("user_id:string,parent_id:string?,email:string,city_name:string", "sqlite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := map[string]fieldSpec{}
+	for _, field := range fields {
+		byName[field.Name] = field
+	}
+	if byName["user_id"].FakeExpr != "f.UUID()" {
+		t.Fatalf("user_id must fake as a UUID: %+v", byName["user_id"])
+	}
+	if byName["parent_id"].FakeExpr != "f.UUID()" {
+		t.Fatalf("parent_id must fake as a UUID: %+v", byName["parent_id"])
+	}
+	if byName["email"].FakeExpr != "f.Email()" {
+		t.Fatalf("email heuristic regressed: %+v", byName["email"])
+	}
+	if byName["city_name"].FakeExpr != "f.Name()" {
+		t.Fatalf("name heuristic regressed: %+v", byName["city_name"])
+	}
+}
+
 func TestParseFieldsDialects(t *testing.T) {
 	for database, want := range map[string]string{
 		"postgres": "DOUBLE PRECISION",
@@ -84,6 +107,7 @@ func TestParseFieldsRejections(t *testing.T) {
 		"unknown type":     "title:uuid",
 		"reserved id":      "id:string",
 		"reserved created": "created_at:time",
+		"reserved deleted": "deleted_at:time",
 		"duplicate":        "title:string,title:text",
 		"bad name":         "Title:string",
 		"empty":            ",",
@@ -93,5 +117,17 @@ func TestParseFieldsRejections(t *testing.T) {
 				t.Fatalf("spec %q accepted", spec)
 			}
 		})
+	}
+}
+
+func TestParseFieldsDeletedAtDiagnostic(t *testing.T) {
+	_, err := parseFields("deleted_at:time", "sqlite")
+	if err == nil {
+		t.Fatal("deleted_at accepted")
+	}
+	for _, want := range []string{"deleted_at", "reserved", "--soft-delete"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("deleted_at diagnostic missing %q: %v", want, err)
+		}
 	}
 }

@@ -38,7 +38,7 @@ overlay until the next successful build; `run` remains the simple runner.
 ## Generators
 
 ```text
-gin-kit generate resource <Name> --fields "..." [--table name]
+gin-kit generate resource <Name> --fields "..." [--table name] [--soft-delete]
 gin-kit generate domain <Name> [--fields ...]
 gin-kit generate dto <Name> [--fields ...]
 gin-kit generate repository <Name> [--fields ...]
@@ -61,6 +61,17 @@ domain values, HTTP handler with allowlist-based
 filtering/sorting/pagination, tests with in-memory fakes, and a goose
 migration with dialect-mapped column types — then prints the exact wiring
 snippet to paste into `internal/app/app.go`.
+
+`--soft-delete` opts the resource into explicit soft deletion: the domain
+model gains a `DeletedAt *time.Time` field (hidden from JSON responses),
+every repository query filters on a visible `deleted_at IS NULL` condition —
+no implicit ORM scoping — and `Delete` becomes an `UPDATE` that stamps
+`deleted_at` instead of removing the row (`404` on already-deleted rows).
+The migration adds the nullable `deleted_at` column with an index, and
+`deleted_at` joins `id`, `created_at`, and `updated_at` as a reserved field
+name. Only `generate resource` accepts the flag — the standalone `domain`,
+`repository`, and `dto` generators always render the plain variants, so
+regenerate soft-deleting pieces through the resource generator.
 
 `generate dto` renders just the DTO file for an existing model.
 `generate policy` renders an [authorization policy](/gin-kit/authorization/)

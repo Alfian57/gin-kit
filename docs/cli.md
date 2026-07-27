@@ -42,7 +42,7 @@ gin-kit new ./services/orders --non-interactive \
 ## Generation
 
 ```text
-gin-kit generate resource <Name> --fields "title:string,done:bool" [--table name]
+gin-kit generate resource <Name> --fields "title:string,done:bool" [--table name] [--soft-delete]
 gin-kit generate domain <Name> [--fields ...]
 gin-kit generate dto <Name> [--fields ...]
 gin-kit generate repository <Name> [--fields ...]
@@ -65,6 +65,14 @@ project manifest), a service that accepts DTOs and returns domain values, an
 HTTP handler with query filtering/sorting/pagination, tests with in-memory
 repository fakes, and a timestamped goose migration with dialect-mapped
 column types.
+
+With `--soft-delete`, the domain model gains a `DeletedAt *time.Time` field
+(excluded from JSON), every repository query carries an explicit
+`deleted_at IS NULL` condition (no implicit ORM scoping), and `Delete`
+becomes an `UPDATE` stamping `deleted_at`; the migration adds the nullable
+column plus an index. `deleted_at` becomes a reserved field name. The flag
+exists only on `generate resource` — regenerating soft-deleting pieces
+requires the resource generator.
 
 `generate dto` renders just the DTO file for an existing domain model:
 `Create<Name>Request` and `Update<Name>Request` with validation tags and a

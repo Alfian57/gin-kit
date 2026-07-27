@@ -37,6 +37,7 @@ type genData struct {
 	HasSensitive   bool        // any credential-like field (kept out of responses)
 	SensitiveNames string      // comma-separated names of excluded fields
 	SQLiteSchema   string      // CREATE TABLE statement for sqlite-backed integration tests
+	SoftDelete     bool        // --soft-delete: deleted_at column plus explicitly filtered queries
 
 	// Precomputed SQL fragments for the sqlx repository variant.
 	ColumnList         string // id, title, ..., created_at, updated_at
@@ -48,7 +49,7 @@ type genData struct {
 	SortList           string // query.SortBy("created_at"), ...
 }
 
-func buildGenData(m Manifest, name, fieldsSpec, table string) (genData, error) {
+func buildGenData(m Manifest, name, fieldsSpec, table string, softDelete bool) (genData, error) {
 	pascal, camel, snake, err := validateGeneratorName(name)
 	if err != nil {
 		return genData{}, err
@@ -69,6 +70,7 @@ func buildGenData(m Manifest, name, fieldsSpec, table string) (genData, error) {
 		PluralCamel: pluralize(camel),
 		Table:       table,
 		Fields:      fields,
+		SoftDelete:  softDelete,
 	}
 	if m.Edition == "framework" {
 		data.QueryImport = "github.com/Alfian57/gin-kit/framework/query"
@@ -120,6 +122,9 @@ func buildGenData(m Manifest, name, fieldsSpec, table string) (genData, error) {
 		schemaColumns = append(schemaColumns, field.Name+" "+sqliteColumnType(field))
 	}
 	schemaColumns = append(schemaColumns, "created_at TIMESTAMP NOT NULL", "updated_at TIMESTAMP NOT NULL")
+	if softDelete {
+		schemaColumns = append(schemaColumns, "deleted_at TIMESTAMP")
+	}
 	data.SQLiteSchema = "CREATE TABLE IF NOT EXISTS " + table + " (" + strings.Join(schemaColumns, ", ") + ")"
 	columns = append(columns, "created_at", "updated_at")
 	insertArgs = append(insertArgs, "entity.CreatedAt", "entity.UpdatedAt")
@@ -176,16 +181,17 @@ func renderGenerator(templatePath string, data genData) ([]byte, error) {
 
 // generateRequest describes one generator invocation.
 type generateRequest struct {
-	Kind   string
-	Name   string
-	Fields string
-	Table  string
+	Kind       string
+	Name       string
+	Fields     string
+	Table      string
+	SoftDelete bool
 }
 
 // runGenerate resolves a request into absolute file paths plus a next-steps
 // message. It performs no writes, which makes it the unit-test seam.
 func runGenerate(rootDir string, m Manifest, request generateRequest) (map[string][]byte, string, error) {
-	data, err := buildGenData(m, request.Name, request.Fields, request.Table)
+	data, err := buildGenData(m, request.Name, request.Fields, request.Table, request.SoftDelete)
 	if err != nil {
 		return nil, "", diagnostic("generator_input_invalid", "generate "+request.Kind, request.Name, err, "Fix the generator input and retry: "+fieldsGrammar)
 	}
@@ -404,7 +410,7 @@ func generateCommand() *cobra.Command {
 	generate := &cobra.Command{Use: "generate", Short: "Generate project building blocks from real, manifest-aware templates"}
 	generate.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "show generated files without writing them")
 
-	runKind := func(kind string, fields, table *string) func(*cobra.Command, []string) error {
+	runKind := func(kind string, fields, table *string, softDelete *bool) func(*cobra.Command, []string) error {
 		return func(_ *cobra.Command, args []string) error {
 			rootDir, m, err := projectRoot()
 			if err != nil {
@@ -416,6 +422,9 @@ func generateCommand() *cobra.Command {
 			}
 			if table != nil {
 				request.Table = *table
+			}
+			if softDelete != nil {
+				request.SoftDelete = *softDelete
 			}
 			files, nextSteps, err := runGenerate(rootDir, m, request)
 			if err != nil {
@@ -438,7 +447,8 @@ func generateCommand() *cobra.Command {
 	}
 	resourceFields := resource.Flags().String("fields", "", fieldsGrammar)
 	resourceTable := resource.Flags().String("table", "", "override the derived table name")
-	resource.RunE = runKind("resource", resourceFields, resourceTable)
+	resourceSoftDelete := resource.Flags().Bool("soft-delete", false, "add deleted_at and make Delete a soft delete")
+	resource.RunE = runKind("resource", resourceFields, resourceTable, resourceSoftDelete)
 	generate.AddCommand(resource)
 
 	domain := &cobra.Command{
@@ -447,7 +457,7 @@ func generateCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 	}
 	domainFields := domain.Flags().String("fields", "", fieldsGrammar)
-	domain.RunE = runKind("domain", domainFields, nil)
+	domain.RunE = runKind("domain", domainFields, nil, nil)
 	generate.AddCommand(domain)
 
 	dtoCommand := &cobra.Command{
@@ -456,7 +466,7 @@ func generateCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 	}
 	dtoFields := dtoCommand.Flags().String("fields", "", fieldsGrammar+" (must match the domain model)")
-	dtoCommand.RunE = runKind("dto", dtoFields, nil)
+	dtoCommand.RunE = runKind("dto", dtoFields, nil, nil)
 	generate.AddCommand(dtoCommand)
 
 	factoryCommand := &cobra.Command{
@@ -465,7 +475,7 @@ func generateCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 	}
 	factoryFields := factoryCommand.Flags().String("fields", "", fieldsGrammar+" (must match the domain model)")
-	factoryCommand.RunE = runKind("factory", factoryFields, nil)
+	factoryCommand.RunE = runKind("factory", factoryFields, nil, nil)
 	generate.AddCommand(factoryCommand)
 
 	repository := &cobra.Command{
@@ -474,7 +484,7 @@ func generateCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 	}
 	repositoryFields := repository.Flags().String("fields", "", fieldsGrammar+" (must match the domain model)")
-	repository.RunE = runKind("repository", repositoryFields, nil)
+	repository.RunE = runKind("repository", repositoryFields, nil, nil)
 	generate.AddCommand(repository)
 
 	for _, kind := range []string{"service", "handler", "middleware", "policy", "seeder", "job", "event", "mail"} {
@@ -483,7 +493,7 @@ func generateCommand() *cobra.Command {
 			Use:   k + " <Name>",
 			Short: "Generate a " + k,
 			Args:  cobra.ExactArgs(1),
-			RunE:  runKind(k, nil, nil),
+			RunE:  runKind(k, nil, nil, nil),
 		})
 	}
 
