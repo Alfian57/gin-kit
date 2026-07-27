@@ -74,6 +74,7 @@ export default defineConfig({
             { label: 'Mail and file storage', slug: 'mail-storage' },
             { label: 'API documentation', slug: 'api-docs' },
             { label: 'Observability', slug: 'observability' },
+            { label: 'Devtools dashboard', slug: 'devtools' },
             { label: 'CLI and generators', slug: 'cli-generators' },
             { label: 'Customizing the runtime', slug: 'customization' },
             { label: 'UI mode', slug: 'ui-mode' },

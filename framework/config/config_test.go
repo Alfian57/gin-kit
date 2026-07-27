@@ -17,6 +17,7 @@ func clearEnv(t *testing.T) {
 		"CACHE_DRIVER", "REDIS_URL", "QUEUE_DRIVER", "QUEUE_CONCURRENCY",
 		"DOCS_ENABLED", "DOCS_PATH", "DOCS_SPEC_PATH", "DOCS_TITLE", "DOCS_VERSION",
 		"DOCS_DESCRIPTION", "DOCS_SERVERS", "DOCS_BASIC_AUTH_USERNAME", "DOCS_BASIC_AUTH_PASSWORD",
+		"DEVTOOLS_ENABLED", "DEVTOOLS_PATH",
 		"MAIL_DRIVER", "MAIL_HOST", "MAIL_PORT", "MAIL_USERNAME", "MAIL_PASSWORD",
 		"MAIL_ENCRYPTION", "MAIL_FROM_ADDRESS", "MAIL_FROM_NAME",
 		"STORAGE_DRIVER", "STORAGE_LOCAL_ROOT", "STORAGE_LOCAL_BASE_URL",
@@ -272,6 +273,38 @@ func TestDocsConfiguration(t *testing.T) {
 	t.Setenv("DOCS_SPEC_PATH", "/docs")
 	if _, err := Load(); err == nil {
 		t.Fatal("identical docs paths accepted")
+	}
+}
+
+func TestDevToolsConfiguration(t *testing.T) {
+	clearEnv(t)
+	cfg, err := Load()
+	if err != nil || !cfg.DevToolsEnabled || cfg.DevToolsPath != "/_ginkit" {
+		t.Fatalf("devtools should default on in development: %+v err=%v", cfg, err)
+	}
+	options := cfg.Options()
+	if !options.DevTools.Enabled || options.DevTools.Path != "/_ginkit" {
+		t.Fatalf("devtools options not mapped: %+v", options.DevTools)
+	}
+
+	clearEnv(t)
+	t.Setenv("APP_ENV", "production")
+	t.Setenv("DATABASE_URL", "postgres://db/app")
+	t.Setenv("CORS_ALLOWED_ORIGINS", "https://app.example.com")
+	cfg, err = Load()
+	if err != nil || cfg.DevToolsEnabled {
+		t.Fatalf("devtools should default off in production: enabled=%v err=%v", cfg.DevToolsEnabled, err)
+	}
+
+	t.Setenv("DEVTOOLS_ENABLED", "true")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "DEVTOOLS_ENABLED") {
+		t.Fatalf("devtools enabled in production accepted: %v", err)
+	}
+
+	clearEnv(t)
+	t.Setenv("DEVTOOLS_PATH", "_ginkit")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "DEVTOOLS_PATH") {
+		t.Fatalf("relative devtools path accepted: %v", err)
 	}
 }
 

@@ -106,6 +106,20 @@ func TestStartBlocksUntilCancelAndCloseIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestSyncStats(t *testing.T) {
+	q, err := New(Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stats, err := q.Stats(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Driver != "sync" || len(stats.Queues) != 0 {
+		t.Fatalf("unexpected sync stats: %+v", stats)
+	}
+}
+
 func TestNewValidatesOptions(t *testing.T) {
 	for _, test := range []struct {
 		name    string

@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>gin-kit devtools</title>
+<style>
+  :root {
+    --ink: #121713;
+    --bone: #F6F3EA;
+    --lime: #B9F53D;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bone);
+    color: var(--ink);
+    font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.45;
+    padding: 20px;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    border: 2px solid var(--ink);
+    background: var(--ink);
+    color: var(--bone);
+    padding: 12px 16px;
+    box-shadow: 5px 5px 0 var(--ink);
+    margin-bottom: 20px;
+  }
+  header h1 { font-size: 16px; letter-spacing: 0.04em; text-transform: uppercase; }
+  header h1 .accent { color: var(--lime); }
+  #status-note { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+  nav { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+  nav button {
+    font: inherit;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--bone);
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    box-shadow: 4px 4px 0 var(--ink);
+    padding: 8px 16px;
+    cursor: pointer;
+  }
+  nav button:hover { background: #fff; }
+  nav button.active {
+    background: var(--lime);
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 var(--ink);
+  }
+  nav button:active { transform: translate(4px, 4px); box-shadow: none; }
+  section.panel {
+    border: 2px solid var(--ink);
+    background: var(--bone);
+    box-shadow: 6px 6px 0 var(--ink);
+    padding: 16px;
+    display: none;
+  }
+  section.panel.active { display: block; }
+  .table-wrap { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; background: #fff; }
+  th, td {
+    border: 2px solid var(--ink);
+    padding: 6px 10px;
+    text-align: left;
+    vertical-align: top;
+    white-space: nowrap;
+  }
+  th {
+    background: var(--ink);
+    color: var(--bone);
+    text-transform: uppercase;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+  }
+  td.wrap { white-space: normal; word-break: break-word; }
+  td .dim { opacity: 0.6; }
+  .chip {
+    display: inline-block;
+    border: 2px solid var(--ink);
+    padding: 0 8px;
+    font-weight: 700;
+    background: #fff;
+  }
+  .chip.ok { background: var(--lime); }
+  .chip.warn { background: repeating-linear-gradient(45deg, #fff, #fff 4px, var(--bone) 4px, var(--bone) 8px); }
+  .chip.err { background: var(--ink); color: var(--bone); }
+  .empty { padding: 14px; border: 2px dashed var(--ink); text-align: center; text-transform: uppercase; letter-spacing: 0.06em; }
+  .note { margin-top: 12px; font-size: 11px; opacity: 0.75; }
+  #mail-detail { margin-top: 16px; border: 2px solid var(--ink); background: #fff; box-shadow: 4px 4px 0 var(--ink); display: none; }
+  #mail-detail.open { display: block; }
+  #mail-detail .bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    background: var(--lime);
+    border-bottom: 2px solid var(--ink);
+    padding: 8px 12px;
+    font-weight: 700;
+  }
+  #mail-detail .bar button {
+    font: inherit;
+    font-weight: 700;
+    border: 2px solid var(--ink);
+    background: var(--bone);
+    padding: 2px 10px;
+    cursor: pointer;
+    box-shadow: 3px 3px 0 var(--ink);
+  }
+  #mail-detail dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; padding: 12px; }
+  #mail-detail dt { font-weight: 700; text-transform: uppercase; font-size: 11px; letter-spacing: 0.06em; }
+  #mail-detail dd { word-break: break-word; }
+  #mail-preview { display: block; width: 100%; height: 420px; border: 0; border-top: 2px solid var(--ink); background: #fff; }
+  tr.selectable { cursor: pointer; }
+  tr.selectable:hover td { background: var(--bone); }
+  tr.selected td { background: var(--lime); }
+</style>
+</head>
+<body>
+<header>
+  <h1>gin-kit <span class="accent">devtools</span></h1>
+  <span id="status-note">development only &middot; polling every 2s</span>
+</header>
+<nav id="tabs">
+  <button data-tab="requests" class="active">Requests</button>
+  <button data-tab="mail">Mail</button>
+  <button data-tab="routes">Routes</button>
+  <button data-tab="config">Config</button>
+  <button data-tab="queue">Queue</button>
+</nav>
+<section class="panel active" id="panel-requests">
+  <div class="table-wrap" id="requests-table"></div>
+  <p class="note">Newest first. Paths only — query strings, bodies, and headers (except the user agent) are never recorded.</p>
+</section>
+<section class="panel" id="panel-mail">
+  <div class="table-wrap" id="mail-table"></div>
+  <div id="mail-detail">
+    <div class="bar"><span id="mail-detail-subject"></span><button type="button" id="mail-detail-close">Close</button></div>
+    <dl id="mail-detail-meta"></dl>
+    <iframe id="mail-preview" sandbox title="Mail preview"></iframe>
+  </div>
+  <p class="note">Captured by the wrapped mailer. Previews render in a sandboxed iframe with scripts disabled.</p>
+</section>
+<section class="panel" id="panel-routes">
+  <div class="table-wrap" id="routes-table"></div>
+</section>
+<section class="panel" id="panel-config">
+  <div class="table-wrap" id="config-table"></div>
+  <p class="note">Allowlisted gin-kit variables only. Secret-like values are redacted; URL passwords are scrubbed.</p>
+</section>
+<section class="panel" id="panel-queue">
+  <div class="table-wrap" id="queue-table"></div>
+</section>
+<script>
+(function () {
+  "use strict";
+  // The dashboard may be mounted anywhere, so every request is built from
+  // the page's own location instead of a hard-coded prefix.
+  var base = location.pathname.replace(/\/+$/, "");
+  var active = "requests";
+  var selectedMail = null;
+
+  function esc(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+  function chipClass(status) {
+    if (status >= 500) return "err";
+    if (status >= 400) return "warn";
+    return "ok";
+  }
+  function when(value) {
+    var date = new Date(value);
+    return isNaN(date) ? "" : date.toLocaleTimeString();
+  }
+  function table(headers, rows, empty) {
+    if (!rows.length) return '<div class="empty">' + esc(empty) + "</div>";
+    var head = headers.map(function (h) { return "<th>" + esc(h) + "</th>"; }).join("");
+    return '<table><thead><tr>' + head + "</tr></thead><tbody>" + rows.join("") + "</tbody></table>";
+  }
+  function load(path, render) {
+    fetch(base + path, { headers: { Accept: "application/json" } })
+      .then(function (response) { return response.json(); })
+      .then(function (payload) { render(payload.data || []); })
+      .catch(function () { /* keep the last rendering while the server rebuilds */ });
+  }
+
+  function renderRequests() {
+    load("/api/requests", function (items) {
+      var rows = items.map(function (r) {
+        return "<tr>" +
+          "<td>" + esc(when(r.time)) + "</td>" +
+          "<td><strong>" + esc(r.method) + "</strong></td>" +
+          '<td class="wrap">' + esc(r.path) + "</td>" +
+          '<td><span class="chip ' + chipClass(r.status) + '">' + esc(r.status) + "</span></td>" +
+          '<td style="text-align:right">' + esc(r.duration_ms) + "</td>" +
+          "<td>" + (r.error_code ? '<span class="chip err">' + esc(r.error_code) + "</span>" : '<span class="dim">&mdash;</span>') + "</td>" +
+          "<td>" + esc(r.request_id) + "</td>" +
+          "<td>" + esc(r.client_ip) + "</td>" +
+          '<td class="wrap">' + esc(r.user_agent) + "</td>" +
+          "</tr>";
+      });
+      document.getElementById("requests-table").innerHTML =
+        table(["Time", "Method", "Path", "Status", "ms", "Error", "Request ID", "IP", "User agent"], rows, "No requests recorded yet");
+    });
+  }
+
+  function mailStatusChip(m) {
+    return m.status === "failed"
+      ? '<span class="chip err">failed</span>'
+      : '<span class="chip ok">sent</span>';
+  }
+  function renderMail() {
+    load("/api/mails", function (items) {
+      var rows = items.map(function (m) {
+        var selected = selectedMail && selectedMail.id === m.id;
+        return '<tr class="selectable' + (selected ? " selected" : "") + '" data-id="' + esc(m.id) + '">' +
+          "<td>" + esc(when(m.time)) + "</td>" +
+          "<td>" + mailStatusChip(m) + "</td>" +
+          '<td class="wrap">' + esc(m.subject) + "</td>" +
+          '<td class="wrap">' + esc((m.to || []).join(", ")) + "</td>" +
+          "<td>" + esc((m.attachments || []).length) + "</td>" +
+          "</tr>";
+      });
+      var container = document.getElementById("mail-table");
+      container.innerHTML = table(["Time", "Status", "Subject", "To", "Files"], rows, "No mail captured yet");
+      container.querySelectorAll("tr.selectable").forEach(function (row) {
+        row.addEventListener("click", function () {
+          var id = Number(row.getAttribute("data-id"));
+          var match = items.filter(function (m) { return m.id === id; })[0];
+          if (match) openMail(match);
+        });
+      });
+    });
+  }
+  function openMail(entry) {
+    selectedMail = entry;
+    document.getElementById("mail-detail-subject").textContent = entry.subject || "(no subject)";
+    var meta = [
+      ["Status", entry.status + (entry.error ? " — " + entry.error : "")],
+      ["From", entry.from_name ? entry.from_name + " <" + (entry.from || "") + ">" : entry.from || "(mailer default)"],
+      ["To", (entry.to || []).join(", ")],
+      ["Cc", (entry.cc || []).join(", ")],
+      ["Bcc", (entry.bcc || []).join(", ")],
+      ["Reply-To", entry.reply_to || ""],
+      ["Attachments", (entry.attachments || []).map(function (a) {
+        return a.filename + " (" + a.size + " bytes)";
+      }).join(", ")]
+    ];
+    document.getElementById("mail-detail-meta").innerHTML = meta
+      .filter(function (pair) { return pair[1]; })
+      .map(function (pair) { return "<dt>" + esc(pair[0]) + "</dt><dd>" + esc(pair[1]) + "</dd>"; })
+      .join("");
+    document.getElementById("mail-preview").src = base + "/api/mails/" + entry.id + "/html";
+    document.getElementById("mail-detail").className = "open";
+    renderMail();
+  }
+  document.getElementById("mail-detail-close").addEventListener("click", function () {
+    selectedMail = null;
+    document.getElementById("mail-preview").src = "about:blank";
+    document.getElementById("mail-detail").className = "";
+    renderMail();
+  });
+
+  function renderRoutes() {
+    load("/api/routes", function (items) {
+      var rows = items.map(function (r) {
+        return "<tr><td><strong>" + esc(r.method) + "</strong></td>" +
+          '<td class="wrap">' + esc(r.path) + "</td>" +
+          '<td class="wrap"><span class="dim">' + esc(r.handler) + "</span></td></tr>";
+      });
+      document.getElementById("routes-table").innerHTML =
+        table(["Method", "Path", "Handler"], rows, "No routes registered");
+    });
+  }
+
+  function renderConfig() {
+    load("/api/config", function (items) {
+      var rows = items.map(function (entry) {
+        var value = entry.redacted
+          ? '<span class="chip err">[redacted]</span>'
+          : (entry.value ? esc(entry.value) : '<span class="dim">(unset)</span>');
+        return "<tr><td>" + esc(entry.key) + '</td><td class="wrap">' + value + "</td></tr>";
+      });
+      document.getElementById("config-table").innerHTML =
+        table(["Variable", "Value"], rows, "No configuration");
+    });
+  }
+
+  function renderQueue() {
+    load("/api/queue", function (stats) {
+      var rows = (stats.queues || []).map(function (q) {
+        return "<tr><td><strong>" + esc(q.name) + "</strong></td>" +
+          '<td style="text-align:right">' + esc(q.pending) + "</td>" +
+          '<td style="text-align:right">' + esc(q.active) + "</td>" +
+          '<td style="text-align:right">' + esc(q.scheduled) + "</td>" +
+          '<td style="text-align:right">' + esc(q.retry) + "</td>" +
+          '<td style="text-align:right">' + esc(q.archived) + "</td>" +
+          '<td style="text-align:right">' + esc(q.completed) + "</td></tr>";
+      });
+      document.getElementById("queue-table").innerHTML =
+        '<p style="margin-bottom:12px">Driver: <span class="chip ok">' + esc(stats.driver || "unknown") + "</span></p>" +
+        (rows.length
+          ? table(["Queue", "Pending", "Active", "Scheduled", "Retry", "Archived", "Completed"], rows, "")
+          : '<div class="empty">' + (stats.driver === "sync" ? "Sync driver runs jobs inline — nothing is queued" : "No queues reported") + "</div>");
+    });
+  }
+
+  var renderers = {
+    requests: renderRequests,
+    mail: renderMail,
+    routes: renderRoutes,
+    config: renderConfig,
+    queue: renderQueue
+  };
+
+  document.getElementById("tabs").addEventListener("click", function (event) {
+    var button = event.target.closest("button[data-tab]");
+    if (!button) return;
+    active = button.getAttribute("data-tab");
+    document.querySelectorAll("#tabs button").forEach(function (item) {
+      item.className = item === button ? "active" : "";
+    });
+    document.querySelectorAll("section.panel").forEach(function (panel) {
+      panel.className = panel.id === "panel-" + active ? "panel active" : "panel";
+    });
+    renderers[active]();
+  });
+
+  renderers[active]();
+  setInterval(function () {
+    if (!document.hidden) renderers[active]();
+  }, 2000);
+})();
+</script>
+</body>
+</html>

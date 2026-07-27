@@ -48,6 +48,9 @@ func mountDocs(router *gin.Engine, registry *openapi.Registry, options Options) 
 			if options.PProf.Enabled {
 				excludePrefixes = append(excludePrefixes, options.PProf.Prefix)
 			}
+			if options.DevTools.Enabled {
+				excludePrefixes = append(excludePrefixes, options.DevTools.Path)
+			}
 			document := registry.Build(openapi.BuildOptions{
 				Info: openapi.Info{
 					Title:       options.Docs.Title,

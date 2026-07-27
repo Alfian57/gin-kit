@@ -9,6 +9,16 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Development dashboard (framework edition): the new `framework/devtools`
+  package serves `/_ginkit` in development — a request log (paths, statuses,
+  durations, mapped error codes; never bodies, query strings, or headers
+  beyond the user agent), a mail outbox via `DevTools().WrapMailer` with
+  sandboxed HTML previews, the registered route list, an allowlisted and
+  redacted config report, and queue statistics through the new
+  `queue.Stats`. Enabling `DEVTOOLS_ENABLED` outside development is a
+  startup error, enforced by both `config.Load` and `framework.New`;
+  `mail.Message` gains a content-safe `Envelope()` snapshot.
+
 - `gin-kit dev`: a hot-reload development server that builds `./cmd/server`
   to a binary, watches the project, and serves it through a local reverse
   proxy that holds requests while a rebuild is in flight; compile errors

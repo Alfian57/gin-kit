@@ -50,7 +50,26 @@ func MaxRetry(n int) Option { return func(o *jobOptions) { o.maxRetry = &n } }
 type driver interface {
 	enqueue(ctx context.Context, name string, payload []byte, options jobOptions) error
 	run(ctx context.Context, handlers map[string]HandlerFunc) error
+	stats(ctx context.Context) (Stats, error)
 	close() error
+}
+
+// QueueStats reports the task counts of one named queue.
+type QueueStats struct {
+	Name      string `json:"name"`
+	Pending   int    `json:"pending"`
+	Active    int    `json:"active"`
+	Scheduled int    `json:"scheduled"`
+	Retry     int    `json:"retry"`
+	Archived  int    `json:"archived"`
+	Completed int    `json:"completed"`
+}
+
+// Stats reports the driver backing the queue and per-queue task counts. The
+// sync driver executes jobs inline, so it reports no queues.
+type Stats struct {
+	Driver string       `json:"driver"`
+	Queues []QueueStats `json:"queues,omitempty"`
 }
 
 // Queue dispatches and processes background jobs.
@@ -141,6 +160,10 @@ func (q *Queue) Start(ctx context.Context) error {
 	}
 	return q.driver.run(ctx, handlers)
 }
+
+// Stats reports the queue backend and its per-queue task counts. The redis
+// driver inspects the broker; the sync driver reports only its name.
+func (q *Queue) Stats(ctx context.Context) (Stats, error) { return q.driver.stats(ctx) }
 
 // Close releases driver resources. It is safe to call more than once.
 func (q *Queue) Close() error { return q.driver.close() }

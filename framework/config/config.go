@@ -46,6 +46,8 @@ type Config struct {
 	DocsServers        []string      // DOCS_SERVERS, comma separated
 	DocsBasicAuthUser  string        // DOCS_BASIC_AUTH_USERNAME
 	DocsBasicAuthPass  string        // DOCS_BASIC_AUTH_PASSWORD
+	DevToolsEnabled    bool          // DEVTOOLS_ENABLED, defaults to true only in development; refused elsewhere
+	DevToolsPath       string        // DEVTOOLS_PATH, defaults to /_ginkit
 	MailDriver         string        // MAIL_DRIVER, "log" (default) or "smtp"
 	MailHost           string        // MAIL_HOST
 	MailPort           int           // MAIL_PORT, defaults per encryption
@@ -101,6 +103,7 @@ func Load() (Config, error) {
 		DocsServers:        splitCSV(os.Getenv("DOCS_SERVERS")),
 		DocsBasicAuthUser:  os.Getenv("DOCS_BASIC_AUTH_USERNAME"),
 		DocsBasicAuthPass:  os.Getenv("DOCS_BASIC_AUTH_PASSWORD"),
+		DevToolsPath:       stringValue("DEVTOOLS_PATH", "/_ginkit"),
 		StorageDriver:      stringValue("STORAGE_DRIVER", "local"),
 		StorageLocalRoot:   stringValue("STORAGE_LOCAL_ROOT", "./storage"),
 		StorageLocalURL:    os.Getenv("STORAGE_LOCAL_BASE_URL"),
@@ -136,6 +139,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.DocsEnabled, err = boolValue("DOCS_ENABLED", cfg.Environment == "development"); err != nil {
+		return Config{}, err
+	}
+	if cfg.DevToolsEnabled, err = boolValue("DEVTOOLS_ENABLED", cfg.Environment == "development"); err != nil {
 		return Config{}, err
 	}
 	if cfg.MailPort, err = intValue("MAIL_PORT", 0); err != nil {
@@ -240,6 +246,12 @@ func (c Config) validate() error {
 	if c.DocsPath == c.DocsSpecPath {
 		return errors.New("DOCS_PATH and DOCS_SPEC_PATH must differ")
 	}
+	if c.DevToolsEnabled && c.Environment != "development" {
+		return errors.New("DEVTOOLS_ENABLED must not be set outside development; the dashboard exposes requests, mail, and configuration")
+	}
+	if !strings.HasPrefix(c.DevToolsPath, "/") {
+		return errors.New("DEVTOOLS_PATH must start with /")
+	}
 	if c.RedisURL != "" {
 		parsed, err := url.Parse(c.RedisURL)
 		if err != nil {
@@ -302,6 +314,10 @@ func (c Config) Options() framework.Options {
 			Servers:           c.DocsServers,
 			BasicAuthUsername: c.DocsBasicAuthUser,
 			BasicAuthPassword: c.DocsBasicAuthPass,
+		},
+		DevTools: framework.DevToolsOptions{
+			Enabled: c.DevToolsEnabled,
+			Path:    c.DevToolsPath,
 		},
 		Cache: framework.CacheOptions{Driver: c.CacheDriver, RedisURL: c.RedisURL},
 		Queue: framework.QueueOptions{

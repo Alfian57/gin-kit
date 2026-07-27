@@ -48,6 +48,43 @@ func TestAsynqIntegration(t *testing.T) {
 	}
 }
 
+// TestAsynqStats verifies that Stats inspects the broker for per-queue task
+// counts. It needs a real Redis server for the same reason as the
+// integration test above.
+func TestAsynqStats(t *testing.T) {
+	redisURL := os.Getenv("REDIS_TEST_URL")
+	if redisURL == "" {
+		t.Skip("set REDIS_TEST_URL (e.g. redis://127.0.0.1:6379/9) to run redis integration tests")
+	}
+	q, err := New(Options{Driver: "redis", RedisURL: redisURL})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer q.Close()
+
+	Register(q, "stats.ping", func(context.Context, emailPayload) error { return nil })
+	if err := Dispatch(context.Background(), q, "stats.ping", emailPayload{To: "stats@example.com"}); err != nil {
+		t.Fatal(err)
+	}
+
+	stats, err := q.Stats(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Driver != "redis" {
+		t.Fatalf("driver = %q", stats.Driver)
+	}
+	var seen bool
+	for _, item := range stats.Queues {
+		if item.Name == "default" && item.Pending >= 1 {
+			seen = true
+		}
+	}
+	if !seen {
+		t.Fatalf("default queue with a pending task not reported: %+v", stats.Queues)
+	}
+}
+
 func TestAsynqEnqueueRejectsUnknownQueue(t *testing.T) {
 	q, err := New(Options{Driver: "redis", RedisURL: "redis://127.0.0.1:1/0"})
 	if err != nil {
