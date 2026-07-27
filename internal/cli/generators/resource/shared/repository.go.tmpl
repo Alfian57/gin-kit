@@ -4,7 +4,8 @@ import (
 	"context"
 {{if ne .ORM "gorm"}}	"database/sql"
 {{end}}	"errors"
-
+{{if .SoftDelete}}	"time"
+{{end}}
 	"{{.Module}}/internal/domain"
 	"{{.DatabaseImport}}"
 	"{{.QueryImport}}"
@@ -34,12 +35,32 @@ func (r *{{.Camel}}Repository) Create(ctx context.Context, entity *domain.{{.Nam
 {{end}}}
 
 func (r *{{.Camel}}Repository) List(ctx context.Context, q query.Result) ([]domain.{{.Name}}, int64, error) {
-{{if eq .ORM "gorm"}}	total, err := q.CountGORM(r.db.WithContext(ctx).Model(&domain.{{.Name}}{}))
+{{if eq .ORM "gorm"}}	total, err := q.CountGORM(r.db.WithContext(ctx).Model(&domain.{{.Name}}{}){{if .SoftDelete}}.Where("deleted_at IS NULL"){{end}})
 	if err != nil {
 		return nil, 0, err
 	}
 	var items []domain.{{.Name}}
-	if err := q.ApplyGORM(r.db.WithContext(ctx).Model(&domain.{{.Name}}{})).Find(&items).Error; err != nil {
+	if err := q.ApplyGORM(r.db.WithContext(ctx).Model(&domain.{{.Name}}{}){{if .SoftDelete}}.Where("deleted_at IS NULL"){{end}}).Find(&items).Error; err != nil {
+		return nil, 0, err
+	}
+	return items, total, nil
+{{else}}{{if .SoftDelete}}	where, whereArgs := q.WhereSQL()
+	conditions := "deleted_at IS NULL"
+	if where != "" {
+		conditions += " AND " + where
+	}
+	var total int64
+	if err := r.db.GetContext(ctx, &total, r.db.Rebind("SELECT COUNT(*) FROM {{.Table}} WHERE "+conditions), whereArgs...); err != nil {
+		return nil, 0, err
+	}
+	statement := "SELECT {{.ColumnList}} FROM {{.Table}} WHERE " + conditions
+	if order := q.OrderSQL(); order != "" {
+		statement += " " + order
+	}
+	statement += " LIMIT ? OFFSET ?"
+	args := append(whereArgs, q.PerPage, q.Offset())
+	var items []domain.{{.Name}}
+	if err := r.db.SelectContext(ctx, &items, r.db.Rebind(statement), args...); err != nil {
 		return nil, 0, err
 	}
 	return items, total, nil
@@ -54,15 +75,15 @@ func (r *{{.Camel}}Repository) List(ctx context.Context, q query.Result) ([]doma
 		return nil, 0, err
 	}
 	return items, total, nil
-{{end}}}
+{{end}}{{end}}}
 
 func (r *{{.Camel}}Repository) Get(ctx context.Context, id string) (domain.{{.Name}}, error) {
 	var entity domain.{{.Name}}
-{{if eq .ORM "gorm"}}	err := r.db.WithContext(ctx).First(&entity, "id = ?", id).Error
+{{if eq .ORM "gorm"}}	err := r.db.WithContext(ctx){{if .SoftDelete}}.Where("deleted_at IS NULL"){{end}}.First(&entity, "id = ?", id).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return entity, domain.Err{{.Name}}NotFound
 	}
-{{else}}	err := r.db.GetContext(ctx, &entity, r.db.Rebind("SELECT {{.ColumnList}} FROM {{.Table}} WHERE id = ?"), id)
+{{else}}	err := r.db.GetContext(ctx, &entity, r.db.Rebind("SELECT {{.ColumnList}} FROM {{.Table}} WHERE id = ?{{if .SoftDelete}} AND deleted_at IS NULL{{end}}"), id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return entity, domain.Err{{.Name}}NotFound
 	}
@@ -70,7 +91,7 @@ func (r *{{.Camel}}Repository) Get(ctx context.Context, id string) (domain.{{.Na
 }
 
 func (r *{{.Camel}}Repository) Update(ctx context.Context, entity *domain.{{.Name}}) error {
-{{if eq .ORM "gorm"}}	result := r.db.WithContext(ctx).Model(&domain.{{.Name}}{}).Where("id = ?", entity.ID).Select("*").Omit("id", "created_at").Updates(entity)
+{{if eq .ORM "gorm"}}	result := r.db.WithContext(ctx).Model(&domain.{{.Name}}{}).Where("id = ?", entity.ID){{if .SoftDelete}}.Where("deleted_at IS NULL"){{end}}.Select("*").Omit("id", "created_at").Updates(entity)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -78,7 +99,7 @@ func (r *{{.Camel}}Repository) Update(ctx context.Context, entity *domain.{{.Nam
 		return domain.Err{{.Name}}NotFound
 	}
 	return nil
-{{else}}	statement := r.db.Rebind("UPDATE {{.Table}} SET {{.UpdateSet}} WHERE id = ?")
+{{else}}	statement := r.db.Rebind("UPDATE {{.Table}} SET {{.UpdateSet}} WHERE id = ?{{if .SoftDelete}} AND deleted_at IS NULL{{end}}")
 	result, err := r.db.ExecContext(ctx, statement, {{.UpdateArgs}})
 	if err != nil {
 		return err
@@ -91,7 +112,7 @@ func (r *{{.Camel}}Repository) Update(ctx context.Context, entity *domain.{{.Nam
 {{end}}}
 
 func (r *{{.Camel}}Repository) Delete(ctx context.Context, id string) error {
-{{if eq .ORM "gorm"}}	result := r.db.WithContext(ctx).Delete(&domain.{{.Name}}{}, "id = ?", id)
+{{if eq .ORM "gorm"}}	result := r.db.WithContext(ctx){{if .SoftDelete}}.Model(&domain.{{.Name}}{}).Where("id = ? AND deleted_at IS NULL", id).Update("deleted_at", time.Now().UTC()){{else}}.Delete(&domain.{{.Name}}{}, "id = ?", id){{end}}
 	if result.Error != nil {
 		return result.Error
 	}
@@ -99,7 +120,7 @@ func (r *{{.Camel}}Repository) Delete(ctx context.Context, id string) error {
 		return domain.Err{{.Name}}NotFound
 	}
 	return nil
-{{else}}	result, err := r.db.ExecContext(ctx, r.db.Rebind("DELETE FROM {{.Table}} WHERE id = ?"), id)
+{{else}}	result, err := r.db.ExecContext(ctx, r.db.Rebind({{if .SoftDelete}}"UPDATE {{.Table}} SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL"), time.Now().UTC(), id{{else}}"DELETE FROM {{.Table}} WHERE id = ?"), id{{end}})
 	if err != nil {
 		return err
 	}

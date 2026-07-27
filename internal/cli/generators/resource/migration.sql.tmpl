@@ -3,8 +3,10 @@ CREATE TABLE IF NOT EXISTS {{.Table}} (
     id VARCHAR(36) PRIMARY KEY,
 {{range .Fields}}    {{.Name}} {{.SQLType}},
 {{end}}    created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
+    updated_at TIMESTAMP NOT NULL{{if .SoftDelete}},
+    deleted_at TIMESTAMP NULL DEFAULT NULL{{end}}
 );
-
+{{if .SoftDelete}}CREATE INDEX {{.Table}}_deleted_at_idx ON {{.Table}} (deleted_at);
+{{end}}
 -- +goose Down
 DROP TABLE IF EXISTS {{.Table}};

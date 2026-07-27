@@ -44,7 +44,35 @@ persisted, err := factories.Tickets.Create(ctx, repo.Create)
 `generate resource` emits a factory per model into
 `internal/database/factories/`; `gin-kit generate factory <Name> --fields ...`
 creates a standalone one with field-aware fake data (emails get `f.Email()`,
-prices get `f.Price(...)`, and so on).
+prices get `f.Price(...)`, string fields ending in `_id` get `f.UUID()`, and
+so on).
+
+## Relations
+
+There is no relation combinator on purpose: a `BelongsTo`-style helper would
+hide the parent value you almost always need right after creating it.
+Compose relations explicitly with overrides — create the parent first, then
+point the child's foreign key at it:
+
+```go
+user, _ := factories.NewUserFactory().Create(ctx, users.Create)
+ticket, _ := factories.NewTicketFactory().Create(ctx, tickets.Create,
+    func(t *domain.Ticket) { t.UserID = user.ID })
+```
+
+The same override works for in-memory values and batches:
+
+```go
+draft := factories.NewTicketFactory().Make(
+    func(t *domain.Ticket) { t.UserID = user.ID })
+
+batch, _ := factories.NewTicketFactory().CreateMany(ctx, 5, tickets.Create,
+    func(t *domain.Ticket) { t.UserID = user.ID })
+```
+
+Generated factories fake `*_id` string fields as UUIDs, so unset foreign
+keys at least carry the right shape — but always override them with a real
+parent ID before persisting against a foreign-key constraint.
 
 ## Seeders
 

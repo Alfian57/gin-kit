@@ -179,6 +179,115 @@ func TestRunGenerateResourceFrameworkGORM(t *testing.T) {
 	}
 }
 
+func TestRunGenerateResourceSoftDelete(t *testing.T) {
+	manifests := map[string]Manifest{
+		"sqlx": {
+			Version: 2, Edition: "starter", Project: "shop", Module: "example.com/shop",
+			Mode: "api", Database: "postgres", ORM: "sqlx",
+		},
+		"gorm": {
+			Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+			Project: "shop", Module: "example.com/shop",
+			Mode: "api", Database: "sqlite", ORM: "gorm",
+		},
+	}
+	for name, m := range manifests {
+		t.Run(name, func(t *testing.T) {
+			rootDir := generatedProject(t, m)
+			files, _, err := runGenerate(rootDir, m, generateRequest{
+				Kind: "resource", Name: "Archive", Fields: "title:string", SoftDelete: true,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			expected := 9
+			if m.Edition == "framework" {
+				expected = 10
+			}
+			if len(files) != expected {
+				t.Fatalf("expected %d files, got %d", expected, len(files))
+			}
+
+			domainFile := fileContent(t, files, "internal/domain/archive.go")
+			if !strings.Contains(domainFile, "DeletedAt *time.Time `json:\"-\" db:\"deleted_at\" gorm:\"index\"`") {
+				t.Errorf("domain missing soft-delete field:\n%s", domainFile)
+			}
+
+			repository := fileContent(t, files, "internal/repository/archive_repository.go")
+			if !strings.Contains(repository, "deleted_at IS NULL") {
+				t.Errorf("repository missing deleted_at filter:\n%s", repository)
+			}
+			if m.ORM == "sqlx" {
+				if strings.Contains(repository, "DELETE FROM") {
+					t.Errorf("sqlx soft delete still hard-deletes:\n%s", repository)
+				}
+				for _, want := range []string{
+					"UPDATE archives SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL",
+					`where, whereArgs := q.WhereSQL()`,
+					`conditions := "deleted_at IS NULL"`,
+					"LIMIT ? OFFSET ?",
+				} {
+					if !strings.Contains(repository, want) {
+						t.Errorf("sqlx soft-delete repository missing %q:\n%s", want, repository)
+					}
+				}
+				if strings.Contains(repository, "BuildSQL") || strings.Contains(repository, "BuildCountSQL") {
+					t.Errorf("sqlx soft-delete List must compose SQL manually:\n%s", repository)
+				}
+			} else {
+				if !strings.Contains(repository, `Update("deleted_at", time.Now().UTC())`) {
+					t.Errorf("gorm soft delete must update deleted_at:\n%s", repository)
+				}
+			}
+
+			migration := fileContent(t, files, ".sql")
+			for _, want := range []string{
+				"deleted_at TIMESTAMP NULL DEFAULT NULL",
+				"CREATE INDEX archives_deleted_at_idx ON archives (deleted_at);",
+			} {
+				if !strings.Contains(migration, want) {
+					t.Errorf("migration missing %q:\n%s", want, migration)
+				}
+			}
+
+			// Transport and factory shapes stay untouched: deleted_at is
+			// repository-internal state, never bound or faked.
+			for _, suffix := range []string{"internal/dto/archive_dto.go", "internal/database/factories/archive_factory.go"} {
+				content := fileContent(t, files, suffix)
+				if strings.Contains(content, "deleted_at") || strings.Contains(content, "DeletedAt") {
+					t.Errorf("%s mentions deleted_at:\n%s", suffix, content)
+				}
+			}
+
+			if m.Edition == "framework" {
+				repositoryTest := fileContent(t, files, "internal/repository/archive_repository_test.go")
+				for _, want := range []string{
+					"soft delete must keep the row",
+					"soft-deleted row still listed",
+					"deleted_at TIMESTAMP)", // SQLiteSchema carries the column
+				} {
+					if !strings.Contains(repositoryTest, want) {
+						t.Errorf("repository test missing %q:\n%s", want, repositoryTest)
+					}
+				}
+			}
+		})
+	}
+
+	// Regression: without the flag, no generated file mentions deleted_at.
+	m := manifests["gorm"]
+	rootDir := generatedProject(t, m)
+	files, _, err := runGenerate(rootDir, m, generateRequest{Kind: "resource", Name: "Archive", Fields: "title:string"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for path, content := range files {
+		if strings.Contains(string(content), "deleted_at") || strings.Contains(string(content), "DeletedAt") {
+			t.Errorf("%s mentions deleted_at without --soft-delete", path)
+		}
+	}
+}
+
 func TestRunGenerateResourceStarterUI(t *testing.T) {
 	m := Manifest{
 		Version: 2, Edition: "starter", Project: "portal", Module: "example.com/portal",
@@ -266,6 +375,18 @@ func TestRunGenerateFactoryKind(t *testing.T) {
 	}
 	if !strings.Contains(nextSteps, "NewProfileFactory().Create(ctx, repo.Create)") {
 		t.Errorf("factory next steps wrong:\n%s", nextSteps)
+	}
+
+	// Foreign-key-shaped string fields fake as UUIDs, not word strings.
+	files, _, err = runGenerate(rootDir, framework, generateRequest{
+		Kind: "factory", Name: "Membership", Fields: "user_id:string,email:string",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	content = fileContent(t, files, "internal/database/factories/membership_factory.go")
+	if !strings.Contains(content, "UserId: f.UUID()") || !strings.Contains(content, "Email: f.Email()") {
+		t.Errorf("foreign-key fake shape wrong:\n%s", content)
 	}
 }
 

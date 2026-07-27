@@ -58,4 +58,19 @@ func Test{{.Name}}RepositoryIntegration(t *testing.T) {
 	if err := repo.Delete(ctx, created.ID); !errors.Is(err, domain.Err{{.Name}}NotFound) {
 		t.Fatalf("double delete: %v", err)
 	}
-}
+{{if .SoftDelete}}
+	// Soft delete keeps the row physically present with deleted_at set.
+	var remaining int64
+	if err := connection.SQL.QueryRowContext(ctx, "SELECT COUNT(*) FROM {{.Table}} WHERE id = ?", created.ID).Scan(&remaining); err != nil {
+		t.Fatal(err)
+	}
+	if remaining != 1 {
+		t.Fatalf("soft delete must keep the row, got %d", remaining)
+	}
+	if _, total, err = repo.List(ctx, query.Result{Page: 1, PerPage: 10}); err != nil {
+		t.Fatal(err)
+	}
+	if total != 3 {
+		t.Fatalf("soft-deleted row still listed: total=%d", total)
+	}
+{{end}}}
