@@ -8,6 +8,7 @@ gin-kit run
 gin-kit dev [--port]
 gin-kit build
 gin-kit check
+gin-kit upgrade [--diff] [--apply] [--force]   # starter edition only
 gin-kit doctor
 gin-kit explain <topic>
 ```
@@ -109,6 +110,43 @@ field-aware fake data (gofakeit). `db
 fresh` resets the schema, migrates up, and seeds; `reset` and `fresh` are
 destructive and require `--yes`. Server, migrate, and seed binaries all load
 `.env` (the real environment always wins).
+
+## Upgrading starter projects
+
+Starter projects vendor their runtime under `internal/platform/`, so bugfixes
+in newer gin-kit releases do not reach them through `go get`. `gin-kit
+upgrade` closes that gap: it re-renders the **current CLI's** platform
+templates for the project's manifest (mode, ORM, and feature gates all
+apply), compares them with the files on disk, and reports one status per
+file:
+
+| Status | Meaning | On `--apply` |
+| --- | --- | --- |
+| `up-to-date` | disk matches the render | untouched |
+| `outdated` | disk matches the recorded baseline, not the render — a stale vendored copy | updated |
+| `modified` | disk matches neither render nor baseline — local edits | skipped unless `--force` |
+| `differs` | disk differs and no baseline entry exists — unverifiable | skipped unless `--force` |
+| `missing` | the rendered file is absent on disk | created |
+| `unmanaged` | an on-disk `internal/platform` file the current templates do not render | never touched |
+
+Without flags the command only reports (exit code 0). `--diff` prints a
+unified diff for every file that differs, `--apply` writes the safe updates
+transactionally (staged first, then published), and `--apply --force` also
+overwrites `modified` and `differs` files. Go files are compared after
+`gofmt` normalization, so formatting drift between Go versions never counts
+as a change.
+
+The baseline lives in `.gin-kit.sum` — sorted `sha256  path` lines recording
+the checksum each platform file had when the CLI last wrote it. New starter
+scaffolds create it automatically; projects created before it existed start
+with every changed file reported as `differs`, and the first
+`upgrade --apply` bootstraps baseline entries for all files that match the
+render. Commit the file: it is what lets a future upgrade distinguish your
+edits from stale vendored code.
+
+Framework-edition projects do not vendor the runtime, so `gin-kit upgrade`
+refuses to run there (`upgrade_edition_unsupported`); upgrade the versioned
+module instead: `go get github.com/Alfian57/gin-kit@vX.Y.Z && go mod tidy`.
 
 ## Routes
 

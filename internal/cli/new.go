@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"embed"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -131,6 +133,47 @@ func scaffoldIntoWithOptions(target string, m Manifest, options scaffoldOptions)
 	if err := os.MkdirAll(target, 0o755); err != nil {
 		return err
 	}
+	files, err := renderScaffoldTree(m, options, nil)
+	if err != nil {
+		return err
+	}
+	rels := make([]string, 0, len(files))
+	for rel := range files {
+		rels = append(rels, rel)
+	}
+	sort.Strings(rels)
+	for _, rel := range rels {
+		out := filepath.Join(target, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(out, files[rel], 0o644); err != nil {
+			return err
+		}
+	}
+	if err := writeManifest(target, m); err != nil {
+		return err
+	}
+	if err := formatGeneratedGo(target); err != nil {
+		return err
+	}
+	if m.Edition == "starter" {
+		// Record the post-gofmt checksums of the vendored platform files so
+		// gin-kit upgrade can tell local edits from stale vendored copies.
+		if err := writeBaselineFromDisk(target); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// renderScaffoldTree renders every embedded template the manifest selects, in
+// memory. Keys are project-relative slash paths. filter, when non-nil, limits
+// the output.
+func renderScaffoldTree(m Manifest, options scaffoldOptions, filter func(rel string) bool) (map[string][]byte, error) {
+	if m.Module == "" {
+		m.Module = "example.com/" + m.Project
+	}
 	frameworkRequire := ""
 	frameworkReplace := ""
 	if m.Edition == "framework" {
@@ -142,12 +185,13 @@ func scaffoldIntoWithOptions(target string, m Manifest, options scaffoldOptions)
 		if options.FrameworkReplace != "" {
 			local, err := filepath.Abs(options.FrameworkReplace)
 			if err != nil {
-				return diagnostic("framework_replace_invalid", "resolve framework override", options.FrameworkReplace, err, "Pass a valid local gin-kit repository path.")
+				return nil, diagnostic("framework_replace_invalid", "resolve framework override", options.FrameworkReplace, err, "Pass a valid local gin-kit repository path.")
 			}
 			frameworkReplace = "\nreplace github.com/Alfian57/gin-kit => " + filepath.ToSlash(local)
 		}
 	}
 	data := templateData{Manifest: m, Package: filepath.Base(m.Module), FrameworkRequire: frameworkRequire, FrameworkReplace: frameworkReplace}
+	files := map[string][]byte{}
 	err := fs.WalkDir(templateFS, "templates", func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
@@ -162,7 +206,6 @@ func scaffoldIntoWithOptions(target string, m Manifest, options scaffoldOptions)
 		if strings.HasSuffix(rel, ".tmpl") {
 			rel = strings.TrimSuffix(rel, ".tmpl")
 		}
-		out := filepath.Join(target, rel)
 		if strings.Contains(rel, "internal/handler/api") && m.Mode != "api" {
 			return nil
 		}
@@ -193,35 +236,32 @@ func scaffoldIntoWithOptions(target string, m Manifest, options scaffoldOptions)
 		if strings.Contains(rel, "docker/") && !m.Docker {
 			return nil
 		}
-		if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
-			return err
+		if filter != nil && !filter(rel) {
+			return nil
 		}
 		raw, err := templateFS.ReadFile(path)
 		if err != nil {
 			return err
 		}
-		content := string(raw)
 		if strings.HasSuffix(path, ".tmpl") {
-			t, err := template.New(rel).Parse(content)
+			t, err := template.New(rel).Parse(string(raw))
 			if err != nil {
 				return err
 			}
-			f, err := os.Create(out)
-			if err != nil {
+			var rendered bytes.Buffer
+			if err := t.Execute(&rendered, data); err != nil {
 				return err
 			}
-			defer f.Close()
-			return t.Execute(f, data)
+			files[rel] = rendered.Bytes()
+			return nil
 		}
-		return os.WriteFile(out, raw, 0o644)
+		files[rel] = raw
+		return nil
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if err := writeManifest(target, m); err != nil {
-		return err
-	}
-	return formatGeneratedGo(target)
+	return files, nil
 }
 
 func formatGeneratedGo(root string) error {

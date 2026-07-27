@@ -18,6 +18,7 @@ gin-kit build             # build a production binary
 gin-kit check             # read-only: report gofmt drift, run tests and vet
 gin-kit doctor            # diagnose toolchain, manifest, and database issues
 gin-kit routes            # boot the app and print the sorted routing table
+gin-kit upgrade           # starter: update vendored internal/platform code
 gin-kit explain <topic>   # architecture | request-flow | database | auth | commands
 ```
 
@@ -97,6 +98,23 @@ Generators preflight output paths, refuse accidental overwrites, gofmt in a
 staging directory, and publish transactionally — a failed render leaves the
 project untouched. Use `--dry-run` to inspect intended files. Errors name the
 failed phase, a stable code, the affected path, and a recovery hint.
+
+## Upgrading starter projects
+
+Starter projects vendor their runtime under `internal/platform/`, so
+`gin-kit upgrade` is how they receive platform fixes from newer CLI
+releases. It re-renders the current CLI's platform templates for the
+project's manifest, then reports each file as `up-to-date`, `outdated`
+(stale vendored copy, safe to update), `modified` (local edits, kept),
+`differs` (no baseline to verify against), `missing`, or `unmanaged`
+(on-disk files the templates no longer render — never touched).
+
+`--diff` shows unified diffs, `--apply` writes the safe updates, and
+`--apply --force` also overwrites modified files. The `.gin-kit.sum`
+checksum baseline distinguishes your edits from stale vendored code — see
+[Upgrade notes](/gin-kit/upgrading/) for details. Framework-edition projects
+upgrade the versioned module instead:
+`go get github.com/Alfian57/gin-kit@vX.Y.Z`.
 
 ## Database commands
 

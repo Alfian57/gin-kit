@@ -42,7 +42,7 @@ func Execute() {
 
 func init() {
 	root.Version = effectiveVersion()
-	root.AddCommand(newCommand(), generateCommand(), runCommand(), devCommand(), buildCommand(), dbCommand(), routesCommand(), explainCommand(), doctorCommand(), checkCommand())
+	root.AddCommand(newCommand(), generateCommand(), runCommand(), devCommand(), buildCommand(), dbCommand(), routesCommand(), upgradeCommand(), explainCommand(), doctorCommand(), checkCommand())
 }
 
 func projectRoot() (string, Manifest, error) {

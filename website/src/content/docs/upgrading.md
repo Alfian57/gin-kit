@@ -8,6 +8,41 @@ here and in the [changelog](https://github.com/Alfian57/gin-kit/blob/main/CHANGE
 Already-generated projects always keep working — breaking changes apply when
 you upgrade the framework module or regenerate code with a newer CLI.
 
+## How projects upgrade
+
+**Framework edition** projects import the versioned runtime, so upgrading is
+a module bump:
+
+```bash
+go get github.com/Alfian57/gin-kit@vX.Y.Z && go mod tidy
+```
+
+**Starter edition** projects vendor the runtime under `internal/platform/`
+and upgrade with the CLI:
+
+```bash
+gin-kit upgrade           # report: what is outdated, modified, or missing
+gin-kit upgrade --diff    # inspect the changes as unified diffs
+gin-kit upgrade --apply   # write the safe updates (stale copies + missing files)
+gin-kit upgrade --apply --force   # also overwrite locally modified files
+```
+
+The command re-renders the current CLI's platform templates for your
+manifest and compares them with disk. A checksum baseline in `.gin-kit.sum`
+(written at scaffold time, refreshed on every `--apply`) records what the
+CLI last wrote, so the command can tell a stale vendored copy — updated
+automatically — from your local edits, which are never overwritten without
+`--force`. Files under `internal/platform/` that the current templates do
+not render (for example a retired package) are reported as `unmanaged` and
+never touched. Commit `.gin-kit.sum` together with the updated files.
+
+Projects scaffolded **before** `.gin-kit.sum` existed have no baseline:
+files that differ from the render are reported as `differs` because the
+command cannot verify whether they were edited. Inspect them with `--diff`;
+running `upgrade --apply` (with `--force` if you want the rendered versions)
+bootstraps baseline entries for every file that matches the render, and the
+next upgrade classifies precisely.
+
 ## Unreleased
 
 ### Services take DTOs instead of input structs

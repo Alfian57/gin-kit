@@ -18,6 +18,17 @@ and versions follow [Semantic Versioning](https://semver.org/).
   `queue.Stats`. Enabling `DEVTOOLS_ENABLED` outside development is a
   startup error, enforced by both `config.Load` and `framework.New`;
   `mail.Message` gains a content-safe `Envelope()` snapshot.
+- `gin-kit upgrade`: starter projects can now receive fixes for their
+  vendored `internal/platform/` code. The command re-renders the current
+  CLI's platform templates for the project manifest, reports every file as
+  up-to-date, outdated, modified, differs, missing, or unmanaged, and
+  `--apply` writes the safe updates transactionally (`--diff` prints unified
+  diffs, `--force` also overwrites locally modified files; Go files are
+  compared gofmt-normalized). New starter scaffolds record a `.gin-kit.sum`
+  checksum baseline so local edits are never confused with stale vendored
+  copies; older projects without the file bootstrap it on the first
+  `upgrade --apply`. Framework-edition projects keep upgrading via
+  `go get github.com/Alfian57/gin-kit@vX.Y.Z` and get a diagnostic saying so.
 
 - `gin-kit dev`: a hot-reload development server that builds `./cmd/server`
   to a binary, watches the project, and serves it through a local reverse

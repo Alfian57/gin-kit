@@ -50,7 +50,8 @@ gin-kit generate dto|domain|repository|handler|service|middleware|policy|factory
 {{if eq .Edition "framework"}}gin-kit generate job|event|mail <Name>
 {{end}}gin-kit db up|down|status|redo|create|seed
 gin-kit db reset --yes | fresh --yes   # destructive
-gin-kit doctor
+{{if eq .Edition "starter"}}gin-kit upgrade [--diff] [--apply] [--force]   # refresh vendored internal/platform
+{{end}}gin-kit doctor
 gin-kit explain architecture|request-flow|database|auth|commands
 ```
 
