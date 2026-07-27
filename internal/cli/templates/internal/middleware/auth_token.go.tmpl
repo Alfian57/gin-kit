@@ -1,0 +1,10 @@
+package middleware
+
+import (
+	"github.com/gin-gonic/gin"
+	platformauth "{{.Module}}/internal/platform/auth"
+)
+
+func RequireToken(store platformauth.TokenStore, abilities ...string) gin.HandlerFunc {
+	return platformauth.RequireToken(store, abilities...)
+}

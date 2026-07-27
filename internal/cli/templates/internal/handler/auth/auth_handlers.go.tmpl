@@ -27,7 +27,9 @@ func Register(r *gin.Engine, db *database.Connection, cfg config.Config) {
 		15*time.Minute,
 		30*24*time.Hour,
 	)
+	apiTokens := service.NewAPITokenService(repository.NewAPITokenRepository(db))
 	registerRoutes(r, accounts, cfg.JWTSecret)
+	registerTokenRoutes(r, apiTokens, cfg.JWTSecret)
 }
 
 func registerRoutes(r *gin.Engine, accounts *service.AuthService, secret []byte) {

@@ -1,0 +1,59 @@
+package auth
+
+import (
+	"errors"
+	"net/http"
+
+	jwtauth "github.com/Alfian57/gin-kit/framework/auth"
+	"github.com/Alfian57/gin-kit/framework/httpx"
+	"github.com/Alfian57/gin-kit/framework/openapi"
+	"github.com/gin-gonic/gin"
+	"{{.Module}}/internal/domain"
+	"{{.Module}}/internal/dto"
+	"{{.Module}}/internal/service"
+)
+
+func RegisterTokens(router *gin.Engine, docs *openapi.Registry, tokens *jwtauth.Manager, service *service.APITokenService) {
+	docs.Describe(
+		openapi.Operation{Method: http.MethodPost, Path: "/api/v1/auth/tokens", Summary: "Create an API token", Tags: []string{"auth"}, Request: dto.APITokenCreateRequest{}, Response: dto.CreatedAPITokenResponse{}, Status: http.StatusCreated, Security: true},
+		openapi.Operation{Method: http.MethodGet, Path: "/api/v1/auth/tokens", Summary: "List API tokens", Tags: []string{"auth"}, Response: []dto.APITokenResponse{}, Security: true},
+		openapi.Operation{Method: http.MethodDelete, Path: "/api/v1/auth/tokens/{id}", Summary: "Revoke an API token", Tags: []string{"auth"}, Status: http.StatusNoContent, Security: true, ErrorCodes: []string{"token_not_found"}},
+	)
+	group := router.Group("/api/v1/auth/tokens", jwtauth.RequireAuth(tokens))
+	group.POST("", func(c *gin.Context) {
+		request, ok := httpx.BindJSON[dto.APITokenCreateRequest](c)
+		if !ok {
+			return
+		}
+		token, plaintext, err := service.Create(c.Request.Context(), jwtauth.UserID(c), request)
+		if err != nil {
+			httpx.Handle(c, nil, err)
+			return
+		}
+		httpx.Created(c, dto.CreatedAPITokenResponse{APITokenResponse: dto.NewAPITokenResponse(token), Token: plaintext})
+	})
+	group.GET("", func(c *gin.Context) {
+		tokens, err := service.List(c.Request.Context(), jwtauth.UserID(c))
+		if err != nil {
+			httpx.Handle(c, nil, err)
+			return
+		}
+		response := make([]dto.APITokenResponse, 0, len(tokens))
+		for _, token := range tokens {
+			response = append(response, dto.NewAPITokenResponse(token))
+		}
+		httpx.OK(c, response)
+	})
+	group.DELETE("/:id", func(c *gin.Context) {
+		err := service.Revoke(c.Request.Context(), jwtauth.UserID(c), c.Param("id"))
+		if errors.Is(err, domain.ErrAPITokenNotFound) {
+			httpx.Fail(c, httpx.NewError(http.StatusNotFound, "token_not_found", "API token was not found."))
+			return
+		}
+		if err != nil {
+			httpx.Handle(c, nil, err)
+			return
+		}
+		httpx.NoContent(c)
+	})
+}

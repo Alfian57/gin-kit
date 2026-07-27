@@ -18,13 +18,14 @@ import (
 const APITokenPrefix = "gk_"
 
 type APIToken struct {
-	ID        string
-	UserID    string
-	Name      string
-	TokenHash string
-	Abilities []string
-	ExpiresAt *time.Time
-	RevokedAt *time.Time
+	ID         string
+	UserID     string
+	Name       string
+	TokenHash  string
+	Abilities  []string
+	ExpiresAt  *time.Time
+	LastUsedAt *time.Time
+	RevokedAt  *time.Time
 }
 
 type TokenStore interface {
@@ -51,10 +52,13 @@ func NewAPIToken(userID, name string, abilities []string, expiresIn *int64) (API
 		t := time.Now().Add(time.Duration(*expiresIn) * time.Second)
 		expiry = &t
 	}
-	return APIToken{UserID: userID, Name: name, TokenHash: HashAPIToken(plain), Abilities: abilities, ExpiresAt: expiry}, plain, nil
+	return APIToken{UserID: userID, Name: name, TokenHash: HashAPIToken(plain), Abilities: normalizeAbilities(abilities), ExpiresAt: expiry}, plain, nil
 }
 
 func RequireToken(store TokenStore, abilities ...string) gin.HandlerFunc {
+	if store == nil {
+		panic("auth: RequireToken requires a non-nil store")
+	}
 	return func(c *gin.Context) {
 		h := c.GetHeader("Authorization")
 		if !strings.HasPrefix(h, "Bearer ") {
@@ -68,7 +72,7 @@ func RequireToken(store TokenStore, abilities ...string) gin.HandlerFunc {
 			httpx.Fail(c, httpx.NewError(http.StatusUnauthorized, "invalid_token", "Token is invalid or expired."))
 			return
 		}
-		for _, want := range abilities {
+		for _, want := range normalizeAbilities(abilities) {
 			found := false
 			for _, have := range t.Abilities {
 				if have == "*" || have == want {
@@ -85,4 +89,36 @@ func RequireToken(store TokenStore, abilities ...string) gin.HandlerFunc {
 		c.Set("user_id", t.UserID)
 		c.Next()
 	}
+}
+
+func TokenFromContext(c *gin.Context) (*APIToken, bool) {
+	value, ok := c.Get("gin-kit.auth.api_token")
+	token, valid := value.(*APIToken)
+	return token, ok && valid && token != nil
+}
+
+func Can(c *gin.Context, ability string) bool {
+	token, ok := TokenFromContext(c)
+	if !ok {
+		return false
+	}
+	for _, have := range token.Abilities {
+		if have == "*" || have == ability {
+			return true
+		}
+	}
+	return false
+}
+
+func normalizeAbilities(abilities []string) []string {
+	result := make([]string, 0, len(abilities))
+	seen := map[string]bool{}
+	for _, ability := range abilities {
+		ability = strings.TrimSpace(ability)
+		if ability != "" && !seen[ability] {
+			seen[ability] = true
+			result = append(result, ability)
+		}
+	}
+	return result
 }

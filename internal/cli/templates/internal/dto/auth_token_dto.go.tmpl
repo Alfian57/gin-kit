@@ -1,0 +1,36 @@
+package dto
+
+import (
+	"strings"
+	"time"
+
+	"{{.Module}}/internal/domain"
+)
+
+type APITokenCreateRequest struct {
+	Name      string   `json:"name" validate:"required,max=100"`
+	Abilities []string `json:"abilities" validate:"required,min=1,dive,required"`
+	ExpiresIn *int64   `json:"expires_in,omitempty" validate:"omitempty,gt=0"`
+}
+
+type APITokenResponse struct {
+	ID         string     `json:"id"`
+	Name       string     `json:"name"`
+	Abilities  []string   `json:"abilities"`
+	ExpiresAt  *time.Time `json:"expires_at,omitempty"`
+	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
+}
+
+type CreatedAPITokenResponse struct {
+	APITokenResponse
+	Token string `json:"token"`
+}
+
+func NewAPITokenResponse(token domain.APIToken) APITokenResponse {
+	abilities := []string{}
+	if token.Abilities != "" {
+		abilities = strings.Split(token.Abilities, ",")
+	}
+	return APITokenResponse{ID: token.ID, Name: token.Name, Abilities: abilities, ExpiresAt: token.ExpiresAt, LastUsedAt: token.LastUsedAt, CreatedAt: token.CreatedAt}
+}
