@@ -23,6 +23,8 @@ releases:
 | `body_too_large` | 413 | The body exceeds `MAX_BODY_BYTES`. |
 | `rate_limited` | 429 | The endpoint's rate-limit class is exhausted. |
 | `missing_token` / `invalid_token` | 401 | Protected route without/with a bad bearer token. |
+| `insufficient_scope` | 403 | API token lacks one or more required abilities. |
+| `token_not_found` | 404 | API token does not exist or is not owned by the authenticated user. |
 | `invalid_credentials` / `invalid_refresh_token` / `email_taken` | 401 / 401 / 409 | Auth flows. |
 | `csrf_token_mismatch` | 403 | UI-mode form posts without a valid CSRF token. |
 | `forbidden` | 403 | An [authorization policy](/gin-kit/authorization/) denied the action. The internal deny reason goes to logs, never to the body. |

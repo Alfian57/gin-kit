@@ -18,7 +18,7 @@ type pingResponse struct {
 // Register installs application-owned API routes. Generic middleware and
 // lifecycle behavior are supplied by the gin-kit framework runtime; the docs
 // registry powers the auto-generated OpenAPI page.
-func Register(router *gin.Engine, docs *openapi.Registry{{if .Auth}}, tokens *jwtauth.Manager, accounts *service.AuthService{{end}}) {
+func Register(router *gin.Engine, docs *openapi.Registry{{if .Auth}}, tokens *jwtauth.Manager, accounts *service.AuthService, apiTokens *service.APITokenService{{end}}) {
 	router.GET("/api/v1/ping", func(c *gin.Context) {
 		httpx.OK(c, pingResponse{Message: "pong"})
 	})
@@ -28,6 +28,7 @@ func Register(router *gin.Engine, docs *openapi.Registry{{if .Auth}}, tokens *jw
 		Response: pingResponse{},
 	})
 {{if .Auth}}	authhandler.Register(router, docs, tokens, accounts)
+	authhandler.RegisterTokens(router, docs, tokens, apiTokens)
 {{end}}{{if .Example}}	registerTasks(router, docs)
 {{end}}
 }

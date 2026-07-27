@@ -1,0 +1,32 @@
+package domain
+
+import (
+	"context"
+	"errors"
+	"time"
+)
+
+var ErrAPITokenNotFound = errors.New("API token not found")
+
+type APIToken struct {
+	ID         string     `json:"id" db:"id" gorm:"primaryKey;size:36"`
+	UserID     string     `json:"user_id" db:"user_id" gorm:"size:36;not null;index"`
+	Name       string     `json:"name" db:"name" gorm:"size:100;not null"`
+	TokenHash  string     `json:"-" db:"token_hash" gorm:"size:64;not null;uniqueIndex"`
+	Abilities  string     `json:"-" db:"abilities" gorm:"type:text;not null"`
+	ExpiresAt  *time.Time `json:"expires_at,omitempty" db:"expires_at"`
+	LastUsedAt *time.Time `json:"last_used_at,omitempty" db:"last_used_at"`
+	RevokedAt  *time.Time `json:"-" db:"revoked_at"`
+	CreatedAt  time.Time  `json:"created_at" db:"created_at" gorm:"not null"`
+	UpdatedAt  time.Time  `json:"updated_at" db:"updated_at" gorm:"not null"`
+}
+
+func (APIToken) TableName() string { return "api_tokens" }
+
+type APITokenRepository interface {
+	Create(context.Context, *APIToken) error
+	ListForUser(context.Context, string) ([]APIToken, error)
+	FindByHash(context.Context, string) (APIToken, error)
+	TouchLastUsed(context.Context, string, time.Time) error
+	RevokeForUser(context.Context, string, string, time.Time) error
+}

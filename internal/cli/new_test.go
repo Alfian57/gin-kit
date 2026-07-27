@@ -282,10 +282,20 @@ func TestFrameworkScaffoldWiresAuth(t *testing.T) {
 		"internal/handler/auth/auth_handlers.go",
 		"internal/handler/auth/auth_handlers_test.go",
 		"migrations/00002_auth_init.sql",
+		"internal/domain/auth_token.go",
+		"internal/dto/auth_token_dto.go",
+		"internal/repository/auth_token_repository.go",
+		"internal/service/auth_token_service.go",
+		"internal/handler/auth/auth_token_handlers.go",
+		"migrations/00003_auth_tokens.sql",
 	} {
 		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
 			t.Fatalf("framework auth scaffold missing %s: %v", rel, err)
 		}
+	}
+	tokenMigration, err := os.ReadFile(filepath.Join(dir, "migrations", "00003_auth_tokens.sql"))
+	if err != nil || !strings.Contains(string(tokenMigration), "-- +goose Up") || !strings.Contains(string(tokenMigration), "-- +goose Down") {
+		t.Fatalf("framework API token migration is not a valid goose migration: %v", err)
 	}
 
 	plain := filepath.Join(t.TempDir(), "plain")
@@ -295,7 +305,7 @@ func TestFrameworkScaffoldWiresAuth(t *testing.T) {
 	if err := scaffold(plain, m); err != nil {
 		t.Fatal(err)
 	}
-	for _, rel := range []string{"internal/handler/auth/auth_handlers.go", "internal/dto/auth_dto.go", "migrations/00002_auth_init.sql"} {
+	for _, rel := range []string{"internal/handler/auth/auth_handlers.go", "internal/dto/auth_dto.go", "migrations/00002_auth_init.sql", "internal/domain/auth_token.go", "migrations/00003_auth_tokens.sql"} {
 		if _, err := os.Stat(filepath.Join(plain, rel)); err == nil {
 			t.Fatalf("auth scaffold %s generated without --auth", rel)
 		}
@@ -413,10 +423,22 @@ func TestStarterScaffoldWiresAuth(t *testing.T) {
 		"internal/service/auth_service.go",
 		"internal/handler/auth/auth_handlers.go",
 		"migrations/00003_auth_init.sql",
+		"internal/domain/auth_token.go",
+		"internal/dto/auth_token_dto.go",
+		"internal/repository/auth_token_repository.go",
+		"internal/service/auth_token_service.go",
+		"internal/handler/auth/auth_token_handlers.go",
+		"internal/middleware/auth_token.go",
+		"internal/platform/auth/token.go",
+		"migrations/00004_auth_tokens.sql",
 	} {
 		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
 			t.Fatalf("starter auth scaffold missing %s: %v", rel, err)
 		}
+	}
+	tokenMigration, err := os.ReadFile(filepath.Join(dir, "migrations", "00004_auth_tokens.sql"))
+	if err != nil || !strings.Contains(string(tokenMigration), "-- +goose Up") || !strings.Contains(string(tokenMigration), "-- +goose Down") {
+		t.Fatalf("starter API token migration is not a valid goose migration: %v", err)
 	}
 	healthSource, err := os.ReadFile(filepath.Join(dir, "internal", "handler", "api", "health.go"))
 	if err != nil {

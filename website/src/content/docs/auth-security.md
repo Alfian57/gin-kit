@@ -24,6 +24,25 @@ protected.GET("/me", func(c *gin.Context) {
 `401` envelope (`missing_token` / `invalid_token`) and stores the verified
 claims; read them with `auth.ClaimsFromContext(c)` or `auth.UserID(c)`.
 
+## Personal API tokens
+
+`auth.NewAPIToken` creates a random `gk_`-prefixed secret. Return the
+plaintext once and persist only `APIToken.TokenHash`; when `expiresIn` is
+omitted the token does not expire. Protect routes separately from JWT auth:
+
+```go
+protected := router.Group(
+    "/api/v1/imports",
+    auth.RequireToken(tokens, "imports:write"),
+)
+```
+
+All requested abilities must be present, while a stored `*` ability matches
+every requirement. `auth.TokenFromContext` returns the verified token and
+`auth.Can` performs an individual ability check. Token stores should scope
+management operations to the authenticated owner, reject revoked tokens, and
+update `last_used_at`; never log or persist the plaintext secret.
+
 ## Password hashing
 
 `framework/password` provides the Argon2id primitives the auth service is

@@ -14,9 +14,10 @@ import (
 )
 
 // Register installs the initial application-owned UI routes.
-func Register(router *gin.Engine, docs *openapi.Registry{{if .Auth}}, tokens *jwtauth.Manager, accounts *service.AuthService{{end}}) {
+func Register(router *gin.Engine, docs *openapi.Registry{{if .Auth}}, tokens *jwtauth.Manager, accounts *service.AuthService, apiTokens *service.APITokenService{{end}}) {
 	_ = docs
 {{if .Auth}}	authhandler.Register(router, docs, tokens, accounts)
+	authhandler.RegisterTokens(router, docs, tokens, apiTokens)
 {{end}}{{if .Example}}	registerTasks(router)
 {{end}}	if _, err := os.Stat("web/templates/index.html"); err == nil {
 		router.LoadHTMLGlob("web/templates/*.html")

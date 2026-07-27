@@ -22,7 +22,7 @@ func TestOpenAPIDocsServeGeneratedSpec(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	Register(application.Router(), application.OpenAPI(), tokens, nil)
+	Register(application.Router(), application.OpenAPI(), tokens, nil, nil)
 {{else}}	Register(application.Router(), application.OpenAPI())
 {{end}}
 	spec := httptest.NewRecorder()

@@ -80,10 +80,11 @@ func New() (*framework.Application, error) {
 		tokens,
 		30*24*time.Hour,
 	)
+	apiTokens := service.NewAPITokenService(repository.NewAPITokenRepository(application.Database()))
 {{end}}	jobs.Register(application.Queue(), application.Logger())
 	var router *gin.Engine = application.Router()
-{{if eq .Mode "ui"}}	web.Register(router, application.OpenAPI(){{if .Auth}}, tokens, accounts{{end}})
-{{else}}	api.Register(router, application.OpenAPI(){{if .Auth}}, tokens, accounts{{end}})
+{{if eq .Mode "ui"}}	web.Register(router, application.OpenAPI(){{if .Auth}}, tokens, accounts, apiTokens{{end}})
+{{else}}	api.Register(router, application.OpenAPI(){{if .Auth}}, tokens, accounts, apiTokens{{end}})
 {{end}}
 	return application, nil
 }

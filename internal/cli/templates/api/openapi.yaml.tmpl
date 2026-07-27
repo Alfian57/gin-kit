@@ -22,7 +22,42 @@ paths:
                 properties:
                   data:
                     type: object
+{{if .Auth}}  /api/v1/auth/tokens:
+    get:
+      summary: List personal API tokens
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Tokens owned by the authenticated user
+    post:
+      summary: Create a personal API token
+      security:
+        - bearerAuth: []
+      responses:
+        "201":
+          description: Token created; plaintext is returned once
+  /api/v1/auth/tokens/{id}:
+    delete:
+      summary: Revoke a personal API token
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Token revoked
+{{end}}
 components:
+{{if .Auth}}  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+{{end}}
   schemas:
     ErrorEnvelope:
       type: object
