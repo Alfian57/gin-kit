@@ -360,6 +360,7 @@ func templateOutputPath(rel string, m Manifest) (string, bool) {
 			rel == "internal/database/seeders/seeders.go.tmpl",
 			rel == "package.json.tmpl",
 			rel == "migrations/00001_init.sql",
+			rel == "migrations/00003_auth_tokens.sql",
 			rel == "docker/docker-compose.yml.tmpl",
 			strings.HasPrefix(rel, "web/assets/"),
 			strings.HasPrefix(rel, "web/src/"),

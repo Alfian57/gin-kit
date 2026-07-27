@@ -1,0 +1,88 @@
+package auth
+
+import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"{{.Module}}/internal/platform/httpx"
+)
+
+const APITokenPrefix = "gk_"
+
+type APIToken struct {
+	ID        string
+	UserID    string
+	Name      string
+	TokenHash string
+	Abilities []string
+	ExpiresAt *time.Time
+	RevokedAt *time.Time
+}
+
+type TokenStore interface {
+	FindByTokenHash(context.Context, string) (*APIToken, error)
+	TouchLastUsed(context.Context, string, time.Time) error
+}
+
+func HashAPIToken(token string) string {
+	s := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(s[:])
+}
+
+func NewAPIToken(userID, name string, abilities []string, expiresIn *int64) (APIToken, string, error) {
+	if userID == "" || (expiresIn != nil && *expiresIn <= 0) {
+		return APIToken{}, "", fmt.Errorf("invalid token parameters")
+	}
+	raw := make([]byte, 32)
+	if _, err := rand.Read(raw); err != nil {
+		return APIToken{}, "", err
+	}
+	plain := APITokenPrefix + base64.RawURLEncoding.EncodeToString(raw)
+	var expiry *time.Time
+	if expiresIn != nil {
+		t := time.Now().Add(time.Duration(*expiresIn) * time.Second)
+		expiry = &t
+	}
+	return APIToken{UserID: userID, Name: name, TokenHash: HashAPIToken(plain), Abilities: abilities, ExpiresAt: expiry}, plain, nil
+}
+
+func RequireToken(store TokenStore, abilities ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		h := c.GetHeader("Authorization")
+		if !strings.HasPrefix(h, "Bearer ") {
+			httpx.Fail(c, httpx.NewError(http.StatusUnauthorized, "missing_token", "Bearer token required."))
+			return
+		}
+		plain := strings.TrimSpace(strings.TrimPrefix(h, "Bearer "))
+		t, err := store.FindByTokenHash(c, HashAPIToken(plain))
+		now := time.Now()
+		if err != nil || t == nil || !strings.HasPrefix(plain, APITokenPrefix) || t.RevokedAt != nil || (t.ExpiresAt != nil && !t.ExpiresAt.After(now)) {
+			httpx.Fail(c, httpx.NewError(http.StatusUnauthorized, "invalid_token", "Token is invalid or expired."))
+			return
+		}
+		for _, want := range abilities {
+			found := false
+			for _, have := range t.Abilities {
+				if have == "*" || have == want {
+					found = true
+				}
+			}
+			if !found {
+				httpx.Fail(c, httpx.NewError(http.StatusForbidden, "insufficient_scope", "Token does not have the required ability."))
+				return
+			}
+		}
+		_ = store.TouchLastUsed(c, t.ID, now)
+		c.Set("gin-kit.auth.api_token", t)
+		c.Set("user_id", t.UserID)
+		c.Next()
+	}
+}

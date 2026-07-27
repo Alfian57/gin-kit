@@ -22,6 +22,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
   TypeScript API client from a local or remote OpenAPI document. Framework
   projects can emit their runtime document with `cmd/server --openapi`;
   starter projects use `api/openapi.yaml`.
+- Personal API tokens in `framework/auth` (and the starter runtime) use
+  `gk_`-prefixed random secrets, persist only SHA-256 hashes, support optional
+  expiry and AND-matched abilities (including `*`), and provide a separate
+  `RequireToken` middleware with stable token error codes.
 
 - Development dashboard (framework edition): the new `framework/devtools`
   package serves `/_ginkit` in development — a request log (paths, statuses,
