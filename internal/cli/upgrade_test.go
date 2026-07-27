@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"errors"
 	"os"
 	"path/filepath"
@@ -94,12 +95,44 @@ func TestUpgradePlanClassifiesModifiedAndOutdated(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	baseline[rel] = hashBytes(edited)
+	baseline[rel] = baselineHash(rel, edited)
 	if err := writeBaseline(dir, baseline); err != nil {
 		t.Fatal(err)
 	}
 	if got := planByPath(t, dir, m)[rel].Status; got != statusOutdated {
 		t.Fatalf("stale vendored file classified %s, want %s", got, statusOutdated)
+	}
+}
+
+func TestUpgradePlanNormalizesGoBeforeComparingBaseline(t *testing.T) {
+	dir, m := scaffoldStarterForUpgrade(t, "api")
+	const rel = "internal/platform/query/query.go"
+	path := filepath.Join(dir, filepath.FromSlash(rel))
+	content, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Add a semantic change and deliberately make the file non-gofmt. Its
+	// normalized checksum represents a prior generated version.
+	edited := bytes.Replace(content, []byte("package query\n"), []byte("package query\n\n// prior generated version\n"), 1)
+	edited = bytes.Replace(edited, []byte("import ("), []byte("import("), 1)
+	if bytes.Equal(edited, normalizeGo(rel, edited)) {
+		t.Fatal("test fixture unexpectedly remained gofmt-formatted")
+	}
+	if err := os.WriteFile(path, edited, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	baseline, err := readBaseline(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseline[rel] = baselineHash(rel, edited)
+	if err := writeBaseline(dir, baseline); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := planByPath(t, dir, m)[rel].Status; got != statusOutdated {
+		t.Fatalf("non-gofmt generated file classified %s, want %s", got, statusOutdated)
 	}
 }
 
@@ -137,7 +170,7 @@ func TestApplyUpgradeWritesSafeUpdatesAndRefreshesBaseline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	baseline[outdatedRel] = hashBytes(edited)
+	baseline[outdatedRel] = baselineHash(outdatedRel, edited)
 	if err := writeBaseline(dir, baseline); err != nil {
 		t.Fatal(err)
 	}
@@ -208,7 +241,7 @@ func TestApplyUpgradeWritesSafeUpdatesAndRefreshesBaseline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if baseline[outdatedRel] != hashBytes(restored) {
+	if baseline[outdatedRel] != baselineHash(outdatedRel, restored) {
 		t.Fatal("baseline was not refreshed for the applied file")
 	}
 	if _, ok := baseline[unmanagedRel]; ok {

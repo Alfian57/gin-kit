@@ -151,7 +151,7 @@ func upgradePlan(rootDir string, m Manifest) ([]upgradeEntry, error) {
 			entry.Status = statusUpToDate
 		case baseline[rel] == "":
 			entry.Status = statusDiffers
-		case baseline[rel] == hashBytes(disk):
+		case baseline[rel] == baselineHash(rel, disk):
 			entry.Status = statusOutdated
 		default:
 			entry.Status = statusModified
@@ -243,7 +243,7 @@ func applyUpgrade(rootDir string, entries []upgradeEntry, force bool) (applied, 
 			continue
 		}
 		if bytes.Equal(normalizeGo(entry.Path, disk), entry.Rendered) {
-			baseline[entry.Path] = hashBytes(disk)
+			baseline[entry.Path] = baselineHash(entry.Path, disk)
 		}
 	}
 	if err := writeBaseline(rootDir, baseline); err != nil {
@@ -269,6 +269,13 @@ func normalizeGo(rel string, content []byte) []byte {
 func hashBytes(data []byte) string {
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
+}
+
+// baselineHash hashes the same representation used by upgrade comparisons.
+// This keeps harmless Go formatting differences from looking like local edits
+// when a later CLI renders otherwise changed platform code.
+func baselineHash(rel string, content []byte) string {
+	return hashBytes(normalizeGo(rel, content))
 }
 
 // readBaseline loads .gin-kit.sum. A missing file is not an error: projects
@@ -340,7 +347,8 @@ func writeBaselineFromDisk(rootDir string) error {
 		if relErr != nil {
 			return relErr
 		}
-		sums[filepath.ToSlash(relFromRoot)] = hashBytes(raw)
+		rel := filepath.ToSlash(relFromRoot)
+		sums[rel] = baselineHash(rel, raw)
 		return nil
 	})
 	if err != nil {
