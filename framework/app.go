@@ -15,6 +15,7 @@ import (
 
 	"github.com/Alfian57/gin-kit/framework/cache"
 	frameworkdb "github.com/Alfian57/gin-kit/framework/database"
+	"github.com/Alfian57/gin-kit/framework/devtools"
 	"github.com/Alfian57/gin-kit/framework/httpx"
 	"github.com/Alfian57/gin-kit/framework/metrics"
 	"github.com/Alfian57/gin-kit/framework/openapi"
@@ -99,6 +100,14 @@ type PProfOptions struct {
 	Prefix string
 }
 
+type DevToolsOptions struct {
+	// Enabled serves the development dashboard. The framework refuses to
+	// start when devtools are enabled outside the development environment.
+	Enabled bool
+	// Path is the dashboard mount point, defaulting to /_ginkit.
+	Path string
+}
+
 type Options struct {
 	Environment string
 	Logger      *slog.Logger
@@ -112,6 +121,7 @@ type Options struct {
 	Cache       CacheOptions
 	Queue       QueueOptions
 	Docs        DocsOptions
+	DevTools    DevToolsOptions
 }
 
 type Application struct {
@@ -126,6 +136,7 @@ type Application struct {
 	cache           cache.Store
 	queue           *queue.Queue
 	docs            *openapi.Registry
+	devtools        *devtools.DevTools
 	shutdownTimeout time.Duration
 	hooksMu         sync.Mutex
 	shutdownHooks   []func(context.Context) error
@@ -158,6 +169,17 @@ func New(options Options) (*Application, error) {
 		}
 		if !strings.HasPrefix(options.Docs.Path, "/") || !strings.HasPrefix(options.Docs.SpecPath, "/") {
 			return nil, errors.New("framework: docs paths must start with /")
+		}
+	}
+	if options.DevTools.Enabled {
+		// Hard development-only guarantee, independent of config.Load: the
+		// dashboard exposes requests, mail, and configuration and must never
+		// ship to a shared environment.
+		if options.Environment != "development" {
+			return nil, errors.New("framework: devtools must not be enabled outside development")
+		}
+		if !strings.HasPrefix(options.DevTools.Path, "/") {
+			return nil, errors.New("framework: devtools path must start with /")
 		}
 	}
 
@@ -237,6 +259,14 @@ func New(options Options) (*Application, error) {
 	}
 
 	router.Use(requestID(), contextLogger(options.Logger), validatorContext(options.Validator))
+	if options.DevTools.Enabled {
+		app.devtools = devtools.New(devtools.Options{
+			Path:   options.DevTools.Path,
+			Logger: options.Logger,
+			Mapper: options.ErrorMapper,
+		})
+		router.Use(app.devtools.Middleware())
+	}
 	if httpMetrics != nil {
 		router.Use(httpMetrics.Middleware())
 	}
@@ -259,6 +289,9 @@ func New(options Options) (*Application, error) {
 	}
 	if options.Docs.Enabled {
 		mountDocs(router, app.docs, options)
+	}
+	if app.devtools != nil {
+		app.devtools.Mount(router, router.Routes, app.queue.Stats)
 	}
 	app.registerHealthRoutes()
 	router.NoRoute(func(c *gin.Context) {
@@ -384,6 +417,9 @@ func applyDefaults(options *Options) {
 	if options.Docs.Path == "" {
 		options.Docs.Path = "/docs"
 	}
+	if options.DevTools.Path == "" {
+		options.DevTools.Path = "/_ginkit"
+	}
 	if options.Docs.SpecPath == "" {
 		options.Docs.SpecPath = "/openapi.json"
 	}
@@ -425,6 +461,11 @@ func (a *Application) Queue() *queue.Queue { return a.queue }
 // code can describe operations unconditionally; the docs endpoints serve
 // only when DocsOptions.Enabled is set.
 func (a *Application) OpenAPI() *openapi.Registry { return a.docs }
+
+// DevTools returns the development dashboard, or nil when disabled. Guard
+// uses accordingly, e.g. wrap the mailer into the devtools outbox only when
+// the dashboard is on.
+func (a *Application) DevTools() *devtools.DevTools { return a.devtools }
 
 // Logger returns the application's base structured logger. Handlers should
 // prefer the request-scoped httpx.Logger(c).

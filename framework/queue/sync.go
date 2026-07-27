@@ -23,4 +23,6 @@ func (d *syncDriver) run(ctx context.Context, _ map[string]HandlerFunc) error {
 	return nil
 }
 
+func (d *syncDriver) stats(context.Context) (Stats, error) { return Stats{Driver: "sync"}, nil }
+
 func (d *syncDriver) close() error { return nil }

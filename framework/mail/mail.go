@@ -183,6 +183,53 @@ func (m *Message) Attach(filename, contentType string, r io.Reader) *Message {
 	return m
 }
 
+// AttachmentInfo describes an attachment without exposing its content.
+type AttachmentInfo struct {
+	Filename    string `json:"filename"`
+	ContentType string `json:"content_type"`
+	Size        int    `json:"size"`
+}
+
+// Envelope is a read-only snapshot of a message for inspection tooling such
+// as the devtools mail outbox. Attachment content is never exposed, only its
+// metadata.
+type Envelope struct {
+	From        string           `json:"from,omitempty"`
+	FromName    string           `json:"from_name,omitempty"`
+	To          []string         `json:"to,omitempty"`
+	Cc          []string         `json:"cc,omitempty"`
+	Bcc         []string         `json:"bcc,omitempty"`
+	ReplyTo     string           `json:"reply_to,omitempty"`
+	Subject     string           `json:"subject"`
+	Text        string           `json:"text,omitempty"`
+	HTML        string           `json:"html,omitempty"`
+	Attachments []AttachmentInfo `json:"attachments,omitempty"`
+}
+
+// Envelope snapshots the message. Slices are copied so later builder calls
+// do not mutate the snapshot.
+func (m *Message) Envelope() Envelope {
+	envelope := Envelope{
+		From:     m.fromAddress,
+		FromName: m.fromName,
+		To:       append([]string(nil), m.to...),
+		Cc:       append([]string(nil), m.cc...),
+		Bcc:      append([]string(nil), m.bcc...),
+		ReplyTo:  m.replyTo,
+		Subject:  m.subject,
+		Text:     m.text,
+		HTML:     m.html,
+	}
+	for _, item := range m.attachments {
+		envelope.Attachments = append(envelope.Attachments, AttachmentInfo{
+			Filename:    item.filename,
+			ContentType: item.contentType,
+			Size:        len(item.content),
+		})
+	}
+	return envelope
+}
+
 // Render executes the named template with data and returns the HTML.
 func Render(t *template.Template, name string, data any) (string, error) {
 	var body strings.Builder

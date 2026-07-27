@@ -98,6 +98,13 @@ by subsystem. Durations use Go syntax (`15s`, `2m`).
 | `DOCS_TITLE` / `DOCS_DESCRIPTION` / `DOCS_VERSION` / `DOCS_SERVERS` | — | Spec metadata. |
 | `DOCS_BASIC_AUTH_USERNAME` / `DOCS_BASIC_AUTH_PASSWORD` | — | Protect the docs routes. |
 
+### Devtools dashboard (framework edition)
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `DEVTOOLS_ENABLED` | on in development only | Enabling it outside development is a startup error. |
+| `DEVTOOLS_PATH` | `/_ginkit` | Dashboard mount point. |
+
 ### Observability
 
 | Variable | Default | Notes |

@@ -2,8 +2,11 @@ package queue
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
+	"sort"
+	"sync"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -18,6 +21,8 @@ type asynqDriver struct {
 	queues          map[string]int
 	shutdownTimeout time.Duration
 	logger          *slog.Logger
+	inspectorOnce   sync.Once
+	inspector       *asynq.Inspector
 }
 
 func newAsynqDriver(options Options) (*asynqDriver, error) {
@@ -71,7 +76,46 @@ func (d *asynqDriver) run(ctx context.Context, handlers map[string]HandlerFunc) 
 	return nil
 }
 
-func (d *asynqDriver) close() error { return d.client.Close() }
+// stats inspects the broker. The inspector opens its own Redis connection,
+// so it is created lazily on the first call and closed with the driver.
+func (d *asynqDriver) stats(ctx context.Context) (Stats, error) {
+	d.inspectorOnce.Do(func() { d.inspector = asynq.NewInspector(d.redis) })
+	names, err := d.inspector.Queues()
+	if err != nil {
+		return Stats{}, fmt.Errorf("queue: list queues: %w", err)
+	}
+	sort.Strings(names)
+	result := Stats{Driver: "redis"}
+	for _, name := range names {
+		if err := ctx.Err(); err != nil {
+			return Stats{}, err
+		}
+		info, err := d.inspector.GetQueueInfo(name)
+		if err != nil {
+			return Stats{}, fmt.Errorf("queue: inspect queue %q: %w", name, err)
+		}
+		result.Queues = append(result.Queues, QueueStats{
+			Name:      name,
+			Pending:   info.Pending,
+			Active:    info.Active,
+			Scheduled: info.Scheduled,
+			Retry:     info.Retry,
+			Archived:  info.Archived,
+			Completed: info.Completed,
+		})
+	}
+	return result, nil
+}
+
+func (d *asynqDriver) close() error {
+	err := d.client.Close()
+	// Synchronize with a concurrent lazy creation before reading the field.
+	d.inspectorOnce.Do(func() {})
+	if d.inspector != nil {
+		err = errors.Join(err, d.inspector.Close())
+	}
+	return err
+}
 
 // slogAsynqAdapter keeps asynq's logs inside the application's structured
 // logging discipline.
