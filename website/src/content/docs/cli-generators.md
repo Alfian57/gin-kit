@@ -39,6 +39,7 @@ overlay until the next successful build; `run` remains the simple runner.
 
 ```text
 gin-kit generate resource <Name> --fields "..." [--table name] [--soft-delete]
+gin-kit generate client --lang ts [--from URL|file] [--out web/client/api.ts] [--dry-run]
 gin-kit generate domain <Name> [--fields ...]
 gin-kit generate dto <Name> [--fields ...]
 gin-kit generate repository <Name> [--fields ...]
@@ -150,3 +151,11 @@ binaries all load `.env` first; the real environment always wins. See
 `request-flow` (who binds, who decides, who persists), `database` (your
 selected database/ORM and migration workflow), `auth` (the token model), and
 `commands` (the daily loop).
+### TypeScript API client
+
+`generate client --lang ts` creates a deterministic, dependency-free client
+from OpenAPI JSON or YAML. It emits schema aliases, path/query/body arguments,
+the canonical API error shape, and an optional bearer-token provider.
+Framework projects obtain the document from `go run ./cmd/server --openapi`;
+starter projects read `api/openapi.yaml`. Pass `--from` for another file or
+URL and `--out` to choose the destination.
