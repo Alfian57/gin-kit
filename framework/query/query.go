@@ -111,6 +111,12 @@ type Options struct {
 	DefaultPerPage int
 	// MaxPerPage clamps per_page and defaults to 100.
 	MaxPerPage int
+	// CursorSort switches the endpoint to cursor (keyset) pagination on the
+	// named allowed sort. In cursor mode the page and sort parameters are
+	// rejected, the sort is forced to CursorSort (descending when DefaultSort
+	// starts with "-"), rows are tie-broken on the id column, and the cursor
+	// parameter carries the keyset position.
+	CursorSort string
 }
 
 // FilterValue is one accepted filter with its bound values.
@@ -144,6 +150,10 @@ type Result struct {
 	Sorts   []SortValue
 	Page    int
 	PerPage int
+	// CursorMode reports that the endpoint uses cursor (keyset) pagination.
+	CursorMode bool
+	// Cursor is the decoded keyset position, or nil on the first page.
+	Cursor *Cursor
 }
 
 // Offset returns the row offset for the current page.
@@ -174,7 +184,9 @@ var (
 // Parse validates the request's filter, sort, page, and per_page parameters
 // against options. Rejections return a 400 *httpx.Error with code
 // invalid_query listing the offending parameters; allowlist configuration
-// mistakes return a 500-class *httpx.Error.
+// mistakes return a 500-class *httpx.Error. When Options.CursorSort is set
+// the endpoint uses cursor (keyset) pagination instead: page and sort are
+// rejected and the cursor parameter is decoded into Result.Cursor.
 func Parse(c *gin.Context, options Options) (Result, error) {
 	if options.DefaultPerPage < 1 {
 		options.DefaultPerPage = 25
@@ -260,6 +272,30 @@ func Parse(c *gin.Context, options Options) (Result, error) {
 			invalid = append(invalid, "per_page")
 		} else {
 			result.PerPage = min(perPage, options.MaxPerPage)
+		}
+	}
+
+	if options.CursorSort != "" {
+		sort, allowed := sorts[options.CursorSort]
+		if !allowed {
+			return Result{}, configError(fmt.Sprintf("cursor sort %q is not an allowed sort", options.CursorSort))
+		}
+		result.CursorMode = true
+		desc := strings.HasPrefix(options.DefaultSort, "-")
+		result.Sorts = []SortValue{{Column: sort.column, Desc: desc}, {Column: "id", Desc: desc}}
+		if c.Query("sort") != "" {
+			invalid = append(invalid, "sort")
+		}
+		if c.Query("page") != "" {
+			invalid = append(invalid, "page")
+		}
+		if raw := c.Query("cursor"); raw != "" {
+			cursor, err := DecodeCursor(raw)
+			if err != nil {
+				invalid = append(invalid, "cursor")
+			} else {
+				result.Cursor = &cursor
+			}
 		}
 	}
 
