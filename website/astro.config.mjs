@@ -71,6 +71,7 @@ export default defineConfig({
             { label: 'Authorization', slug: 'authorization' },
             { label: 'Queues and scheduling', slug: 'background-work' },
             { label: 'Caching and events', slug: 'caching-events' },
+            { label: 'Realtime updates', slug: 'realtime' },
             { label: 'Mail and file storage', slug: 'mail-storage' },
             { label: 'API documentation', slug: 'api-docs' },
             { label: 'Observability', slug: 'observability' },

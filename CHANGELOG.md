@@ -13,6 +13,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
   `framework/flags` package parses comma-separated names from `FLAGS`, supports
   concurrency-safe runtime updates, and keeps wiring explicit without global
   state or persistence.
+- `framework/realtime`: explicit in-process WebSocket and server-sent-event
+  fan-out with named public/private channels, per-channel authorization,
+  bounded client buffers with slow-client eviction, a compact subscribe /
+  unsubscribe protocol, graceful application-runner shutdown, and a typed
+  `events` forwarding bridge.
 
 - Development dashboard (framework edition): the new `framework/devtools`
   package serves `/_ginkit` in development — a request log (paths, statuses,
