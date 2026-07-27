@@ -50,10 +50,6 @@ func TestScaffoldAPIPreservesSelections(t *testing.T) {
 			t.Fatalf("expected runtime foundation %s: %v", rel, err)
 		}
 	}
-	tokenMigration, err := os.ReadFile(filepath.Join(dir, "migrations", "00003_auth_tokens.sql"))
-	if err != nil || !strings.Contains(string(tokenMigration), "-- +goose Up") || !strings.Contains(string(tokenMigration), "-- +goose Down") {
-		t.Fatalf("framework API token migration is not a valid goose migration: %v", err)
-	}
 	if _, err := os.Stat(filepath.Join(dir, "internal/platform/response")); err == nil {
 		t.Fatal("legacy platform/response package should no longer be scaffolded")
 	}
@@ -296,6 +292,10 @@ func TestFrameworkScaffoldWiresAuth(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
 			t.Fatalf("framework auth scaffold missing %s: %v", rel, err)
 		}
+	}
+	tokenMigration, err := os.ReadFile(filepath.Join(dir, "migrations", "00003_auth_tokens.sql"))
+	if err != nil || !strings.Contains(string(tokenMigration), "-- +goose Up") || !strings.Contains(string(tokenMigration), "-- +goose Down") {
+		t.Fatalf("framework API token migration is not a valid goose migration: %v", err)
 	}
 
 	plain := filepath.Join(t.TempDir(), "plain")
