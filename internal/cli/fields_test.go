@@ -119,3 +119,15 @@ func TestParseFieldsRejections(t *testing.T) {
 		})
 	}
 }
+
+func TestParseFieldsDeletedAtDiagnostic(t *testing.T) {
+	_, err := parseFields("deleted_at:time", "sqlite")
+	if err == nil {
+		t.Fatal("deleted_at accepted")
+	}
+	for _, want := range []string{"deleted_at", "reserved", "--soft-delete"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("deleted_at diagnostic missing %q: %v", want, err)
+		}
+	}
+}

@@ -57,17 +57,17 @@ point the child's foreign key at it:
 ```go
 user, _ := factories.NewUserFactory().Create(ctx, users.Create)
 ticket, _ := factories.NewTicketFactory().Create(ctx, tickets.Create,
-    func(t *domain.Ticket) { t.UserID = user.ID })
+    func(t *domain.Ticket) { t.UserId = user.ID })
 ```
 
 The same override works for in-memory values and batches:
 
 ```go
 draft := factories.NewTicketFactory().Make(
-    func(t *domain.Ticket) { t.UserID = user.ID })
+    func(t *domain.Ticket) { t.UserId = user.ID })
 
 batch, _ := factories.NewTicketFactory().CreateMany(ctx, 5, tickets.Create,
-    func(t *domain.Ticket) { t.UserID = user.ID })
+    func(t *domain.Ticket) { t.UserId = user.ID })
 ```
 
 Generated factories fake `*_id` string fields as UUIDs, so unset foreign
