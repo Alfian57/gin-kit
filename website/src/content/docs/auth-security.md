@@ -24,6 +24,16 @@ protected.GET("/me", func(c *gin.Context) {
 `401` envelope (`missing_token` / `invalid_token`) and stores the verified
 claims; read them with `auth.ClaimsFromContext(c)` or `auth.UserID(c)`.
 
+## OAuth social sign-in
+
+Create a project with `--auth --oauth` to add explicit Google and GitHub
+browser sign-in. The generated routes use encrypted sessions, PKCE, state,
+and (for Google) OIDC nonce verification. A verified provider email may link
+to an existing local user; provider tokens are never persisted. The callback
+creates a local browser session, while existing JWT and API-token flows remain
+available. See [OAuth social sign-in](/gin-kit/oauth/) for setup, redirects,
+CSRF behavior, and custom providers.
+
 ## Personal API tokens
 
 `auth.NewAPIToken` creates a random `gk_`-prefixed secret. Return the

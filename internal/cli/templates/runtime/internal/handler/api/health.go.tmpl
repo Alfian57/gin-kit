@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 {{if .Auth}}	jwtauth "github.com/Alfian57/gin-kit/runtime/auth"
+{{if .OAuth}}	socialoauth "github.com/Alfian57/gin-kit/runtime/oauth"
+{{end}}
 {{end}}	"github.com/Alfian57/gin-kit/runtime/httpx"
 	"github.com/Alfian57/gin-kit/runtime/openapi"
 	"github.com/gin-gonic/gin"
@@ -18,7 +20,7 @@ type pingResponse struct {
 // Register installs application-owned API routes. Generic middleware and
 // lifecycle behavior are supplied by the gin-kit runtime; the docs
 // registry powers the auto-generated OpenAPI page.
-func Register(router *gin.Engine, docs *openapi.Registry{{if .Auth}}, tokens *jwtauth.Manager, accounts *service.AuthService, apiTokens *service.APITokenService{{end}}) {
+func Register(router *gin.Engine, docs *openapi.Registry{{if .Auth}}, tokens *jwtauth.Manager, accounts *service.AuthService, apiTokens *service.APITokenService{{end}}{{if .OAuth}}, oauthManager *socialoauth.Manager, successRedirect, failureRedirect string{{end}}) {
 	router.GET("/api/v1/ping", func(c *gin.Context) {
 		httpx.OK(c, pingResponse{Message: "pong"})
 	})
@@ -29,6 +31,8 @@ func Register(router *gin.Engine, docs *openapi.Registry{{if .Auth}}, tokens *jw
 	})
 {{if .Auth}}	authhandler.Register(router, docs, tokens, accounts)
 	authhandler.RegisterTokens(router, docs, tokens, apiTokens)
+{{if .OAuth}}	authhandler.RegisterOAuth(router, docs, accounts, oauthManager, successRedirect, failureRedirect)
+{{end}}
 {{end}}{{if .Example}}	registerTasks(router, docs)
 {{end}}
 }

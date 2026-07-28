@@ -21,12 +21,26 @@ type Config struct {
 	RateLimitEnabled   bool
 	RateLimits         RateLimitConfig
 	MaxBodyBytes       int64
+	OAuth              OAuthConfig
 }
 
 type RateLimitConfig struct {
 	GeneralPerMinute  int
 	AuthPerMinute     int
 	ExpensivePerMinute int
+}
+
+type OAuthProviderConfig struct {
+	ClientID     string
+	ClientSecret string
+	RedirectURL  string
+}
+
+type OAuthConfig struct {
+	Google          OAuthProviderConfig
+	GitHub          OAuthProviderConfig
+	SuccessRedirect string
+	FailureRedirect string
 }
 
 func Load() (Config, error) {
@@ -45,6 +59,12 @@ func Load() (Config, error) {
 			ExpensivePerMinute: intValue("RATE_LIMIT_EXPENSIVE_PER_MINUTE", 5),
 		},
 		MaxBodyBytes: int64(intValue("MAX_BODY_BYTES", 1<<20)),
+		OAuth: OAuthConfig{
+			Google: OAuthProviderConfig{ClientID: os.Getenv("OAUTH_GOOGLE_CLIENT_ID"), ClientSecret: os.Getenv("OAUTH_GOOGLE_CLIENT_SECRET"), RedirectURL: os.Getenv("OAUTH_GOOGLE_REDIRECT_URL")},
+			GitHub: OAuthProviderConfig{ClientID: os.Getenv("OAUTH_GITHUB_CLIENT_ID"), ClientSecret: os.Getenv("OAUTH_GITHUB_CLIENT_SECRET"), RedirectURL: os.Getenv("OAUTH_GITHUB_REDIRECT_URL")},
+			SuccessRedirect: value("OAUTH_SUCCESS_REDIRECT", "/"),
+			FailureRedirect: value("OAUTH_FAILURE_REDIRECT", "/"),
+		},
 	}
 	if cfg.Environment == "production" || cfg.Environment == "staging" {
 {{if .Auth}}
@@ -67,7 +87,25 @@ func Load() (Config, error) {
 	if cfg.MaxBodyBytes <= 0 || cfg.RateLimits.GeneralPerMinute <= 0 || cfg.RateLimits.AuthPerMinute <= 0 || cfg.RateLimits.ExpensivePerMinute <= 0 {
 		return Config{}, errors.New("body and rate-limit values must be positive")
 	}
+	if err := cfg.OAuth.Validate(); err != nil {
+		return Config{}, err
+	}
 	return cfg, nil
+}
+
+func (c OAuthConfig) Validate() error {
+	for _, provider := range []OAuthProviderConfig{c.Google, c.GitHub} {
+		populated := provider.ClientID != "" || provider.ClientSecret != "" || provider.RedirectURL != ""
+		if populated && (provider.ClientID == "" || provider.ClientSecret == "" || provider.RedirectURL == "") {
+			return errors.New("each OAuth provider requires client ID, client secret, and redirect URL")
+		}
+	}
+	for _, path := range []string{c.SuccessRedirect, c.FailureRedirect} {
+		if !safeRedirectPath(path) {
+			return errors.New("OAuth redirect paths must be relative paths")
+		}
+	}
+	return nil
 }
 
 func (c Config) IsDevelopment() bool { return c.Environment == "development" }
@@ -104,4 +142,8 @@ func split(value string) []string {
 		}
 	}
 	return out
+}
+
+func safeRedirectPath(path string) bool {
+	return strings.HasPrefix(path, "/") && !strings.HasPrefix(path, "//") && !strings.ContainsAny(path, "\r\n")
 }

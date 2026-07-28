@@ -1,0 +1,77 @@
+package auth
+
+import (
+	"errors"
+	"net/http"
+
+	jwtauth "github.com/Alfian57/gin-kit/runtime/auth"
+	"github.com/Alfian57/gin-kit/runtime/openapi"
+	"github.com/Alfian57/gin-kit/runtime/oauth"
+	"github.com/Alfian57/gin-kit/runtime/session"
+	"github.com/gin-gonic/gin"
+	"{{.Module}}/internal/service"
+)
+
+// RegisterOAuth installs browser OAuth redirects and callback handling.
+func RegisterOAuth(router *gin.Engine, docs *openapi.Registry, accounts *service.AuthService, manager *oauth.Manager, successRedirect, failureRedirect string) {
+	if manager == nil {
+		panic("auth: RegisterOAuth requires a manager")
+	}
+	docs.Describe(
+		openapi.Operation{Method: http.MethodGet, Path: "/auth/oauth/{provider}", Summary: "Start OAuth sign-in", Tags: []string{"auth"}, Status: http.StatusFound, ErrorCodes: []string{"oauth_provider_unavailable"}},
+		openapi.Operation{Method: http.MethodGet, Path: "/auth/oauth/{provider}/callback", Summary: "Complete OAuth sign-in", Tags: []string{"auth"}, Status: http.StatusFound, ErrorCodes: []string{"oauth_authorization_denied", "oauth_callback_failed", "oauth_identity_unverified", "oauth_provider_unavailable", "oauth_state_invalid"}},
+		openapi.Operation{Method: http.MethodGet, Path: "/api/v1/auth/csrf", Summary: "Issue a CSRF token for cookie-authenticated API requests", Tags: []string{"auth"}, Status: http.StatusNoContent},
+	)
+	router.GET("/auth/oauth/:provider", func(c *gin.Context) {
+		location, err := manager.Begin(c, c.Param("provider"))
+		if err != nil {
+			redirectOAuthFailure(c, failureRedirect, oauthErrorCode(err))
+			return
+		}
+		c.Redirect(http.StatusFound, location)
+	})
+	router.GET("/auth/oauth/:provider/callback", func(c *gin.Context) {
+		if oauth.Denied(c) {
+			redirectOAuthFailure(c, failureRedirect, "oauth_authorization_denied")
+			return
+		}
+		identity, err := manager.Complete(c, c.Param("provider"), c.Query("code"), c.Query("state"))
+		if err != nil {
+			redirectOAuthFailure(c, failureRedirect, oauthErrorCode(err))
+			return
+		}
+		user, err := accounts.LoginOAuth(c.Request.Context(), identity)
+		if err != nil {
+			redirectOAuthFailure(c, failureRedirect, "oauth_callback_failed")
+			return
+		}
+		if err := jwtauth.LoginSession(c, user.ID); err != nil {
+			redirectOAuthFailure(c, failureRedirect, "oauth_callback_failed")
+			return
+		}
+		session.PutFlash(c, "success", "Signed in successfully.")
+		c.Redirect(http.StatusFound, successRedirect)
+	})
+	router.GET("/api/v1/auth/csrf", func(c *gin.Context) {
+		c.Header("X-CSRF-Token", session.Token(c))
+		c.Status(http.StatusNoContent)
+	})
+}
+
+func redirectOAuthFailure(c *gin.Context, target, code string) {
+	_ = session.PutFlash(c, code, "OAuth sign-in could not be completed.")
+	c.Redirect(http.StatusFound, target)
+}
+
+func oauthErrorCode(err error) string {
+	switch {
+	case errors.Is(err, oauth.ErrProviderUnavailable):
+		return "oauth_provider_unavailable"
+	case errors.Is(err, oauth.ErrStateInvalid):
+		return "oauth_state_invalid"
+	case errors.Is(err, oauth.ErrEmailUnverified):
+		return "oauth_identity_unverified"
+	default:
+		return "oauth_callback_failed"
+	}
+}

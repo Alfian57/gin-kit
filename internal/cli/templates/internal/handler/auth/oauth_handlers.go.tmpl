@@ -1,0 +1,71 @@
+package auth
+
+import (
+	"errors"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"{{.Module}}/internal/platform/auth"
+	"{{.Module}}/internal/platform/oauth"
+	"{{.Module}}/internal/platform/session"
+	"{{.Module}}/internal/service"
+)
+
+// RegisterOAuth installs browser OAuth redirects and callback handling.
+func RegisterOAuth(router *gin.Engine, accounts *service.AuthService, manager *oauth.Manager, successRedirect, failureRedirect string) {
+	if manager == nil {
+		panic("auth: RegisterOAuth requires a manager")
+	}
+	router.GET("/auth/oauth/:provider", func(c *gin.Context) {
+		location, err := manager.Begin(c, c.Param("provider"))
+		if err != nil {
+			redirectOAuthFailure(c, failureRedirect, oauthErrorCode(err))
+			return
+		}
+		c.Redirect(http.StatusFound, location)
+	})
+	router.GET("/auth/oauth/:provider/callback", func(c *gin.Context) {
+		if oauth.Denied(c) {
+			redirectOAuthFailure(c, failureRedirect, "oauth_authorization_denied")
+			return
+		}
+		identity, err := manager.Complete(c, c.Param("provider"), c.Query("code"), c.Query("state"))
+		if err != nil {
+			redirectOAuthFailure(c, failureRedirect, oauthErrorCode(err))
+			return
+		}
+		user, err := accounts.LoginOAuth(c.Request.Context(), identity)
+		if err != nil {
+			redirectOAuthFailure(c, failureRedirect, "oauth_callback_failed")
+			return
+		}
+		if err := auth.LoginSession(c, user.ID); err != nil {
+			redirectOAuthFailure(c, failureRedirect, "oauth_callback_failed")
+			return
+		}
+		session.PutFlash(c, "success", "Signed in successfully.")
+		c.Redirect(http.StatusFound, successRedirect)
+	})
+	router.GET("/api/v1/auth/csrf", func(c *gin.Context) {
+		c.Header("X-CSRF-Token", session.Token(c))
+		c.Status(http.StatusNoContent)
+	})
+}
+
+func redirectOAuthFailure(c *gin.Context, target, code string) {
+	_ = session.PutFlash(c, code, "OAuth sign-in could not be completed.")
+	c.Redirect(http.StatusFound, target)
+}
+
+func oauthErrorCode(err error) string {
+	switch {
+	case errors.Is(err, oauth.ErrProviderUnavailable):
+		return "oauth_provider_unavailable"
+	case errors.Is(err, oauth.ErrStateInvalid):
+		return "oauth_state_invalid"
+	case errors.Is(err, oauth.ErrEmailUnverified):
+		return "oauth_identity_unverified"
+	default:
+		return "oauth_callback_failed"
+	}
+}

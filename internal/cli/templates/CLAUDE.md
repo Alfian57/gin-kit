@@ -10,6 +10,8 @@ The rules most often broken by agents:
 - Pass `context.Context` through service and repository boundaries.
 - Schema changes go in `migrations/` as versioned SQL — never AutoMigrate.
 - Keep the OpenAPI description in sync when routes change.
+- If OAuth is enabled, preserve verified-email linking, PKCE/state/nonce
+  validation, and the rule that provider tokens never enter logs, models, or responses.
 
 In Runtime projects, do not copy or edit gin-kit core; customize it through
 public runtime options and hooks. Run `gin-kit check` before

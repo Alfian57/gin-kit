@@ -27,6 +27,7 @@ releases:
 | `token_not_found` | 404 | API token does not exist or is not owned by the authenticated user. |
 | `invalid_credentials` / `invalid_refresh_token` / `email_taken` | 401 / 401 / 409 | Auth flows. |
 | `csrf_token_mismatch` | 403 | UI-mode form posts without a valid CSRF token. |
+| `oauth_provider_unavailable` / `oauth_state_invalid` / `oauth_identity_unverified` / `oauth_authorization_denied` / `oauth_callback_failed` | browser redirect | OAuth callbacks set a generic flash and redirect to `OAUTH_FAILURE_REDIRECT`; provider details are never exposed. |
 | `forbidden` | 403 | An [authorization policy](/gin-kit/authorization/) denied the action. The internal deny reason goes to logs, never to the body. |
 | `<resource>_not_found` | 404 | Generated handlers, e.g. `ticket_not_found`. |
 | `not_found` / `method_not_allowed` | 404 / 405 | Router-level fallbacks. |

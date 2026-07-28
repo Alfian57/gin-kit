@@ -10,7 +10,7 @@ into this repository under `internal/platform/` so every layer is visible and
 editable{{end}}.
 
 - Mode: `{{.Mode}}` · Database: `{{.Database}}` · Data access: `{{.ORM}}`
-- Authentication: {{if .Auth}}enabled (JWT + refresh rotation){{else}}disabled{{end}} · Tasks example: {{if .Example}}enabled{{else}}disabled{{end}}
+- Authentication: {{if .Auth}}enabled (JWT + refresh rotation){{else}}disabled{{end}} · OAuth: {{if .OAuth}}enabled (Google + GitHub browser sign-in){{else}}disabled{{end}} · Tasks example: {{if .Example}}enabled{{else}}disabled{{end}}
 
 Keep the explicit flow:
 
@@ -88,6 +88,11 @@ paste into `internal/app/app.go`.
   gin-kit module path.{{if eq .ProjectType "runtime"}} Customize runtime behavior through public
   options, hooks, middleware, and interfaces before forking the runtime.{{end}}
 {{if .Example}}- Keep the Tasks example useful as a reference implementation.
+{{end}}
+{{if .OAuth}}- OAuth identities are linked only from verified provider email addresses. Keep PKCE, state,
+  OIDC nonce validation, encrypted sessions, and relative redirect validation intact; never log,
+  serialize, or persist provider access/refresh tokens. Cookie-authenticated state-changing API
+  requests require the CSRF token from `GET /api/v1/auth/csrf`; Bearer routes remain supported.
 {{end}}
 ## Documentation discipline
 

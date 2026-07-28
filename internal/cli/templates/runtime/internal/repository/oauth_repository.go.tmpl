@@ -1,0 +1,38 @@
+package repository
+
+import (
+	"context"
+{{if ne .ORM "gorm"}}	"database/sql"
+{{end}}	"errors"
+
+	"github.com/Alfian57/gin-kit/runtime/database"
+	"{{.Module}}/internal/domain"
+{{if eq .ORM "gorm"}}	"gorm.io/gorm"
+{{end}})
+
+type oauthIdentityRepository struct {
+{{if eq .ORM "gorm"}}	db *gorm.DB
+{{else}}	db sqlxExecutor
+{{end}}}
+
+func NewOAuthIdentityRepository(connection *database.Connection) domain.OAuthIdentityRepository {
+{{if eq .ORM "gorm"}}	return &oauthIdentityRepository{db: connection.GORM}
+{{else}}	return &oauthIdentityRepository{db: connection.SQLX}
+{{end}}}
+
+func (r *oauthIdentityRepository) Create(ctx context.Context, identity *domain.OAuthIdentity) error {
+{{if eq .ORM "gorm"}}	err := r.db.WithContext(ctx).Create(identity).Error
+{{else}}	query := r.db.Rebind("INSERT INTO oauth_identities (id, user_id, provider, provider_subject, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
+	_, err := r.db.ExecContext(ctx, query, identity.ID, identity.UserID, identity.Provider, identity.ProviderSubject, identity.CreatedAt, identity.UpdatedAt)
+{{end}}	if isDuplicate(err) { return domain.ErrOAuthIdentityTaken }
+	return err
+}
+
+func (r *oauthIdentityRepository) FindByProviderSubject(ctx context.Context, provider, subject string) (domain.OAuthIdentity, error) {
+	var identity domain.OAuthIdentity
+{{if eq .ORM "gorm"}}	err := r.db.WithContext(ctx).First(&identity, "provider = ? AND provider_subject = ?", provider, subject).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) { return identity, domain.ErrOAuthIdentityNotFound }
+{{else}}	err := r.db.GetContext(ctx, &identity, r.db.Rebind("SELECT id, user_id, provider, provider_subject, created_at, updated_at FROM oauth_identities WHERE provider = ? AND provider_subject = ?"), provider, subject)
+	if errors.Is(err, sql.ErrNoRows) { return identity, domain.ErrOAuthIdentityNotFound }
+{{end}}	return identity, err
+}

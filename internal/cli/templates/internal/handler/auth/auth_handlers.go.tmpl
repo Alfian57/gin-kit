@@ -19,10 +19,12 @@ import (
 )
 
 // Register wires the authentication routes onto the router.
-func Register(r *gin.Engine, db *database.Connection, cfg config.Config) {
+func Register(r *gin.Engine, db *database.Connection, cfg config.Config) *service.AuthService {
 	accounts := service.NewAuthService(
 		repository.NewUserRepository(db),
 		repository.NewRefreshTokenRepository(db),
+		{{if .OAuth}}repository.NewOAuthIdentityRepository(db),
+		{{end}}
 		cfg.JWTSecret,
 		15*time.Minute,
 		30*24*time.Hour,
@@ -30,6 +32,7 @@ func Register(r *gin.Engine, db *database.Connection, cfg config.Config) {
 	apiTokens := service.NewAPITokenService(repository.NewAPITokenRepository(db))
 	registerRoutes(r, accounts, cfg.JWTSecret)
 	registerTokenRoutes(r, apiTokens, cfg.JWTSecret)
+	return accounts
 }
 
 func registerRoutes(r *gin.Engine, accounts *service.AuthService, secret []byte) {
@@ -82,7 +85,7 @@ func registerRoutes(r *gin.Engine, accounts *service.AuthService, secret []byte)
 		httpx.NoContent(c)
 	})
 
-	protected := r.Group("/api/v1", middleware.RequireAuth(secret))
+	protected := r.Group("/api/v1", middleware.RequireLogin(secret))
 	protected.GET("/me", func(c *gin.Context) {
 		user, err := accounts.User(c.Request.Context(), c.GetString("user_id"))
 		if err != nil {

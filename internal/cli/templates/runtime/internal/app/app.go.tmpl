@@ -1,16 +1,19 @@
 package app
 
 import (
-{{if eq .Mode "ui"}}	"crypto/rand"
+{{if .OAuth}}	"context"
+{{end}}{{if or (eq .Mode "ui") .OAuth}}	"crypto/rand"
 	"errors"
 {{end}}{{if or .Auth (ne .Database "sqlite")}}	"fmt"
 {{end}}{{if .Auth}}	"time"
+{{end}}{{if .OAuth}}	"strings"
 {{end}}
 	"github.com/Alfian57/gin-kit/runtime"
 {{if .Auth}}	"github.com/Alfian57/gin-kit/runtime/auth"
 {{end}}	"github.com/Alfian57/gin-kit/runtime/config"
 	"github.com/Alfian57/gin-kit/runtime/database"
-{{if eq .Mode "ui"}}	"github.com/Alfian57/gin-kit/runtime/session"
+{{if .OAuth}}	"github.com/Alfian57/gin-kit/runtime/oauth"
+{{end}}{{if or (eq .Mode "ui") .OAuth}}	"github.com/Alfian57/gin-kit/runtime/session"
 {{end}}	"github.com/gin-gonic/gin"
 
 {{if eq .Mode "ui"}}	"{{.Module}}/internal/handler/web"
@@ -50,7 +53,7 @@ func New() (*runtime.Application, error) {
 	if err != nil {
 		return nil, err
 	}
-{{if eq .Mode "ui"}}	sessionSecret := cfg.SessionSecret
+{{if or (eq .Mode "ui") .OAuth}}	sessionSecret := cfg.SessionSecret
 	if len(sessionSecret) == 0 {
 		if !cfg.IsDevelopment() {
 			return nil, errors.New("SESSION_SECRET is required outside development")
@@ -68,7 +71,11 @@ func New() (*runtime.Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	application.Use(sessionMiddleware, session.CSRF(session.CSRFOptions{}))
+	{{if .OAuth}}application.Use(sessionMiddleware, auth.SessionMiddleware(), session.CSRF(session.CSRFOptions{Skipper: func(c *gin.Context) bool {
+		return strings.HasPrefix(c.Request.URL.Path, "/api/") && (c.GetString("user_id") == "" || c.GetHeader("Authorization") != "")
+	}}))
+	{{else}}application.Use(sessionMiddleware, session.CSRF(session.CSRFOptions{}))
+	{{end}}
 {{end}}
 {{if .Auth}}	tokens, err := auth.New(cfg.JWTSecret, "{{.Project}}", 15*time.Minute)
 	if err != nil {
@@ -77,14 +84,36 @@ func New() (*runtime.Application, error) {
 	accounts := service.NewAuthService(
 		repository.NewUserRepository(application.Database()),
 		repository.NewRefreshTokenRepository(application.Database()),
+		{{if .OAuth}}repository.NewOAuthIdentityRepository(application.Database()),
+		{{end}}
 		tokens,
 		30*24*time.Hour,
 	)
 	apiTokens := service.NewAPITokenService(repository.NewAPITokenRepository(application.Database()))
+{{if .OAuth}}	providers := []oauth.Provider{}
+	if cfg.OAuth.Google.ClientID != "" {
+		provider, err := oauth.NewGoogle(context.Background(), oauth.Config{ClientID: cfg.OAuth.Google.ClientID, ClientSecret: cfg.OAuth.Google.ClientSecret, RedirectURL: cfg.OAuth.Google.RedirectURL})
+		if err != nil {
+			return nil, fmt.Errorf("configure Google OAuth: %w", err)
+		}
+		providers = append(providers, provider)
+	}
+	if cfg.OAuth.GitHub.ClientID != "" {
+		provider, err := oauth.NewGitHub(oauth.Config{ClientID: cfg.OAuth.GitHub.ClientID, ClientSecret: cfg.OAuth.GitHub.ClientSecret, RedirectURL: cfg.OAuth.GitHub.RedirectURL})
+		if err != nil {
+			return nil, fmt.Errorf("configure GitHub OAuth: %w", err)
+		}
+		providers = append(providers, provider)
+	}
+	oauthManager, err := oauth.NewManager(providers...)
+	if err != nil {
+		return nil, err
+	}
+{{end}}
 {{end}}	jobs.Register(application.Queue(), application.Logger())
 	var router *gin.Engine = application.Router()
-{{if eq .Mode "ui"}}	web.Register(router, application.OpenAPI(){{if .Auth}}, tokens, accounts, apiTokens{{end}})
-{{else}}	api.Register(router, application.OpenAPI(){{if .Auth}}, tokens, accounts, apiTokens{{end}})
+{{if eq .Mode "ui"}}	web.Register(router, application.OpenAPI(){{if .Auth}}, tokens, accounts, apiTokens{{end}}{{if .OAuth}}, oauthManager, cfg.OAuth.SuccessRedirect, cfg.OAuth.FailureRedirect{{end}})
+{{else}}	api.Register(router, application.OpenAPI(){{if .Auth}}, tokens, accounts, apiTokens{{end}}{{if .OAuth}}, oauthManager, cfg.OAuth.SuccessRedirect, cfg.OAuth.FailureRedirect{{end}})
 {{end}}
 	return application, nil
 }

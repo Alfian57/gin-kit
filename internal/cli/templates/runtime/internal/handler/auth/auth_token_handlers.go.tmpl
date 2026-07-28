@@ -19,7 +19,7 @@ func RegisterTokens(router *gin.Engine, docs *openapi.Registry, tokens *jwtauth.
 		openapi.Operation{Method: http.MethodGet, Path: "/api/v1/auth/tokens", Summary: "List API tokens", Tags: []string{"auth"}, Response: []dto.APITokenResponse{}, Security: true},
 		openapi.Operation{Method: http.MethodDelete, Path: "/api/v1/auth/tokens/{id}", Summary: "Revoke an API token", Tags: []string{"auth"}, Status: http.StatusNoContent, Security: true, ErrorCodes: []string{"token_not_found"}},
 	)
-	group := router.Group("/api/v1/auth/tokens", jwtauth.RequireAuth(tokens))
+	group := router.Group("/api/v1/auth/tokens", jwtauth.RequireLogin(tokens))
 	group.POST("", func(c *gin.Context) {
 		request, ok := httpx.BindJSON[dto.APITokenCreateRequest](c)
 		if !ok {

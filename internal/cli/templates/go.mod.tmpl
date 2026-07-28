@@ -8,12 +8,16 @@ require (
 	github.com/go-playground/validator/v10 v10.30.3
 	github.com/google/uuid v1.6.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
+{{if .OAuth}}	github.com/coreos/go-oidc/v3 v3.20.0
+{{end}}
 	github.com/pressly/goose/v3 v3.27.3
 	golang.org/x/crypto v0.50.0
+{{if .OAuth}}	golang.org/x/oauth2 v0.36.0
+{{end}}
 	golang.org/x/time v0.12.0
 )
 
-{{if eq .Mode "ui"}}require github.com/gin-contrib/sessions v1.1.0
+{{if or (eq .Mode "ui") .OAuth}}require github.com/gin-contrib/sessions v1.1.0
 {{end}}
 
 {{if eq .ORM "gorm"}}require (

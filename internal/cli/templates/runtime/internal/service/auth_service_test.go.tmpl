@@ -91,14 +91,40 @@ func (m *memoryRefresh) DeleteForUser(_ context.Context, userID string) error {
 	return nil
 }
 
-func testAuthService(t *testing.T, refreshTTL time.Duration) (*AuthService, *memoryRefresh) {
+{{if .OAuth}}type memoryOAuthIdentities struct {
+	mu         sync.Mutex
+	identities map[string]domain.OAuthIdentity
+}
+
+func (m *memoryOAuthIdentities) Create(_ context.Context, identity *domain.OAuthIdentity) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	key := identity.Provider + ":" + identity.ProviderSubject
+	if _, exists := m.identities[key]; exists {
+		return domain.ErrOAuthIdentityTaken
+	}
+	m.identities[key] = *identity
+	return nil
+}
+
+func (m *memoryOAuthIdentities) FindByProviderSubject(_ context.Context, provider, subject string) (domain.OAuthIdentity, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	identity, ok := m.identities[provider+":"+subject]
+	if !ok {
+		return domain.OAuthIdentity{}, domain.ErrOAuthIdentityNotFound
+	}
+	return identity, nil
+}
+
+{{end}}func testAuthService(t *testing.T, refreshTTL time.Duration) (*AuthService, *memoryRefresh) {
 	t.Helper()
 	tokens, err := jwtauth.New([]byte(strings.Repeat("s", jwtauth.MinimumSecretLength)), "{{.Project}}", 15*time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
 	refresh := &memoryRefresh{tokens: map[string]domain.RefreshToken{}}
-	return NewAuthService(&memoryUsers{users: map[string]domain.User{}}, refresh, tokens, refreshTTL), refresh
+	return NewAuthService(&memoryUsers{users: map[string]domain.User{}}, refresh,{{if .OAuth}} &memoryOAuthIdentities{identities: map[string]domain.OAuthIdentity{}},{{end}} tokens, refreshTTL), refresh
 }
 
 func TestRegisterStoresVerifiableHashAndNormalizesEmail(t *testing.T) {
@@ -111,7 +137,7 @@ func TestRegisterStoresVerifiableHashAndNormalizesEmail(t *testing.T) {
 	if user.Email != "user@example.com" {
 		t.Fatalf("email not normalized: %q", user.Email)
 	}
-	if !password.Compare("super-secret-1", user.PasswordHash) {
+	if user.PasswordHash == nil || !password.Compare("super-secret-1", *user.PasswordHash) {
 		t.Fatal("stored hash does not verify")
 	}
 	if pair.AccessToken == "" || pair.RefreshToken == "" || pair.TokenType != "Bearer" || pair.ExpiresIn != 900 {

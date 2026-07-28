@@ -1,0 +1,28 @@
+package domain
+
+import (
+	"context"
+	"errors"
+	"time"
+)
+
+var (
+	ErrOAuthIdentityNotFound = errors.New("OAuth identity not found")
+	ErrOAuthIdentityTaken    = errors.New("OAuth identity already linked")
+)
+
+type OAuthIdentity struct {
+	ID              string    `json:"id" db:"id" gorm:"primaryKey;size:36"`
+	UserID          string    `json:"user_id" db:"user_id" gorm:"size:36;not null;index"`
+	Provider        string    `json:"provider" db:"provider" gorm:"size:32;not null"`
+	ProviderSubject string    `json:"provider_subject" db:"provider_subject" gorm:"size:255;not null"`
+	CreatedAt       time.Time `json:"created_at" db:"created_at" gorm:"not null"`
+	UpdatedAt       time.Time `json:"updated_at" db:"updated_at" gorm:"not null"`
+}
+
+func (OAuthIdentity) TableName() string { return "oauth_identities" }
+
+type OAuthIdentityRepository interface {
+	Create(context.Context, *OAuthIdentity) error
+	FindByProviderSubject(context.Context, string, string) (OAuthIdentity, error)
+}

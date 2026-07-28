@@ -96,7 +96,7 @@ func Register(router *gin.Engine, docs *openapi.Registry, tokens *jwtauth.Manage
 		httpx.NoContent(c)
 	})
 
-	protected := router.Group("/api/v1", jwtauth.RequireAuth(tokens))
+	protected := router.Group("/api/v1", jwtauth.RequireLogin(tokens))
 	protected.GET("/me", func(c *gin.Context) {
 		user, err := accounts.User(c.Request.Context(), jwtauth.UserID(c))
 		if err != nil {

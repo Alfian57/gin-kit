@@ -10,6 +10,7 @@ mode="${GIN_KIT_MODE:?GIN_KIT_MODE is required}"
 database="${GIN_KIT_DATABASE:?GIN_KIT_DATABASE is required}"
 orm="${GIN_KIT_ORM:?GIN_KIT_ORM is required}"
 auth="${GIN_KIT_AUTH:-false}"
+oauth="${GIN_KIT_OAUTH:-false}"
 project_type="${GIN_KIT_PROJECT_TYPE:-runtime}"
 runtime_version="${GIN_KIT_RUNTIME_VERSION:-0.3.0}"
 project_name="${GIN_KIT_PROJECT_NAME:-matrixapp}"
@@ -44,6 +45,13 @@ if [[ "$auth" == "true" ]]; then
   args+=(--auth)
   # gin-kit routes boots the application, which fail-fasts on a short secret.
   export JWT_SECRET="${JWT_SECRET:-gin-kit-smoke-secret-0123456789abcdef}"
+fi
+if [[ "$oauth" == "true" ]]; then
+  if [[ "$auth" != "true" ]]; then
+    echo "GIN_KIT_OAUTH requires GIN_KIT_AUTH=true" >&2
+    exit 1
+  fi
+  args+=(--oauth)
 fi
 if [[ "$project_type" == "runtime" ]]; then
   args+=(--runtime-version "$runtime_version" --runtime-replace "$repo_root")

@@ -25,6 +25,7 @@ type Manifest struct {
 	Database       string `yaml:"database"`
 	ORM            string `yaml:"orm"`
 	Auth           bool   `yaml:"auth"`
+	OAuth          bool   `yaml:"oauth"`
 	Example        bool   `yaml:"example"`
 	Docker         bool   `yaml:"docker"`
 }
@@ -109,6 +110,7 @@ func promptManifest(name string) (Manifest, error) {
 		),
 		huh.NewGroup(
 			newFeatureConfirm("Include core authentication?", &m.Auth),
+			newFeatureConfirm("Include OAuth social login?", &m.OAuth),
 			newFeatureConfirm("Include the guided tasks example?", &m.Example),
 			newFeatureConfirm("Include Docker files?", &m.Docker),
 		),

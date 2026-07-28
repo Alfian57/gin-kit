@@ -51,6 +51,22 @@ by subsystem. Durations use Go syntax (`15s`, `2m`).
 | `JWT_SECRET` | Required with `--auth`; short secrets fail startup. |
 | `SESSION_SECRET` | Required for UI-mode cookie sessions. |
 
+### OAuth social sign-in
+
+These variables are used by projects created with `--auth --oauth`. Set every
+credential in one provider row or leave that provider entirely empty. Redirect
+targets are local paths only.
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `OAUTH_GOOGLE_CLIENT_ID` / `OAUTH_GOOGLE_CLIENT_SECRET` / `OAUTH_GOOGLE_REDIRECT_URL` | — | Google OAuth credentials and exact registered callback URL. |
+| `OAUTH_GITHUB_CLIENT_ID` / `OAUTH_GITHUB_CLIENT_SECRET` / `OAUTH_GITHUB_REDIRECT_URL` | — | GitHub OAuth credentials and exact registered callback URL. |
+| `OAUTH_SUCCESS_REDIRECT` | `/` | Relative path after successful sign-in. |
+| `OAUTH_FAILURE_REDIRECT` | `/` | Relative path after a failed or unavailable sign-in. |
+
+See [OAuth social sign-in](/gin-kit/oauth/) for the routes and provider
+configuration steps.
+
 ### Rate limiting
 
 | Variable | Default |

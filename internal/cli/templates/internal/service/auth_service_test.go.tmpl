@@ -92,10 +92,36 @@ func (m *memoryRefresh) DeleteForUser(_ context.Context, userID string) error {
 	return nil
 }
 
-func testAuthService() (*AuthService, *memoryRefresh) {
+{{if .OAuth}}type memoryOAuthIdentities struct {
+	mu         sync.Mutex
+	identities map[string]domain.OAuthIdentity
+}
+
+func (m *memoryOAuthIdentities) Create(_ context.Context, identity *domain.OAuthIdentity) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	key := identity.Provider + ":" + identity.ProviderSubject
+	if _, exists := m.identities[key]; exists {
+		return domain.ErrOAuthIdentityTaken
+	}
+	m.identities[key] = *identity
+	return nil
+}
+
+func (m *memoryOAuthIdentities) FindByProviderSubject(_ context.Context, provider, subject string) (domain.OAuthIdentity, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	identity, ok := m.identities[provider+":"+subject]
+	if !ok {
+		return domain.OAuthIdentity{}, domain.ErrOAuthIdentityNotFound
+	}
+	return identity, nil
+}
+
+{{end}}func testAuthService() (*AuthService, *memoryRefresh) {
 	refresh := &memoryRefresh{tokens: map[string]domain.RefreshToken{}}
 	users := &memoryUsers{users: map[string]domain.User{}}
-	return NewAuthService(users, refresh, testAuthSecret, 15*time.Minute, time.Hour), refresh
+	return NewAuthService(users, refresh,{{if .OAuth}} &memoryOAuthIdentities{identities: map[string]domain.OAuthIdentity{}},{{end}} testAuthSecret, 15*time.Minute, time.Hour), refresh
 }
 
 func TestRegisterAndLoginFlow(t *testing.T) {
@@ -109,7 +135,7 @@ func TestRegisterAndLoginFlow(t *testing.T) {
 	if user.Email != "user@example.com" {
 		t.Fatalf("email not normalized: %q", user.Email)
 	}
-	if !password.Compare("super-secret-1", user.PasswordHash) {
+	if user.PasswordHash == nil || !password.Compare("super-secret-1", *user.PasswordHash) {
 		t.Fatal("stored hash does not verify")
 	}
 	if pair.AccessToken == "" || pair.RefreshToken == "" || pair.TokenType != "Bearer" {
