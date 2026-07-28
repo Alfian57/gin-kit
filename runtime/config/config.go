@@ -14,65 +14,71 @@ import (
 	"github.com/Alfian57/gin-kit/runtime"
 	"github.com/Alfian57/gin-kit/runtime/mail"
 	"github.com/Alfian57/gin-kit/runtime/storage"
+	"github.com/Alfian57/gin-kit/runtime/whatsapp"
 )
 
 // Config is the environment-shaped application configuration. Code-level
 // choices such as UI mode, database dialect, and readiness checks belong on
 // the runtime.Options value produced by Options.
 type Config struct {
-	Address            string        // PORT, "8080" or ":8080"
-	Environment        string        // APP_ENV, defaults to development
-	DatabaseURL        string        // DATABASE_URL
-	JWTSecret          []byte        // JWT_SECRET, length is enforced by auth.New
-	SessionSecret      []byte        // SESSION_SECRET, length is enforced by session.Middleware
-	OAuth              OAuthConfig   // OAUTH_* provider credentials and browser redirects
-	TrustedProxyCIDRs  []string      // TRUSTED_PROXY_CIDRS, comma separated
-	CORSAllowedOrigins []string      // CORS_ALLOWED_ORIGINS, comma separated
-	RateLimitEnabled   bool          // RATE_LIMIT_ENABLED, defaults to true
-	RateLimitPerMinute int           // RATE_LIMIT_PER_MINUTE, defaults to 60
-	RateLimitBurst     int           // RATE_LIMIT_BURST, 0 lets the runtime derive it
-	MaxBodyBytes       int64         // MAX_BODY_BYTES, defaults to 1 MiB
-	CacheDriver        string        // CACHE_DRIVER, "memory" (default) or "redis"
-	QueueDriver        string        // QUEUE_DRIVER, "sync" (default) or "redis"
-	QueueConcurrency   int           // QUEUE_CONCURRENCY, defaults to 10
-	RedisURL           string        // REDIS_URL, e.g. redis://localhost:6379/0
-	MetricsEnabled     bool          // METRICS_ENABLED, defaults to false
-	PProfEnabled       bool          // PPROF_ENABLED, defaults to false; never expose publicly
-	DocsEnabled        bool          // DOCS_ENABLED, defaults to true only in development
-	DocsPath           string        // DOCS_PATH, defaults to /docs
-	DocsSpecPath       string        // DOCS_SPEC_PATH, defaults to /openapi.json
-	DocsTitle          string        // DOCS_TITLE, empty lets the application inject its name
-	DocsVersion        string        // DOCS_VERSION, defaults to 0.1.0
-	DocsDescription    string        // DOCS_DESCRIPTION
-	DocsServers        []string      // DOCS_SERVERS, comma separated
-	DocsBasicAuthUser  string        // DOCS_BASIC_AUTH_USERNAME
-	DocsBasicAuthPass  string        // DOCS_BASIC_AUTH_PASSWORD
-	DevToolsEnabled    bool          // DEVTOOLS_ENABLED, defaults to true only in development; refused elsewhere
-	DevToolsPath       string        // DEVTOOLS_PATH, defaults to /_ginkit
-	MailDriver         string        // MAIL_DRIVER, "log" (default) or "smtp"
-	MailHost           string        // MAIL_HOST
-	MailPort           int           // MAIL_PORT, defaults per encryption
-	MailUsername       string        // MAIL_USERNAME
-	MailPassword       string        // MAIL_PASSWORD
-	MailEncryption     string        // MAIL_ENCRYPTION, none|tls|starttls (default starttls)
-	MailFromAddress    string        // MAIL_FROM_ADDRESS
-	MailFromName       string        // MAIL_FROM_NAME
-	StorageDriver      string        // STORAGE_DRIVER, "local" (default) or "s3"
-	StorageLocalRoot   string        // STORAGE_LOCAL_ROOT, defaults to ./storage
-	StorageLocalURL    string        // STORAGE_LOCAL_BASE_URL
-	S3Endpoint         string        // S3_ENDPOINT, host[:port] without scheme
-	S3Region           string        // S3_REGION
-	S3Bucket           string        // S3_BUCKET
-	S3AccessKey        string        // S3_ACCESS_KEY
-	S3SecretKey        string        // S3_SECRET_KEY
-	S3UseSSL           bool          // S3_USE_SSL, defaults to true
-	S3UsePathStyle     bool          // S3_USE_PATH_STYLE, defaults to false (MinIO needs true)
-	S3PresignTTL       time.Duration // S3_PRESIGN_TTL, defaults to 15m
-	S3PublicBaseURL    string        // S3_PUBLIC_BASE_URL
-	ReadTimeout        time.Duration // READ_TIMEOUT, Go duration syntax such as 10s
-	WriteTimeout       time.Duration // WRITE_TIMEOUT
-	IdleTimeout        time.Duration // IDLE_TIMEOUT
-	ShutdownTimeout    time.Duration // SHUTDOWN_TIMEOUT
+	Address               string        // PORT, "8080" or ":8080"
+	Environment           string        // APP_ENV, defaults to development
+	DatabaseURL           string        // DATABASE_URL
+	JWTSecret             []byte        // JWT_SECRET, length is enforced by auth.New
+	SessionSecret         []byte        // SESSION_SECRET, length is enforced by session.Middleware
+	OAuth                 OAuthConfig   // OAUTH_* provider credentials and browser redirects
+	TrustedProxyCIDRs     []string      // TRUSTED_PROXY_CIDRS, comma separated
+	CORSAllowedOrigins    []string      // CORS_ALLOWED_ORIGINS, comma separated
+	RateLimitEnabled      bool          // RATE_LIMIT_ENABLED, defaults to true
+	RateLimitPerMinute    int           // RATE_LIMIT_PER_MINUTE, defaults to 60
+	RateLimitBurst        int           // RATE_LIMIT_BURST, 0 lets the runtime derive it
+	MaxBodyBytes          int64         // MAX_BODY_BYTES, defaults to 1 MiB
+	CacheDriver           string        // CACHE_DRIVER, "memory" (default) or "redis"
+	QueueDriver           string        // QUEUE_DRIVER, "sync" (default) or "redis"
+	QueueConcurrency      int           // QUEUE_CONCURRENCY, defaults to 10
+	RedisURL              string        // REDIS_URL, e.g. redis://localhost:6379/0
+	MetricsEnabled        bool          // METRICS_ENABLED, defaults to false
+	PProfEnabled          bool          // PPROF_ENABLED, defaults to false; never expose publicly
+	DocsEnabled           bool          // DOCS_ENABLED, defaults to true only in development
+	DocsPath              string        // DOCS_PATH, defaults to /docs
+	DocsSpecPath          string        // DOCS_SPEC_PATH, defaults to /openapi.json
+	DocsTitle             string        // DOCS_TITLE, empty lets the application inject its name
+	DocsVersion           string        // DOCS_VERSION, defaults to 0.1.0
+	DocsDescription       string        // DOCS_DESCRIPTION
+	DocsServers           []string      // DOCS_SERVERS, comma separated
+	DocsBasicAuthUser     string        // DOCS_BASIC_AUTH_USERNAME
+	DocsBasicAuthPass     string        // DOCS_BASIC_AUTH_PASSWORD
+	DevToolsEnabled       bool          // DEVTOOLS_ENABLED, defaults to true only in development; refused elsewhere
+	DevToolsPath          string        // DEVTOOLS_PATH, defaults to /_ginkit
+	MailDriver            string        // MAIL_DRIVER, "log" (default) or "smtp"
+	MailHost              string        // MAIL_HOST
+	MailPort              int           // MAIL_PORT, defaults per encryption
+	MailUsername          string        // MAIL_USERNAME
+	MailPassword          string        // MAIL_PASSWORD
+	MailEncryption        string        // MAIL_ENCRYPTION, none|tls|starttls (default starttls)
+	MailFromAddress       string        // MAIL_FROM_ADDRESS
+	MailFromName          string        // MAIL_FROM_NAME
+	WhatsAppDriver        string        // WHATSAPP_DRIVER, "log" (default) or "cloud"
+	WhatsAppAccessToken   string        // WHATSAPP_ACCESS_TOKEN
+	WhatsAppPhoneNumberID string        // WHATSAPP_PHONE_NUMBER_ID
+	WhatsAppAPIVersion    string        // WHATSAPP_API_VERSION, for example v25.0
+	WhatsAppTimeout       time.Duration // WHATSAPP_TIMEOUT, defaults to 15s
+	StorageDriver         string        // STORAGE_DRIVER, "local" (default) or "s3"
+	StorageLocalRoot      string        // STORAGE_LOCAL_ROOT, defaults to ./storage
+	StorageLocalURL       string        // STORAGE_LOCAL_BASE_URL
+	S3Endpoint            string        // S3_ENDPOINT, host[:port] without scheme
+	S3Region              string        // S3_REGION
+	S3Bucket              string        // S3_BUCKET
+	S3AccessKey           string        // S3_ACCESS_KEY
+	S3SecretKey           string        // S3_SECRET_KEY
+	S3UseSSL              bool          // S3_USE_SSL, defaults to true
+	S3UsePathStyle        bool          // S3_USE_PATH_STYLE, defaults to false (MinIO needs true)
+	S3PresignTTL          time.Duration // S3_PRESIGN_TTL, defaults to 15m
+	S3PublicBaseURL       string        // S3_PUBLIC_BASE_URL
+	ReadTimeout           time.Duration // READ_TIMEOUT, Go duration syntax such as 10s
+	WriteTimeout          time.Duration // WRITE_TIMEOUT
+	IdleTimeout           time.Duration // IDLE_TIMEOUT
+	ShutdownTimeout       time.Duration // SHUTDOWN_TIMEOUT
 }
 
 // OAuthProviderConfig holds one provider's client credentials and exact
@@ -106,36 +112,40 @@ func Load() (Config, error) {
 			SuccessRedirect: stringValue("OAUTH_SUCCESS_REDIRECT", "/"),
 			FailureRedirect: stringValue("OAUTH_FAILURE_REDIRECT", "/"),
 		},
-		TrustedProxyCIDRs:  splitCSV(os.Getenv("TRUSTED_PROXY_CIDRS")),
-		CORSAllowedOrigins: splitCSV(os.Getenv("CORS_ALLOWED_ORIGINS")),
-		CacheDriver:        stringValue("CACHE_DRIVER", "memory"),
-		QueueDriver:        stringValue("QUEUE_DRIVER", "sync"),
-		RedisURL:           os.Getenv("REDIS_URL"),
-		MailDriver:         stringValue("MAIL_DRIVER", "log"),
-		MailHost:           os.Getenv("MAIL_HOST"),
-		MailUsername:       os.Getenv("MAIL_USERNAME"),
-		MailPassword:       os.Getenv("MAIL_PASSWORD"),
-		MailEncryption:     stringValue("MAIL_ENCRYPTION", "starttls"),
-		MailFromAddress:    os.Getenv("MAIL_FROM_ADDRESS"),
-		MailFromName:       os.Getenv("MAIL_FROM_NAME"),
-		DocsPath:           stringValue("DOCS_PATH", "/docs"),
-		DocsSpecPath:       stringValue("DOCS_SPEC_PATH", "/openapi.json"),
-		DocsTitle:          os.Getenv("DOCS_TITLE"),
-		DocsVersion:        stringValue("DOCS_VERSION", "0.1.0"),
-		DocsDescription:    os.Getenv("DOCS_DESCRIPTION"),
-		DocsServers:        splitCSV(os.Getenv("DOCS_SERVERS")),
-		DocsBasicAuthUser:  os.Getenv("DOCS_BASIC_AUTH_USERNAME"),
-		DocsBasicAuthPass:  os.Getenv("DOCS_BASIC_AUTH_PASSWORD"),
-		DevToolsPath:       stringValue("DEVTOOLS_PATH", "/_ginkit"),
-		StorageDriver:      stringValue("STORAGE_DRIVER", "local"),
-		StorageLocalRoot:   stringValue("STORAGE_LOCAL_ROOT", "./storage"),
-		StorageLocalURL:    os.Getenv("STORAGE_LOCAL_BASE_URL"),
-		S3Endpoint:         os.Getenv("S3_ENDPOINT"),
-		S3Region:           os.Getenv("S3_REGION"),
-		S3Bucket:           os.Getenv("S3_BUCKET"),
-		S3AccessKey:        os.Getenv("S3_ACCESS_KEY"),
-		S3SecretKey:        os.Getenv("S3_SECRET_KEY"),
-		S3PublicBaseURL:    os.Getenv("S3_PUBLIC_BASE_URL"),
+		TrustedProxyCIDRs:     splitCSV(os.Getenv("TRUSTED_PROXY_CIDRS")),
+		CORSAllowedOrigins:    splitCSV(os.Getenv("CORS_ALLOWED_ORIGINS")),
+		CacheDriver:           stringValue("CACHE_DRIVER", "memory"),
+		QueueDriver:           stringValue("QUEUE_DRIVER", "sync"),
+		RedisURL:              os.Getenv("REDIS_URL"),
+		MailDriver:            stringValue("MAIL_DRIVER", "log"),
+		MailHost:              os.Getenv("MAIL_HOST"),
+		MailUsername:          os.Getenv("MAIL_USERNAME"),
+		MailPassword:          os.Getenv("MAIL_PASSWORD"),
+		MailEncryption:        stringValue("MAIL_ENCRYPTION", "starttls"),
+		MailFromAddress:       os.Getenv("MAIL_FROM_ADDRESS"),
+		MailFromName:          os.Getenv("MAIL_FROM_NAME"),
+		WhatsAppDriver:        stringValue("WHATSAPP_DRIVER", "log"),
+		WhatsAppAccessToken:   os.Getenv("WHATSAPP_ACCESS_TOKEN"),
+		WhatsAppPhoneNumberID: os.Getenv("WHATSAPP_PHONE_NUMBER_ID"),
+		WhatsAppAPIVersion:    os.Getenv("WHATSAPP_API_VERSION"),
+		DocsPath:              stringValue("DOCS_PATH", "/docs"),
+		DocsSpecPath:          stringValue("DOCS_SPEC_PATH", "/openapi.json"),
+		DocsTitle:             os.Getenv("DOCS_TITLE"),
+		DocsVersion:           stringValue("DOCS_VERSION", "0.1.0"),
+		DocsDescription:       os.Getenv("DOCS_DESCRIPTION"),
+		DocsServers:           splitCSV(os.Getenv("DOCS_SERVERS")),
+		DocsBasicAuthUser:     os.Getenv("DOCS_BASIC_AUTH_USERNAME"),
+		DocsBasicAuthPass:     os.Getenv("DOCS_BASIC_AUTH_PASSWORD"),
+		DevToolsPath:          stringValue("DEVTOOLS_PATH", "/_ginkit"),
+		StorageDriver:         stringValue("STORAGE_DRIVER", "local"),
+		StorageLocalRoot:      stringValue("STORAGE_LOCAL_ROOT", "./storage"),
+		StorageLocalURL:       os.Getenv("STORAGE_LOCAL_BASE_URL"),
+		S3Endpoint:            os.Getenv("S3_ENDPOINT"),
+		S3Region:              os.Getenv("S3_REGION"),
+		S3Bucket:              os.Getenv("S3_BUCKET"),
+		S3AccessKey:           os.Getenv("S3_ACCESS_KEY"),
+		S3SecretKey:           os.Getenv("S3_SECRET_KEY"),
+		S3PublicBaseURL:       os.Getenv("S3_PUBLIC_BASE_URL"),
 	}
 	var err error
 	if cfg.RateLimitEnabled, err = boolValue("RATE_LIMIT_ENABLED", true); err != nil {
@@ -177,6 +187,9 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.S3PresignTTL, err = durationValue("S3_PRESIGN_TTL", 15*time.Minute); err != nil {
+		return Config{}, err
+	}
+	if cfg.WhatsAppTimeout, err = durationValue("WHATSAPP_TIMEOUT", 15*time.Second); err != nil {
 		return Config{}, err
 	}
 	if cfg.ReadTimeout, err = durationValue("READ_TIMEOUT", 10*time.Second); err != nil {
@@ -257,6 +270,9 @@ func (c Config) validate() error {
 	case "none", "tls", "starttls":
 	default:
 		return fmt.Errorf("MAIL_ENCRYPTION must be none, tls, or starttls, got %q", c.MailEncryption)
+	}
+	if _, err := whatsapp.New(c.WhatsAppOptions()); err != nil {
+		return fmt.Errorf("WHATSAPP_DRIVER: %w", err)
 	}
 	switch c.StorageDriver {
 	case "local", "s3":
@@ -386,6 +402,18 @@ func (c Config) MailOptions() mail.Options {
 		Encryption:  mail.Encryption(c.MailEncryption),
 		FromAddress: c.MailFromAddress,
 		FromName:    c.MailFromName,
+	}
+}
+
+// WhatsAppOptions converts WhatsApp environment configuration for
+// whatsapp.New. The client is constructed by application code, not runtime.New.
+func (c Config) WhatsAppOptions() whatsapp.Options {
+	return whatsapp.Options{
+		Driver:        c.WhatsAppDriver,
+		AccessToken:   c.WhatsAppAccessToken,
+		PhoneNumberID: c.WhatsAppPhoneNumberID,
+		APIVersion:    c.WhatsAppAPIVersion,
+		Timeout:       c.WhatsAppTimeout,
 	}
 }
 

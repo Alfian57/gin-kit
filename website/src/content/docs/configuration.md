@@ -94,6 +94,19 @@ configuration steps.
 | `MAIL_ENCRYPTION` | `starttls` | `starttls` (587), `tls` (465), or `none` (25). |
 | `MAIL_FROM_ADDRESS` / `MAIL_FROM_NAME` | — | Default sender. |
 
+### WhatsApp Cloud API (runtime project type)
+
+| Variable | Default | Notes |
+| --- | --- | --- |
+| `WHATSAPP_DRIVER` | `log` | `log` records only redacted delivery metadata; `cloud` sends through Meta's official Cloud API. |
+| `WHATSAPP_ACCESS_TOKEN` | — | Required for `cloud`; store as a deployment secret. |
+| `WHATSAPP_PHONE_NUMBER_ID` | — | Required for `cloud`; the Meta phone-number ID, not the display phone number. |
+| `WHATSAPP_API_VERSION` | — | Required for `cloud`, for example `v25.0`; select a version supported by Meta. |
+| `WHATSAPP_TIMEOUT` | `15s` | Go duration for an individual Cloud API request. |
+
+See [WhatsApp Cloud API](/gin-kit/whatsapp/) for sending approved templates
+and the authentication-code helper.
+
 ### File storage
 
 | Variable | Default | Notes |
@@ -136,7 +149,7 @@ configuration steps.
 
 Standalone projects read the same core, auth/session, and rate-limit
 variables through `internal/platform/config` (the queue/cache/mail/storage
-subsystems are runtime features).
+and WhatsApp subsystems are runtime features).
 
 The runtime refuses unsafe production defaults, applies request timeouts
 and body limits, and accepts trusted proxy CIDRs explicitly. Liveness never

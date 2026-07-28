@@ -104,6 +104,15 @@ OAuth-created accounts are passwordless. Keep `OAUTH_SUCCESS_REDIRECT` and
 `OAUTH_FAILURE_REDIRECT` relative paths, and use `GET /api/v1/auth/csrf` plus
 the `X-CSRF-Token` header for state-changing cookie-authenticated API calls.
 {{end}}
+{{if eq .ProjectType "runtime"}}
+## WhatsApp templates
+
+Build a client explicitly with `whatsapp.New(cfg.WhatsAppOptions())` and send
+only approved Meta Cloud API templates. Pass the template name and language at
+each send; `whatsapp.NewAuthenticationMessage` adds the one-time code as a
+body parameter. Never write recipient numbers, template parameters, OTP codes,
+or `WHATSAPP_ACCESS_TOKEN` values to logs, errors, models, or API responses.
+{{end}}
 
 ## Troubleshooting
 

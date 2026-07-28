@@ -1,6 +1,6 @@
 ---
-title: Mail and file storage
-description: Send email and store files with swappable drivers.
+title: Mail, WhatsApp, and file storage
+description: Send email, deliver WhatsApp templates, and store files with explicit drivers.
 ---
 
 ## Mail
@@ -29,6 +29,17 @@ sends through `MAIL_HOST`/`MAIL_PORT` with `MAIL_ENCRYPTION` set to
 
 Scaffold a typed mailable plus its HTML template with
 `gin-kit generate mail <Name>` (runtime project type only).
+
+## WhatsApp
+
+Runtime projects can send approved WhatsApp Business templates directly with
+Meta's official Cloud API. `WHATSAPP_DRIVER=log` is safe for local development:
+it logs redacted delivery metadata but never recipient numbers, codes, template
+parameters, or access tokens. Set `WHATSAPP_DRIVER=cloud` and configure the
+Meta access token, phone number ID, and Graph API version for delivery.
+
+See [WhatsApp Cloud API](/gin-kit/whatsapp/) for configuration, the
+authentication-code helper, generic template components, and delivery safety.
 
 ## File storage
 

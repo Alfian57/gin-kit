@@ -74,6 +74,7 @@ export default defineConfig({
             { label: 'Caching and events', slug: 'caching-events' },
             { label: 'Realtime updates', slug: 'realtime' },
             { label: 'Mail and file storage', slug: 'mail-storage' },
+            { label: 'WhatsApp Cloud API', slug: 'whatsapp' },
             { label: 'API documentation', slug: 'api-docs' },
             { label: 'Observability', slug: 'observability' },
             { label: 'Devtools dashboard', slug: 'devtools' },

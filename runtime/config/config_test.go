@@ -23,6 +23,7 @@ func clearEnv(t *testing.T) {
 		"DEVTOOLS_ENABLED", "DEVTOOLS_PATH",
 		"MAIL_DRIVER", "MAIL_HOST", "MAIL_PORT", "MAIL_USERNAME", "MAIL_PASSWORD",
 		"MAIL_ENCRYPTION", "MAIL_FROM_ADDRESS", "MAIL_FROM_NAME",
+		"WHATSAPP_DRIVER", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_API_VERSION", "WHATSAPP_TIMEOUT",
 		"STORAGE_DRIVER", "STORAGE_LOCAL_ROOT", "STORAGE_LOCAL_BASE_URL",
 		"S3_ENDPOINT", "S3_REGION", "S3_BUCKET", "S3_ACCESS_KEY", "S3_SECRET_KEY",
 		"S3_USE_SSL", "S3_USE_PATH_STYLE", "S3_PRESIGN_TTL", "S3_PUBLIC_BASE_URL",
@@ -113,6 +114,8 @@ func TestLoadRejectsMalformedValues(t *testing.T) {
 		{"QUEUE_CONCURRENCY", "0", "QUEUE_CONCURRENCY"},
 		{"MAIL_DRIVER", "pigeon", "MAIL_DRIVER"},
 		{"MAIL_ENCRYPTION", "quantum", "MAIL_ENCRYPTION"},
+		{"WHATSAPP_DRIVER", "pigeon", "WHATSAPP_DRIVER"},
+		{"WHATSAPP_TIMEOUT", "soon", "WHATSAPP_TIMEOUT"},
 		{"STORAGE_DRIVER", "ftp", "STORAGE_DRIVER"},
 		{"S3_PRESIGN_TTL", "soon", "S3_PRESIGN_TTL"},
 		{"REDIS_URL", "http://not-redis", "REDIS_URL"},
@@ -256,6 +259,37 @@ func TestMailAndStorageOptionMapping(t *testing.T) {
 	t.Setenv("MAIL_DRIVER", "smtp")
 	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "MAIL_HOST") {
 		t.Fatalf("smtp without host accepted: %v", err)
+	}
+}
+
+func TestWhatsAppConfiguration(t *testing.T) {
+	clearEnv(t)
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if options := cfg.WhatsAppOptions(); options.Driver != "log" || options.Timeout != 15*time.Second {
+		t.Fatalf("WhatsApp defaults = %+v", options)
+	}
+
+	clearEnv(t)
+	t.Setenv("WHATSAPP_DRIVER", "cloud")
+	t.Setenv("WHATSAPP_ACCESS_TOKEN", "token")
+	t.Setenv("WHATSAPP_PHONE_NUMBER_ID", "123")
+	t.Setenv("WHATSAPP_API_VERSION", "v25.0")
+	t.Setenv("WHATSAPP_TIMEOUT", "4s")
+	cfg, err = Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if options := cfg.WhatsAppOptions(); options.Driver != "cloud" || options.Timeout != 4*time.Second || options.PhoneNumberID != "123" {
+		t.Fatalf("WhatsApp options = %+v", options)
+	}
+
+	clearEnv(t)
+	t.Setenv("WHATSAPP_DRIVER", "cloud")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "WHATSAPP_DRIVER") {
+		t.Fatalf("partial WhatsApp Cloud configuration was accepted: %v", err)
 	}
 }
 
