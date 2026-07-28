@@ -13,3 +13,6 @@ versioned SQL. Keep the OpenAPI description in sync when routes change. Run
 For OAuth-enabled projects, preserve PKCE/state/nonce validation,
 verified-email linking, and the rule that provider tokens never enter logs,
 models, or responses.
+
+For Runtime WhatsApp delivery, use approved templates only and never log
+recipients, codes, template parameters, or Cloud API tokens.

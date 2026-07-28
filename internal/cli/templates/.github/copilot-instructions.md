@@ -11,3 +11,6 @@ before finishing.
 
 For an OAuth-enabled project, preserve verified-email linking and never log,
 persist, or serialize provider tokens.
+
+For Runtime WhatsApp delivery, use approved templates only and never log
+recipients, codes, template parameters, or Cloud API tokens.

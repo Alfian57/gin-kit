@@ -59,7 +59,7 @@ Swagger UI (`DOCS_ENABLED` defaults to true only in development); the spec at
 the generators emit. Configure title, version, servers, and optional basic
 auth through the `DOCS_*` variables in `.env`.
 
-## Mail and storage
+## Mail, WhatsApp, and storage
 
 Send email with `mail.New(cfg.MailOptions())` — the default `MAIL_DRIVER=log`
 renders messages into the logs, and `docker compose --profile mail up` starts
@@ -67,3 +67,22 @@ Mailpit for a local inbox. Store files with
 `storage.New(cfg.StorageOptions())` — `STORAGE_DRIVER=local` keeps files
 under `./storage` with strict path confinement, `s3` targets any
 S3-compatible store, and `docker compose --profile storage up` starts MinIO.
+
+Send an approved WhatsApp Business template with the official Meta Cloud API:
+
+```go
+client, err := whatsapp.New(cfg.WhatsAppOptions())
+if err != nil {
+    return err
+}
+defer client.Close()
+
+err = client.Send(ctx, whatsapp.NewAuthenticationMessage(
+    "+62812345678", "login_code", "id", code,
+))
+```
+
+`WHATSAPP_DRIVER=log` is the safe default and logs only redacted delivery
+metadata. Set `WHATSAPP_DRIVER=cloud` plus the Meta access token, phone number
+ID, and Graph API version to deliver messages. The approved template name and
+language are always explicit at the call site.

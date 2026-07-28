@@ -94,6 +94,11 @@ paste into `internal/app/app.go`.
   serialize, or persist provider access/refresh tokens. Cookie-authenticated state-changing API
   requests require the CSRF token from `GET /api/v1/auth/csrf`; Bearer routes remain supported.
 {{end}}
+{{if eq .ProjectType "runtime"}}- WhatsApp delivery uses `runtime/whatsapp` and approved Meta templates. Keep the
+  template name and language explicit at the call site; never log recipients, codes, template
+  parameters, or `WHATSAPP_ACCESS_TOKEN` values. The `log` driver is for safe local delivery
+  checks; `cloud` sends directly through the Meta Cloud API.
+{{end}}
 ## Documentation discipline
 
 When you change behavior, update the affected documentation in the same

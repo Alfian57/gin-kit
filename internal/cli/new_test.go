@@ -295,8 +295,23 @@ func TestRuntimeScaffoldUsesTypedConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(envExample), "READ_TIMEOUT") ||
+		!strings.Contains(string(envExample), "WHATSAPP_DRIVER=log") ||
 		strings.Contains(string(envExample), "RATE_LIMIT_GENERAL_PER_MINUTE") {
 		t.Fatalf("runtime .env.example should use the runtime variable set:\n%s", envExample)
+	}
+	readme, err := os.ReadFile(filepath.Join(dir, "README.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(readme), "whatsapp.New(cfg.WhatsAppOptions())") {
+		t.Fatalf("runtime README.md is missing WhatsApp usage:\n%s", readme)
+	}
+	agents, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(agents), "runtime/whatsapp") {
+		t.Fatalf("runtime AGENTS.md is missing WhatsApp guidance:\n%s", agents)
 	}
 }
 

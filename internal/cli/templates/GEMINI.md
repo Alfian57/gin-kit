@@ -11,6 +11,9 @@ routes change.
 When OAuth is enabled, preserve verified-email identity linking and keep
 provider tokens out of logs, models, and responses.
 
+For Runtime WhatsApp delivery, use approved templates only and never log
+recipients, codes, template parameters, or Cloud API tokens.
+
 In Runtime projects, do not copy or edit gin-kit core; customize it through
 public runtime options and hooks. Run `gin-kit check` before
 finishing.

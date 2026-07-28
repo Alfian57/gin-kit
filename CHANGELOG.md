@@ -9,6 +9,14 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- Runtime projects can now send approved WhatsApp Business templates through
+  the official Meta Cloud API with the explicit `runtime/whatsapp` package.
+  `WHATSAPP_DRIVER=log` is the safe default and redacts recipients without
+  logging codes, template parameters, or credentials; `cloud` validates the
+  token, phone number ID, API version, and timeout from typed configuration.
+  `NewAuthenticationMessage` provides a template-message helper for an
+  application-owned OTP flow without introducing implicit OTP persistence or
+  endpoints.
 - Opt-in OAuth social sign-in for newly generated Runtime and Standalone
   projects. `gin-kit new --auth --oauth` adds explicit Google OIDC and GitHub
   OAuth routes, encrypted browser sessions, PKCE/state/nonce verification,
