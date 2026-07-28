@@ -28,11 +28,11 @@ sends through `MAIL_HOST`/`MAIL_PORT` with `MAIL_ENCRYPTION` set to
 `MAIL_PORT=1025`, `MAIL_ENCRYPTION=none` at Mailpit (web UI on :8025).
 
 Scaffold a typed mailable plus its HTML template with
-`gin-kit generate mail <Name>` (framework edition only).
+`gin-kit generate mail <Name>` (runtime project type only).
 
 ## File storage
 
-`framework/storage` puts local and S3-compatible file storage behind one interface:
+`runtime/storage` puts local and S3-compatible file storage behind one interface:
 
 ```go
 disk, err := storage.New(cfg.StorageOptions())

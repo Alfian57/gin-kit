@@ -5,19 +5,19 @@ description: Breaking changes and how to move past them.
 
 gin-kit is pre-1.0: minor versions may break APIs, and each break is recorded
 here and in the [changelog](https://github.com/Alfian57/gin-kit/blob/main/CHANGELOG.md).
-Already-generated projects always keep working — breaking changes apply when
-you upgrade the framework module or regenerate code with a newer CLI.
+Breaking changes apply when you upgrade the runtime module or regenerate code
+with a newer CLI.
 
 ## How projects upgrade
 
-**Framework edition** projects import the versioned runtime, so upgrading is
+**Runtime** projects import the versioned runtime, so upgrading is
 a module bump:
 
 ```bash
 go get github.com/Alfian57/gin-kit@vX.Y.Z && go mod tidy
 ```
 
-**Starter edition** projects vendor the runtime under `internal/platform/`
+**Standalone** projects vendor the runtime under `internal/platform/`
 and upgrade with the CLI:
 
 ```bash
@@ -45,6 +45,13 @@ next upgrade classifies precisely.
 
 ## Unreleased
 
+### Breaking: Runtime and Standalone project types
+
+The CLI now creates only manifest v3 projects with
+`project_type: runtime|standalone`. Runtime applications import
+`github.com/Alfian57/gin-kit/runtime/...`. Earlier manifest formats, CLI
+selectors, and runtime import paths are not supported by this release.
+
 ### Services take DTOs instead of input structs
 
 `generate resource` services now accept `dto.Create<Name>Request` /
@@ -57,14 +64,14 @@ resources. To adopt the layout in an existing project, run
 `gin-kit generate dto <Name> --fields ...` and migrate the service signature
 to accept the request type.
 
-### Starter: `internal/platform/response` → `internal/platform/httpx`
+### Standalone: `internal/platform/response` → `internal/platform/httpx`
 
-Regenerated starter projects vendor the framework envelope and binders as
+Regenerated standalone projects vendor the runtime envelope and binders as
 `internal/platform/httpx` (plus `internal/platform/validation`); the old
 `internal/platform/response` package is no longer scaffolded. Error responses
 gain `details` and `request_id` fields.
 
-For an existing starter project, either keep the old package (it still works)
+For an existing standalone project, either keep the old package (it still works)
 or copy the new `platform/httpx` from a fresh scaffold and update imports:
 `response.Error(c, status, code, msg)` becomes
 `httpx.Fail(c, httpx.NewError(status, code, msg))`.
@@ -84,10 +91,3 @@ apptest.Do(t, app, http.MethodGet, "/me", nil, apptest.WithBearer(token))
 
 `WithHeader`, `WithBearer`, and `WithCookie` cover the common cases; see
 [Testing](/gin-kit/testing/).
-
-## Older migrations
-
-- **Manifest v1 → v2** (`.gin-kit.yaml`): see
-  [Manifest v1 migration](/gin-kit/migration-v1/).
-- **Module rename** `ginkit` → `gin-kit`: update the module path in `go.mod`
-  and imports; the binary, config file, and env prefix follow the new name.

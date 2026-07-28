@@ -32,7 +32,7 @@ unbounded and per-process — use Redis for production fleets.
 
 ## Events
 
-`framework/events` is a dependency-free, typed, in-process event bus.
+`runtime/events` is a dependency-free, typed, in-process event bus.
 Subscriptions are explicit — no scanning or reflection-based wiring:
 
 ```go

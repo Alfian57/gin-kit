@@ -5,9 +5,9 @@ description: Explicit allow/deny decisions with one stable 403 contract.
 
 Authorization in gin-kit is explicit and allowlist-shaped: policies are plain
 structs in `internal/policy` whose methods return an `authz.Decision`, and
-nothing is granted implicitly. Framework-edition projects import
-`framework/authz`; starter projects vendor the same package as
-`internal/platform/authz`. The HTTP contract is identical in both editions.
+nothing is granted implicitly. Runtime projects import
+`runtime/authz`; standalone projects vendor the same package as
+`internal/platform/authz`. The HTTP contract is identical in both project types.
 
 ## The Decision contract
 
@@ -38,7 +38,7 @@ writes `internal/policy/ticket_policy.go` with `CanView`, `CanCreate`,
 placeholder rule (deny empty subjects, allow everyone else) and a comment
 telling you to replace it with the real ownership or role check. The policy
 references `domain.Ticket`, so generate the domain first if it is missing.
-The generator works in both editions; starter projects scaffolded before the
+The generator works in both project types; standalone projects scaffolded before the
 authz package existed get `internal/platform/authz` back-filled
 automatically.
 
@@ -55,7 +55,7 @@ if !authz.Authorize(c, p.CanUpdate(c.Request.Context(), auth.UserID(c), ticket))
 }
 ```
 
-Starter projects read the subject from wherever their middleware stored it:
+Standalone projects read the subject from wherever their middleware stored it:
 
 ```go
 if !authz.Authorize(c, p.CanUpdate(c.Request.Context(), c.GetString("user_id"), ticket)) {
@@ -88,7 +88,7 @@ func (s *TicketService) Update(ctx context.Context, subjectID, id string, reques
 
 Policies do not require the `--auth` vertical — the subject is just a
 string. With [authentication](/gin-kit/auth-security/) enabled, use
-`auth.UserID(c)` (framework) or the `user_id` context value (starter);
+`auth.UserID(c)` (Runtime) or the `user_id` context value (Standalone);
 without it, pass an API-key ID, a tenant, or whatever identifier your own
 middleware resolves. The generated placeholder rules deny empty subjects
 either way.

@@ -1,0 +1,115 @@
+package {{if eq .Mode "ui"}}web{{else}}api{{end}}
+
+import (
+	"errors"
+	"net/http"
+
+	"github.com/Alfian57/gin-kit/runtime/httpx"
+	"github.com/Alfian57/gin-kit/runtime/openapi"
+	"github.com/Alfian57/gin-kit/runtime/query"
+	"github.com/gin-gonic/gin"
+	"{{.Module}}/internal/domain"
+	"{{.Module}}/internal/dto"
+	"{{.Module}}/internal/service"
+)
+
+// Register{{.Plural}} wires the {{.Camel}} routes onto the router and
+// describes them for the auto-generated API docs.
+func Register{{.Plural}}(router *gin.Engine, docs *openapi.Registry, {{.PluralCamel}} *service.{{.Name}}Service) {
+	docs.Describe(
+		openapi.Operation{
+			Method: http.MethodPost, Path: "/api/v1/{{.PluralCamel}}",
+			Summary: "Create a {{.Camel}}", Tags: []string{"{{.PluralCamel}}"},
+			Request: dto.Create{{.Name}}Request{}, Response: dto.{{.Name}}Response{}, Status: http.StatusCreated,
+		},
+		openapi.Operation{
+			Method: http.MethodGet, Path: "/api/v1/{{.PluralCamel}}",
+			Summary: "List {{.PluralCamel}}", Tags: []string{"{{.PluralCamel}}"},
+			Response: dto.{{.Name}}Response{}, List: true,
+			Filters: []string{ {{range .Fields}}"{{.Name}}", {{end}} },
+			Sorts:   []string{"created_at"{{range .Fields}}, "{{.Name}}"{{end}}},
+		},
+		openapi.Operation{
+			Method: http.MethodGet, Path: "/api/v1/{{.PluralCamel}}/:id",
+			Summary: "Get a {{.Camel}}", Tags: []string{"{{.PluralCamel}}"},
+			Response: dto.{{.Name}}Response{},
+			ErrorCodes: []string{"{{.Snake}}_not_found"},
+		},
+		openapi.Operation{
+			Method: http.MethodPut, Path: "/api/v1/{{.PluralCamel}}/:id",
+			Summary: "Update a {{.Camel}}", Tags: []string{"{{.PluralCamel}}"},
+			Request: dto.Update{{.Name}}Request{}, Response: dto.{{.Name}}Response{},
+			ErrorCodes: []string{"{{.Snake}}_not_found"},
+		},
+		openapi.Operation{
+			Method: http.MethodDelete, Path: "/api/v1/{{.PluralCamel}}/:id",
+			Summary: "Delete a {{.Camel}}", Tags: []string{"{{.PluralCamel}}"},
+			Status: http.StatusNoContent,
+			ErrorCodes: []string{"{{.Snake}}_not_found"},
+		},
+	)
+	router.POST("/api/v1/{{.PluralCamel}}", func(c *gin.Context) {
+		request, ok := httpx.BindJSON[dto.Create{{.Name}}Request](c)
+		if !ok {
+			return
+		}
+		created, err := {{.PluralCamel}}.Create(c.Request.Context(), request)
+		if err != nil {
+			{{.Camel}}Fail(c, err)
+			return
+		}
+		httpx.Created(c, dto.New{{.Name}}Response(created))
+	})
+	router.GET("/api/v1/{{.PluralCamel}}", func(c *gin.Context) {
+		q, err := query.Parse(c, query.Options{
+			AllowedFilters: []query.Filter{ {{.FilterList}} },
+			AllowedSorts:   []query.Sort{ {{.SortList}} },
+			DefaultSort:    "-created_at",
+		})
+		if err != nil {
+			httpx.Handle(c, nil, err)
+			return
+		}
+		items, total, err := {{.PluralCamel}}.List(c.Request.Context(), q)
+		if err != nil {
+			{{.Camel}}Fail(c, err)
+			return
+		}
+		httpx.List(c, dto.New{{.Name}}ResponseList(items), q.Meta(total))
+	})
+	router.GET("/api/v1/{{.PluralCamel}}/:id", func(c *gin.Context) {
+		entity, err := {{.PluralCamel}}.Get(c.Request.Context(), c.Param("id"))
+		if err != nil {
+			{{.Camel}}Fail(c, err)
+			return
+		}
+		httpx.OK(c, dto.New{{.Name}}Response(entity))
+	})
+	router.PUT("/api/v1/{{.PluralCamel}}/:id", func(c *gin.Context) {
+		request, ok := httpx.BindJSON[dto.Update{{.Name}}Request](c)
+		if !ok {
+			return
+		}
+		entity, err := {{.PluralCamel}}.Update(c.Request.Context(), c.Param("id"), request)
+		if err != nil {
+			{{.Camel}}Fail(c, err)
+			return
+		}
+		httpx.OK(c, dto.New{{.Name}}Response(entity))
+	})
+	router.DELETE("/api/v1/{{.PluralCamel}}/:id", func(c *gin.Context) {
+		if err := {{.PluralCamel}}.Delete(c.Request.Context(), c.Param("id")); err != nil {
+			{{.Camel}}Fail(c, err)
+			return
+		}
+		httpx.NoContent(c)
+	})
+}
+
+func {{.Camel}}Fail(c *gin.Context, err error) {
+	if errors.Is(err, domain.Err{{.Name}}NotFound) {
+		httpx.Fail(c, httpx.NewError(http.StatusNotFound, "{{.Snake}}_not_found", "{{.Name}} not found."))
+		return
+	}
+	httpx.Handle(c, nil, err)
+}

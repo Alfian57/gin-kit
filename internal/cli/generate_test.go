@@ -31,9 +31,9 @@ func fileContent(t *testing.T, files map[string][]byte, suffix string) string {
 	return ""
 }
 
-func TestRunGenerateResourceStarterAPI(t *testing.T) {
+func TestRunGenerateResourceStandaloneAPI(t *testing.T) {
 	m := Manifest{
-		Version: 2, Edition: "starter", Project: "shop", Module: "example.com/shop",
+		Version: 3, ProjectType: "standalone", Project: "shop", Module: "example.com/shop",
 		Mode: "api", Database: "postgres", ORM: "sqlx",
 	}
 	rootDir := generatedProject(t, m)
@@ -112,7 +112,7 @@ func TestRunGenerateResourceStarterAPI(t *testing.T) {
 		}
 	}
 	if strings.Contains(handler, "platform/response") {
-		t.Error("starter handler still imports legacy platform/response")
+		t.Error("standalone handler still imports legacy platform/response")
 	}
 	handlerTest := fileContent(t, files, "internal/handler/api/ticket_handler_test.go")
 	for _, want := range []string{"http.StatusUnprocessableEntity", `"fields"`} {
@@ -136,9 +136,9 @@ func TestRunGenerateResourceStarterAPI(t *testing.T) {
 	}
 }
 
-func TestRunGenerateResourceFrameworkGORM(t *testing.T) {
+func TestRunGenerateResourceRuntimeGORM(t *testing.T) {
 	m := Manifest{
-		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+		Version: 3, ProjectType: "runtime", RuntimeVersion: "0.3.0",
 		Project: "shop", Module: "example.com/shop",
 		Mode: "api", Database: "sqlite", ORM: "gorm",
 	}
@@ -152,7 +152,7 @@ func TestRunGenerateResourceFrameworkGORM(t *testing.T) {
 	}
 	repository := fileContent(t, files, "internal/repository/ticket_repository.go")
 	for _, want := range []string{
-		"github.com/Alfian57/gin-kit/framework/database", "ApplyGORM", "CountGORM", "gorm.ErrRecordNotFound",
+		"github.com/Alfian57/gin-kit/runtime/database", "ApplyGORM", "CountGORM", "gorm.ErrRecordNotFound",
 	} {
 		if !strings.Contains(repository, want) {
 			t.Errorf("gorm repository missing %q", want)
@@ -162,11 +162,11 @@ func TestRunGenerateResourceFrameworkGORM(t *testing.T) {
 	for _, want := range []string{
 		"httpx.BindJSON[dto.CreateTicketRequest]",
 		"Request: dto.CreateTicketRequest{}, Response: dto.TicketResponse{}",
-		"github.com/Alfian57/gin-kit/framework/query",
+		"github.com/Alfian57/gin-kit/runtime/query",
 		"httpx.List(c, dto.NewTicketResponseList(items), q.Meta(total))",
 	} {
 		if !strings.Contains(handler, want) {
-			t.Errorf("framework handler missing %q:\n%s", want, handler)
+			t.Errorf("runtime handler missing %q:\n%s", want, handler)
 		}
 	}
 	serviceFile := fileContent(t, files, "internal/service/ticket_service.go")
@@ -175,18 +175,18 @@ func TestRunGenerateResourceFrameworkGORM(t *testing.T) {
 		t.Errorf("service must take DTOs and drop sentinel validation:\n%s", serviceFile)
 	}
 	if !strings.Contains(nextSteps, "application.Database()") {
-		t.Errorf("framework wiring snippet wrong:\n%s", nextSteps)
+		t.Errorf("runtime wiring snippet wrong:\n%s", nextSteps)
 	}
 }
 
 func TestRunGenerateResourceSoftDelete(t *testing.T) {
 	manifests := map[string]Manifest{
 		"sqlx": {
-			Version: 2, Edition: "starter", Project: "shop", Module: "example.com/shop",
+			Version: 3, ProjectType: "standalone", Project: "shop", Module: "example.com/shop",
 			Mode: "api", Database: "postgres", ORM: "sqlx",
 		},
 		"gorm": {
-			Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+			Version: 3, ProjectType: "runtime", RuntimeVersion: "0.3.0",
 			Project: "shop", Module: "example.com/shop",
 			Mode: "api", Database: "sqlite", ORM: "gorm",
 		},
@@ -201,7 +201,7 @@ func TestRunGenerateResourceSoftDelete(t *testing.T) {
 				t.Fatal(err)
 			}
 			expected := 9
-			if m.Edition == "framework" {
+			if m.ProjectType == "runtime" {
 				expected = 10
 			}
 			if len(files) != expected {
@@ -259,7 +259,7 @@ func TestRunGenerateResourceSoftDelete(t *testing.T) {
 				}
 			}
 
-			if m.Edition == "framework" {
+			if m.ProjectType == "runtime" {
 				repositoryTest := fileContent(t, files, "internal/repository/archive_repository_test.go")
 				for _, want := range []string{
 					"soft delete must keep the row",
@@ -288,9 +288,9 @@ func TestRunGenerateResourceSoftDelete(t *testing.T) {
 	}
 }
 
-func TestRunGenerateResourceStarterUI(t *testing.T) {
+func TestRunGenerateResourceStandaloneUI(t *testing.T) {
 	m := Manifest{
-		Version: 2, Edition: "starter", Project: "portal", Module: "example.com/portal",
+		Version: 3, ProjectType: "standalone", Project: "portal", Module: "example.com/portal",
 		Mode: "ui", Database: "sqlite", ORM: "gorm",
 	}
 	rootDir := generatedProject(t, m)
@@ -311,7 +311,7 @@ func TestRunGenerateResourceStarterUI(t *testing.T) {
 
 func TestRunGenerateSinglesAndCollisions(t *testing.T) {
 	m := Manifest{
-		Version: 2, Edition: "starter", Project: "shop", Module: "example.com/shop",
+		Version: 3, ProjectType: "standalone", Project: "shop", Module: "example.com/shop",
 		Mode: "api", Database: "sqlite", ORM: "gorm",
 	}
 	rootDir := generatedProject(t, m)
@@ -351,13 +351,13 @@ func TestRunGenerateSinglesAndCollisions(t *testing.T) {
 }
 
 func TestRunGenerateFactoryKind(t *testing.T) {
-	framework := Manifest{
-		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+	runtime := Manifest{
+		Version: 3, ProjectType: "runtime", RuntimeVersion: "0.3.0",
 		Project: "shop", Module: "example.com/shop",
 		Mode: "api", Database: "sqlite", ORM: "gorm",
 	}
-	rootDir := generatedProject(t, framework)
-	files, nextSteps, err := runGenerate(rootDir, framework, generateRequest{
+	rootDir := generatedProject(t, runtime)
+	files, nextSteps, err := runGenerate(rootDir, runtime, generateRequest{
 		Kind: "factory", Name: "Profile", Fields: "email:string,age:int,bio:text?",
 	})
 	if err != nil {
@@ -365,7 +365,7 @@ func TestRunGenerateFactoryKind(t *testing.T) {
 	}
 	content := fileContent(t, files, "internal/database/factories/profile_factory.go")
 	for _, want := range []string{
-		"github.com/Alfian57/gin-kit/framework/factory",
+		"github.com/Alfian57/gin-kit/runtime/factory",
 		"f.Email()", "f.Number(1, 1000)",
 		"ptr(", "func ptr[T any](value T) *T",
 	} {
@@ -378,7 +378,7 @@ func TestRunGenerateFactoryKind(t *testing.T) {
 	}
 
 	// Foreign-key-shaped string fields fake as UUIDs, not word strings.
-	files, _, err = runGenerate(rootDir, framework, generateRequest{
+	files, _, err = runGenerate(rootDir, runtime, generateRequest{
 		Kind: "factory", Name: "Membership", Fields: "user_id:string,email:string",
 	})
 	if err != nil {
@@ -392,7 +392,7 @@ func TestRunGenerateFactoryKind(t *testing.T) {
 
 func TestRunGenerateDTOKind(t *testing.T) {
 	m := Manifest{
-		Version: 2, Edition: "starter", Project: "shop", Module: "example.com/shop",
+		Version: 3, ProjectType: "standalone", Project: "shop", Module: "example.com/shop",
 		Mode: "api", Database: "sqlite", ORM: "gorm",
 	}
 	rootDir := generatedProject(t, m)
@@ -425,15 +425,15 @@ func TestRunGenerateDTOKind(t *testing.T) {
 	}
 }
 
-func TestRunGenerateFrameworkOnlyKinds(t *testing.T) {
-	framework := Manifest{
-		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+func TestRunGenerateRuntimeOnlyKinds(t *testing.T) {
+	runtime := Manifest{
+		Version: 3, ProjectType: "runtime", RuntimeVersion: "0.3.0",
 		Project: "shop", Module: "example.com/shop",
 		Mode: "api", Database: "sqlite", ORM: "gorm",
 	}
-	rootDir := generatedProject(t, framework)
+	rootDir := generatedProject(t, runtime)
 
-	files, nextSteps, err := runGenerate(rootDir, framework, generateRequest{Kind: "job", Name: "SendInvoice"})
+	files, nextSteps, err := runGenerate(rootDir, runtime, generateRequest{Kind: "job", Name: "SendInvoice"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -446,7 +446,7 @@ func TestRunGenerateFrameworkOnlyKinds(t *testing.T) {
 		t.Errorf("job next steps wrong:\n%s", nextSteps)
 	}
 
-	files, _, err = runGenerate(rootDir, framework, generateRequest{Kind: "event", Name: "OrderPlaced"})
+	files, _, err = runGenerate(rootDir, runtime, generateRequest{Kind: "event", Name: "OrderPlaced"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -456,12 +456,12 @@ func TestRunGenerateFrameworkOnlyKinds(t *testing.T) {
 		t.Errorf("event content wrong:\n%s", eventContent)
 	}
 
-	files, _, err = runGenerate(rootDir, framework, generateRequest{Kind: "mail", Name: "Welcome"})
+	files, _, err = runGenerate(rootDir, runtime, generateRequest{Kind: "mail", Name: "Welcome"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	mailContent := fileContent(t, files, "internal/mail/welcome.go")
-	if !strings.Contains(mailContent, "frameworkmail.NewMessage()") ||
+	if !strings.Contains(mailContent, "runtimemail.NewMessage()") ||
 		!strings.Contains(mailContent, `HTMLTemplate(templates, "welcome.html", nil)`) {
 		t.Errorf("mail content wrong:\n%s", mailContent)
 	}
@@ -470,26 +470,26 @@ func TestRunGenerateFrameworkOnlyKinds(t *testing.T) {
 		t.Errorf("mail template wrong:\n%s", page)
 	}
 
-	starter := Manifest{
-		Version: 2, Edition: "starter", Project: "plain", Module: "example.com/plain",
+	standalone := Manifest{
+		Version: 3, ProjectType: "standalone", Project: "plain", Module: "example.com/plain",
 		Mode: "api", Database: "sqlite", ORM: "gorm",
 	}
-	starterDir := generatedProject(t, starter)
+	standaloneDir := generatedProject(t, standalone)
 	for _, kind := range []string{"job", "event", "mail"} {
-		if _, _, err := runGenerate(starterDir, starter, generateRequest{Kind: kind, Name: "Thing"}); err == nil {
-			t.Errorf("%s generator accepted for starter edition", kind)
+		if _, _, err := runGenerate(standaloneDir, standalone, generateRequest{Kind: kind, Name: "Thing"}); err == nil {
+			t.Errorf("%s generator accepted for standalone project type", kind)
 		}
 	}
 }
 
 func TestRunGeneratePolicyKind(t *testing.T) {
-	framework := Manifest{
-		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+	runtime := Manifest{
+		Version: 3, ProjectType: "runtime", RuntimeVersion: "0.3.0",
 		Project: "shop", Module: "example.com/shop",
 		Mode: "api", Database: "sqlite", ORM: "gorm",
 	}
-	rootDir := generatedProject(t, framework)
-	files, nextSteps, err := runGenerate(rootDir, framework, generateRequest{Kind: "policy", Name: "Ticket"})
+	rootDir := generatedProject(t, runtime)
+	files, nextSteps, err := runGenerate(rootDir, runtime, generateRequest{Kind: "policy", Name: "Ticket"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -498,7 +498,7 @@ func TestRunGeneratePolicyKind(t *testing.T) {
 	}
 	content := fileContent(t, files, "internal/policy/ticket_policy.go")
 	for _, want := range []string{
-		"github.com/Alfian57/gin-kit/framework/authz",
+		"github.com/Alfian57/gin-kit/runtime/authz",
 		"authz.Decision", `authz.Deny("unauthenticated")`, "authz.Allow()",
 		"func (p *TicketPolicy) CanView(ctx context.Context, subjectID string, resource domain.Ticket) authz.Decision",
 		"func (p *TicketPolicy) CanCreate(ctx context.Context, subjectID string) authz.Decision",
@@ -510,34 +510,34 @@ func TestRunGeneratePolicyKind(t *testing.T) {
 		}
 	}
 	if !strings.Contains(nextSteps, "auth.UserID(c)") || !strings.Contains(nextSteps, "generate domain Ticket") {
-		t.Errorf("framework policy next steps wrong:\n%s", nextSteps)
+		t.Errorf("runtime policy next steps wrong:\n%s", nextSteps)
 	}
 
-	// A scaffolded starter project already vendors internal/platform/authz,
+	// A scaffolded standalone project already vendors internal/platform/authz,
 	// so the generator emits only the policy pair.
-	starter := Manifest{
-		Version: 2, Edition: "starter", Project: "plain", Module: "example.com/plain",
+	standalone := Manifest{
+		Version: 3, ProjectType: "standalone", Project: "plain", Module: "example.com/plain",
 		Mode: "api", Database: "sqlite", ORM: "gorm",
 	}
-	starterDir := generatedProject(t, starter)
-	files, nextSteps, err = runGenerate(starterDir, starter, generateRequest{Kind: "policy", Name: "Ticket"})
+	standaloneDir := generatedProject(t, standalone)
+	files, nextSteps, err = runGenerate(standaloneDir, standalone, generateRequest{Kind: "policy", Name: "Ticket"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(files) != 2 {
-		t.Fatalf("expected 2 files on a scaffolded starter, got %d", len(files))
+		t.Fatalf("expected 2 files on a scaffolded standalone, got %d", len(files))
 	}
 	content = fileContent(t, files, "internal/policy/ticket_policy.go")
 	if !strings.Contains(content, "example.com/plain/internal/platform/authz") {
-		t.Errorf("starter policy missing vendored authz import:\n%s", content)
+		t.Errorf("standalone policy missing vendored authz import:\n%s", content)
 	}
 	if !strings.Contains(nextSteps, `c.GetString("user_id")`) {
-		t.Errorf("starter policy next steps wrong:\n%s", nextSteps)
+		t.Errorf("standalone policy next steps wrong:\n%s", nextSteps)
 	}
 
-	// A starter project missing the vendored package gets it back-filled.
+	// A standalone project missing the vendored package gets it back-filled.
 	bareDir := t.TempDir()
-	files, _, err = runGenerate(bareDir, starter, generateRequest{Kind: "policy", Name: "Ticket"})
+	files, _, err = runGenerate(bareDir, standalone, generateRequest{Kind: "policy", Name: "Ticket"})
 	if err != nil {
 		t.Fatal(err)
 	}

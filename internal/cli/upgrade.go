@@ -23,7 +23,7 @@ import (
 const baselineFile = ".gin-kit.sum"
 
 // platformPrefix is the project-relative root of the vendored runtime that
-// gin-kit upgrade manages in starter projects.
+// gin-kit upgrade manages in standalone projects.
 const platformPrefix = "internal/platform/"
 
 type upgradeStatus string
@@ -50,17 +50,17 @@ func upgradeCommand() *cobra.Command {
 	var applyChanges, showDiff, force bool
 	cmd := &cobra.Command{
 		Use:   "upgrade",
-		Short: "Update the vendored internal/platform code of a starter project",
+		Short: "Update the vendored internal/platform code of a standalone project",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			rootDir, m, err := projectRoot()
 			if err != nil {
 				return err
 			}
-			if m.Edition != "starter" {
-				return diagnostic("upgrade_edition_unsupported", "upgrade platform code", rootDir,
-					errors.New("gin-kit upgrade manages the vendored internal/platform code of starter projects only"),
-					"Framework projects upgrade the versioned runtime instead: go get github.com/Alfian57/gin-kit@vX.Y.Z && go mod tidy.")
+			if m.ProjectType != "standalone" {
+				return diagnostic("upgrade_project_type_unsupported", "upgrade platform code", rootDir,
+					errors.New("gin-kit upgrade manages the vendored internal/platform code of standalone projects only"),
+					"Runtime projects upgrade the versioned runtime instead: go get github.com/Alfian57/gin-kit@vX.Y.Z && go mod tidy.")
 			}
 			entries, err := upgradePlan(rootDir, m)
 			if err != nil {

@@ -26,7 +26,7 @@ err := queue.Dispatch(ctx, app.Queue(), TypeWelcomeEmail,
 ```
 
 Scaffold a typed job with `gin-kit generate job <Name>` — it renders the
-payload struct, handler, and registration snippet (framework edition only;
+payload struct, handler, and registration snippet (runtime project type only;
 `generate event` and `generate mail` do the same for typed events and
 mailables).
 
@@ -40,7 +40,7 @@ binaries, call `Queue.Start(ctx)` yourself.
 
 ## Scheduled tasks
 
-`framework/schedule` wraps robfig/cron with panic recovery and graceful stop:
+`runtime/schedule` wraps robfig/cron with panic recovery and graceful stop:
 
 ```go
 scheduler := schedule.New(schedule.Options{Logger: app.Logger()})

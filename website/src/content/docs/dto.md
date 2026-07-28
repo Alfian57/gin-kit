@@ -86,7 +86,7 @@ func (s *TicketService) Create(ctx context.Context, request dto.CreateTicketRequ
 ```
 
 Validation happens once, at bind time — services trust their inputs and
-return domain values, staying transport-agnostic. In the framework edition,
+return domain values, staying transport-agnostic. In the runtime project type,
 the same DTO types feed the [auto-generated OpenAPI docs](/gin-kit/api-docs/)
 through `Describe`, so the spec and the wire format come from one source.
 

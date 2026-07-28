@@ -39,7 +39,7 @@ The mapper receives every error passed to `httpx.Handle`; return `nil`-safe
 `*httpx.Error` values and fall back to the default:
 
 ```go
-app, err := framework.New(framework.Options{
+app, err := runtime.New(runtime.Options{
     ErrorMapper: func(err error, c *gin.Context) *httpx.Error {
         switch {
         case errors.Is(err, domain.ErrQuotaExceeded):

@@ -4,10 +4,10 @@ description: Keep the defaults and change what your application needs.
 ---
 
 ```go
-app, err := framework.New(framework.Options{
+app, err := runtime.New(runtime.Options{
     Environment: os.Getenv("APP_ENV"),
     ErrorMapper: mapDomainError,
-    HTTP: framework.HTTPOptions{
+    HTTP: runtime.HTTPOptions{
         Address:        ":8080",
         TrustedProxies: []string{"10.0.0.0/8"},
         CORSOrigins:    []string{"https://app.example.com"},
@@ -24,16 +24,16 @@ return app.Run(ctx)
 
 The raw `*gin.Engine` and selected database handles remain available. Add
 middleware, readiness checks, validation rules, translations, error mappers,
-and shutdown hooks through options and interfaces. If the framework itself must
+and shutdown hooks through options and interfaces. If the runtime itself must
 change, fork the module and use a standard Go `replace` directive.
 
 ## Testing handlers
 
-The `framework/apptest` package removes the recorder boilerplate from handler
+The `runtime/apptest` package removes the recorder boilerplate from handler
 tests while keeping assertions in plain Go:
 
 ```go
-app := apptest.New(t, framework.Options{})
+app := apptest.New(t, runtime.Options{})
 app.Router().POST("/tasks", createTask)
 
 var task Task
@@ -45,7 +45,7 @@ flows, integration databases, factories, and browser tests.
 
 ## Feature flags
 
-Framework-edition applications can parse a small set of boolean feature flags
+Runtime applications can parse a small set of boolean feature flags
 from `FLAGS` and wire the set explicitly:
 
 ```go
@@ -63,7 +63,7 @@ call `featureFlags.Set("task-export", false)` at runtime. Changes are in-memory
 only; gin-kit does not add a global flag registry, persistence, targeting, or
 remote evaluation.
 
-Starter-edition projects remain standalone and do not vendor this optional
+Standalone projects remain standalone and do not vendor this optional
 package. When the same behavior is useful, copy this into
 `internal/platform/flags/flags.go` and pass the set through constructors just
 like any other dependency:

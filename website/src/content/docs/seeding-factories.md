@@ -9,7 +9,7 @@ and power demo environments.
 
 ## Model factories
 
-`framework/factory` (vendored as `internal/platform/factory` in starter
+`runtime/factory` (vendored as `internal/platform/factory` in standalone
 projects) defines factories as plain generic values — no reflection, no
 struct tags:
 

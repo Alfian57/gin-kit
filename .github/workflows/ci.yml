@@ -31,7 +31,7 @@ jobs:
       - name: Check formatting
         shell: bash
         run: |
-          test -z "$(gofmt -l cmd framework internal)"
+          test -z "$(gofmt -l cmd runtime internal)"
 
       - name: Test
         run: go test -race ./...
@@ -43,7 +43,7 @@ jobs:
         run: go build -trimpath ./...
 
   scaffold-pr:
-    name: Generated project smoke (${{ matrix.edition }}, ${{ matrix.mode }}, ${{ matrix.database }}, ${{ matrix.orm }})
+    name: Generated project smoke (${{ matrix.project_type }}, ${{ matrix.mode }}, ${{ matrix.database }}, ${{ matrix.orm }})
     if: github.event_name == 'pull_request'
     needs: go-quality
     runs-on: ubuntu-latest
@@ -51,32 +51,32 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - edition: framework
+          - project_type: runtime
             mode: api
             database: sqlite
             orm: gorm
             auth: false
-          - edition: framework
+          - project_type: runtime
             mode: ui
             database: sqlite
             orm: gorm
             auth: false
-          - edition: framework
+          - project_type: runtime
             mode: api
             database: sqlite
             orm: gorm
             auth: true
-          - edition: framework
+          - project_type: runtime
             mode: ui
             database: sqlite
             orm: sqlx
             auth: true
-          - edition: starter
+          - project_type: standalone
             mode: ui
             database: sqlite
             orm: gorm
             auth: true
-          - edition: starter
+          - project_type: standalone
             mode: api
             database: sqlite
             orm: sqlx
@@ -100,7 +100,7 @@ jobs:
 
       - name: Run generated project smoke test
         env:
-          GIN_KIT_EDITION: ${{ matrix.edition }}
+          GIN_KIT_PROJECT_TYPE: ${{ matrix.project_type }}
           GIN_KIT_MODE: ${{ matrix.mode }}
           GIN_KIT_DATABASE: ${{ matrix.database }}
           GIN_KIT_ORM: ${{ matrix.orm }}
@@ -109,7 +109,7 @@ jobs:
         run: .github/scripts/scaffold-smoke.sh
 
   scaffold-main:
-    name: Full generated matrix (${{ matrix.edition }}, ${{ matrix.mode }}, ${{ matrix.database }}, ${{ matrix.orm }})
+    name: Full generated matrix (${{ matrix.project_type }}, ${{ matrix.mode }}, ${{ matrix.database }}, ${{ matrix.orm }})
     if: github.event_name != 'pull_request'
     needs: go-quality
     runs-on: ubuntu-latest
@@ -117,12 +117,12 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        edition: [framework, starter]
+        project_type: [runtime, standalone]
         mode: [api, ui]
         database: [sqlite, postgres, mysql, mariadb]
         orm: [gorm, sqlx]
         include:
-          - edition: framework
+          - project_type: runtime
             mode: api
             database: postgres
             orm: sqlx
@@ -146,7 +146,7 @@ jobs:
 
       - name: Run generated project smoke test
         env:
-          GIN_KIT_EDITION: ${{ matrix.edition }}
+          GIN_KIT_PROJECT_TYPE: ${{ matrix.project_type }}
           GIN_KIT_MODE: ${{ matrix.mode }}
           GIN_KIT_DATABASE: ${{ matrix.database }}
           GIN_KIT_ORM: ${{ matrix.orm }}

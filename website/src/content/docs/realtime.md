@@ -3,7 +3,7 @@ title: Realtime updates
 description: Explicit WebSocket and server-sent event fan-out.
 ---
 
-`framework/realtime` delivers in-process events to WebSocket and SSE clients.
+`runtime/realtime` delivers in-process events to WebSocket and SSE clients.
 It is deliberately explicit: the application registers named channels, decides
 who may subscribe to private channels, and publishes each event itself. It is
 not a distributed broker; use a broker-backed adapter when your application

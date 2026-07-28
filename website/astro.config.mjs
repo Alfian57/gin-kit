@@ -47,7 +47,7 @@ export default defineConfig({
           items: [
             { label: 'Introduction', slug: 'index' },
             { label: 'Quickstart', slug: 'getting-started' },
-            { label: 'Framework or starter?', slug: 'framework-vs-starter' },
+            { label: 'Project types', slug: 'project-types' },
           ],
         },
         {
@@ -90,7 +90,6 @@ export default defineConfig({
             { label: 'AI agents', slug: 'ai-agents' },
             { label: 'Contributing', slug: 'contributing' },
             { label: 'Upgrade notes', slug: 'upgrading' },
-            { label: 'Manifest v1 migration', slug: 'migration-v1' },
             { label: 'Releasing', slug: 'releasing' },
             {
               label: 'Changelog',

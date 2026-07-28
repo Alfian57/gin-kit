@@ -10,22 +10,23 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/huh"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
 
 type Manifest struct {
-	Version          int    `yaml:"version"`
-	Edition          string `yaml:"edition"`
-	FrameworkVersion string `yaml:"framework_version,omitempty"`
-	Module           string `yaml:"module"`
-	Project          string `yaml:"project"`
-	Mode             string `yaml:"mode"`
-	Database         string `yaml:"database"`
-	ORM              string `yaml:"orm"`
-	Auth             bool   `yaml:"auth"`
-	Example          bool   `yaml:"example"`
-	Docker           bool   `yaml:"docker"`
+	Version        int    `yaml:"version"`
+	ProjectType    string `yaml:"project_type"`
+	RuntimeVersion string `yaml:"runtime_version,omitempty"`
+	Module         string `yaml:"module"`
+	Project        string `yaml:"project"`
+	Mode           string `yaml:"mode"`
+	Database       string `yaml:"database"`
+	ORM            string `yaml:"orm"`
+	Auth           bool   `yaml:"auth"`
+	Example        bool   `yaml:"example"`
+	Docker         bool   `yaml:"docker"`
 }
 
 var root = &cobra.Command{
@@ -59,13 +60,13 @@ func projectRoot() (string, Manifest, error) {
 			if err := decoder.Decode(&m); err != nil {
 				return dir, m, err
 			}
-			if m.Version != 2 {
+			if m.Version != 3 {
 				return dir, m, diagnostic(
 					"manifest_version_unsupported",
 					"read project manifest",
 					filepath.Join(dir, ".gin-kit.yaml"),
 					fmt.Errorf("manifest version %d is not supported", m.Version),
-					"Migrate the project manifest to version 2: https://alfian57.github.io/gin-kit/migration-v1/",
+					"Create a new project with this gin-kit release; only version 3 manifests are supported.",
 				)
 			}
 			if err := validateManifest(m); err != nil {
@@ -82,7 +83,7 @@ func projectRoot() (string, Manifest, error) {
 }
 
 func promptManifest(name string) (Manifest, error) {
-	m := Manifest{Version: 2, Edition: "framework", Project: name, Mode: "api", Database: "sqlite", ORM: "gorm"}
+	m := newInteractiveManifest(name)
 	if err := huh.NewForm(
 		huh.NewGroup(
 			huh.NewInput().Title("Go module path").Description("Example: github.com/you/"+name).Value(&m.Module).Validate(func(s string) error {
@@ -91,10 +92,10 @@ func promptManifest(name string) (Manifest, error) {
 				}
 				return nil
 			}),
-			huh.NewSelect[string]().Title("Project edition").Options(
-				huh.NewOption("Framework (recommended)", "framework"),
-				huh.NewOption("Starter (standalone learning project)", "starter"),
-			).Value(&m.Edition),
+			huh.NewSelect[string]().Title("Project type").Options(
+				huh.NewOption("Runtime (recommended)", "runtime"),
+				huh.NewOption("Standalone (includes runtime source)", "standalone"),
+			).Value(&m.ProjectType),
 			huh.NewSelect[string]().Title("Application mode").Options(
 				huh.NewOption("API (JSON REST)", "api"), huh.NewOption("UI (HTML + HTMX)", "ui"),
 			).Value(&m.Mode),
@@ -107,14 +108,37 @@ func promptManifest(name string) (Manifest, error) {
 			).Value(&m.ORM),
 		),
 		huh.NewGroup(
-			huh.NewConfirm().Title("Include core authentication?").Affirmative("Yes").Negative("No").Value(&m.Auth),
-			huh.NewConfirm().Title("Include the guided tasks example?").Affirmative("Yes").Negative("No").Value(&m.Example),
-			huh.NewConfirm().Title("Include Docker files?").Affirmative("Yes").Negative("No").Value(&m.Docker),
+			newFeatureConfirm("Include core authentication?", &m.Auth),
+			newFeatureConfirm("Include the guided tasks example?", &m.Example),
+			newFeatureConfirm("Include Docker files?", &m.Docker),
 		),
 	).Run(); err != nil {
 		return Manifest{}, err
 	}
 	return m, nil
+}
+
+func newInteractiveManifest(name string) Manifest {
+	return Manifest{
+		Version:     3,
+		ProjectType: "runtime",
+		Project:     name,
+		Mode:        "api",
+		Database:    "sqlite",
+		ORM:         "gorm",
+		Auth:        true,
+		Example:     true,
+		Docker:      true,
+	}
+}
+
+func newFeatureConfirm(title string, value *bool) *huh.Confirm {
+	return huh.NewConfirm().
+		Title(title).
+		Affirmative("Yes").
+		Negative("No").
+		WithButtonAlignment(lipgloss.Left).
+		Value(value)
 }
 
 func writeManifest(dir string, m Manifest) error {

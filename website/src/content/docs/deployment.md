@@ -38,7 +38,7 @@ dedicated scheduler replica.
 
 ## Docker Compose profiles
 
-Framework-edition compose files ship optional services behind profiles:
+Runtime compose files ship optional services behind profiles:
 `docker compose --profile mail up` starts Mailpit for a local inbox;
 `--profile storage` starts MinIO for S3-compatible storage. Neither runs by
 default.

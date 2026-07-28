@@ -1,17 +1,17 @@
 package api
 
 import (
-{{if ne .Edition "framework"}}	"net/http"
+{{if ne .ProjectType "runtime"}}	"net/http"
 
 {{end}}	"github.com/gin-gonic/gin"
-{{if eq .Edition "framework"}}	"github.com/Alfian57/gin-kit/framework/httpx"
+{{if eq .ProjectType "runtime"}}	"github.com/Alfian57/gin-kit/runtime/httpx"
 {{end}})
 
 // Register{{.Plural}}Routes wires the {{.Camel}} endpoints. Call it from the
 // package Register function and replace the placeholder handler.
 func Register{{.Plural}}Routes(router gin.IRoutes) {
 	router.GET("/{{.PluralCamel}}", func(c *gin.Context) {
-{{if eq .Edition "framework"}}		httpx.OK(c, gin.H{"items": []string{}})
+{{if eq .ProjectType "runtime"}}		httpx.OK(c, gin.H{"items": []string{}})
 {{else}}		c.JSON(http.StatusOK, gin.H{"data": []string{}})
 {{end}}	})
 }

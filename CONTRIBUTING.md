@@ -1,7 +1,7 @@
 # Contributing to gin-kit
 
-Thank you for helping improve gin-kit. Contributions may target the framework
-runtime, CLI, generated editions, documentation, or delivery pipeline.
+Thank you for helping improve gin-kit. Contributions may target the runtime,
+CLI, generated project types, documentation, or delivery pipeline.
 
 Participation is covered by the [Code of Conduct](CODE_OF_CONDUCT.md).
 
@@ -20,13 +20,13 @@ Useful commands:
 go test ./...
 go test -race ./...
 go vet ./...
-test -z "$(gofmt -l cmd framework internal)"
-go run ./cmd/gin-kit new /tmp/gin-kit-check --non-interactive --edition starter --module example.com/check --mode api --database sqlite --orm gorm
+test -z "$(gofmt -l cmd runtime internal)"
+go run ./cmd/gin-kit new /tmp/gin-kit-check --non-interactive --project-type standalone --module example.com/check --mode api --database sqlite --orm gorm
 cd website && npm ci && npm run check && npm run build
 ```
 
 The pull request workflow validates the runtime, documentation, and generated
-framework/starter projects. Template changes must pass the complete
+Runtime and Standalone projects. Template changes must pass the complete
 database/ORM matrix on `main`, including migration smoke tests for PostgreSQL,
 MySQL, MariaDB, and SQLite.
 
@@ -74,7 +74,7 @@ Pull requests must pass the Go quality, generated-project smoke, release snapsho
 ## Template changes
 
 The template tree is embedded into the CLI. Any template change must be checked
-with framework and starter projects in API and UI modes. Changes to database or
+with Runtime and Standalone projects in API and UI modes. Changes to database or
 ORM templates should be tested against every supported database and ORM
 combination.
 

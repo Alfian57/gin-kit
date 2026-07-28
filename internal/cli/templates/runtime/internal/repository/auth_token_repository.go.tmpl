@@ -1,0 +1,77 @@
+package repository
+
+import (
+	"context"
+{{if ne .ORM "gorm"}}	"database/sql"
+{{end}}	"errors"
+	"strings"
+	"time"
+
+	jwtauth "github.com/Alfian57/gin-kit/runtime/auth"
+	"github.com/Alfian57/gin-kit/runtime/database"
+	"{{.Module}}/internal/domain"
+{{if eq .ORM "gorm"}}	"gorm.io/gorm"
+{{end}})
+
+type apiTokenRepository struct {
+{{if eq .ORM "gorm"}}	db *gorm.DB
+{{else}}	db sqlxExecutor
+{{end}}}
+
+func NewAPITokenRepository(connection *database.Connection) domain.APITokenRepository {
+{{if eq .ORM "gorm"}}	return &apiTokenRepository{db: connection.GORM}
+{{else}}	return &apiTokenRepository{db: connection.SQLX}
+{{end}}}
+
+func (r *apiTokenRepository) Create(ctx context.Context, token *domain.APIToken) error {
+{{if eq .ORM "gorm"}}	return r.db.WithContext(ctx).Create(token).Error
+{{else}}	query := r.db.Rebind("INSERT INTO api_tokens (id,user_id,name,token_hash,abilities,expires_at,last_used_at,revoked_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)")
+	_, err := r.db.ExecContext(ctx, query, token.ID, token.UserID, token.Name, token.TokenHash, token.Abilities, token.ExpiresAt, token.LastUsedAt, token.RevokedAt, token.CreatedAt, token.UpdatedAt)
+	return err
+{{end}}}
+
+func (r *apiTokenRepository) ListForUser(ctx context.Context, userID string) ([]domain.APIToken, error) {
+	var tokens []domain.APIToken
+{{if eq .ORM "gorm"}}	err := r.db.WithContext(ctx).Where("user_id = ? AND revoked_at IS NULL", userID).Order("created_at DESC").Find(&tokens).Error
+{{else}}	err := r.db.SelectContext(ctx, &tokens, r.db.Rebind("SELECT id,user_id,name,token_hash,abilities,expires_at,last_used_at,revoked_at,created_at,updated_at FROM api_tokens WHERE user_id = ? AND revoked_at IS NULL ORDER BY created_at DESC"), userID)
+{{end}}	return tokens, err
+}
+
+func (r *apiTokenRepository) FindByHash(ctx context.Context, hash string) (domain.APIToken, error) {
+	var token domain.APIToken
+{{if eq .ORM "gorm"}}	err := r.db.WithContext(ctx).First(&token, "token_hash = ?", hash).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) { return token, domain.ErrAPITokenNotFound }
+{{else}}	err := r.db.GetContext(ctx, &token, r.db.Rebind("SELECT id,user_id,name,token_hash,abilities,expires_at,last_used_at,revoked_at,created_at,updated_at FROM api_tokens WHERE token_hash = ?"), hash)
+	if errors.Is(err, sql.ErrNoRows) { return token, domain.ErrAPITokenNotFound }
+{{end}}	return token, err
+}
+
+func (r *apiTokenRepository) TouchLastUsed(ctx context.Context, id string, at time.Time) error {
+{{if eq .ORM "gorm"}}	return r.db.WithContext(ctx).Model(&domain.APIToken{}).Where("id = ?", id).Update("last_used_at", at).Error
+{{else}}	_, err := r.db.ExecContext(ctx, r.db.Rebind("UPDATE api_tokens SET last_used_at = ? WHERE id = ?"), at, id)
+	return err
+{{end}}}
+
+func (r *apiTokenRepository) RevokeForUser(ctx context.Context, userID, id string, at time.Time) error {
+{{if eq .ORM "gorm"}}	result := r.db.WithContext(ctx).Model(&domain.APIToken{}).Where("id = ? AND user_id = ? AND revoked_at IS NULL", id, userID).Update("revoked_at", at)
+	if result.Error != nil { return result.Error }; if result.RowsAffected == 0 { return domain.ErrAPITokenNotFound }; return nil
+{{else}}	result, err := r.db.ExecContext(ctx, r.db.Rebind("UPDATE api_tokens SET revoked_at = ? WHERE id = ? AND user_id = ? AND revoked_at IS NULL"), at, id, userID)
+	if err != nil { return err }; n, err := result.RowsAffected(); if err != nil { return err }; if n == 0 { return domain.ErrAPITokenNotFound }; return nil
+{{end}}}
+
+type apiTokenStore struct{ repository domain.APITokenRepository }
+
+func NewAPITokenStore(repository domain.APITokenRepository) jwtauth.TokenStore {
+	return &apiTokenStore{repository: repository}
+}
+
+func (s *apiTokenStore) FindByTokenHash(ctx context.Context, hash string) (*jwtauth.APIToken, error) {
+	token, err := s.repository.FindByHash(ctx, hash)
+	if err != nil { return nil, err }
+	abilities := []string{}; if token.Abilities != "" { abilities = strings.Split(token.Abilities, ",") }
+	return &jwtauth.APIToken{ID: token.ID, UserID: token.UserID, Name: token.Name, TokenHash: token.TokenHash, Abilities: abilities, ExpiresAt: token.ExpiresAt, LastUsedAt: token.LastUsedAt, RevokedAt: token.RevokedAt}, nil
+}
+
+func (s *apiTokenStore) TouchLastUsed(ctx context.Context, id string, at time.Time) error {
+	return s.repository.TouchLastUsed(ctx, id, at)
+}

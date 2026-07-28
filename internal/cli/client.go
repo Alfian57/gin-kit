@@ -16,7 +16,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func loadFrameworkOpenAPI(root string) (*clientSpec, error) {
+func loadRuntimeOpenAPI(root string) (*clientSpec, error) {
 	cmd := exec.Command("go", "run", "./cmd/server", "--openapi")
 	cmd.Dir = root
 	output, err := cmd.Output()

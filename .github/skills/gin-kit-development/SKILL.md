@@ -1,19 +1,19 @@
 ---
 name: gin-kit-development
-description: Build and maintain the gin-kit framework runtime, CLI, project editions, database integrations, generated API or UI applications, and documentation.
+description: Build and maintain the gin-kit runtime, CLI, project types, database integrations, generated API or UI applications, and documentation.
 license: MIT
 compatibility: Requires Go 1.26; UI template work also requires Node.js 20+.
 ---
 
 # gin-kit development
 
-Read `AGENTS.md` before editing. gin-kit provides two deliberate editions:
+Read `AGENTS.md` before editing. gin-kit provides two deliberate project types:
 
-- `framework` is the default. It imports the versioned gin-kit runtime and keeps
+- `runtime` is the default. It imports the versioned gin-kit runtime and keeps
   only application-owned code in the generated repository.
-- `starter` is standalone. It vendors runtime copies under
+- `standalone` vendors runtime copies under
   `internal/platform/` for developers who want to inspect or replace every
-  layer. The HTTP contract must stay identical across editions.
+  layer. The HTTP contract must stay identical across project types.
 
 Keep the generated flow explicit:
 
@@ -32,8 +32,8 @@ Useful commands:
 go test ./...
 go vet ./...
 go test -race ./...
-test -z "$(gofmt -l cmd framework internal)"
-gin-kit new <name> --edition framework|starter [--auth --example --docker]
+test -z "$(gofmt -l cmd runtime internal)"
+gin-kit new <name> --project-type runtime|standalone [--auth --example --docker]
 gin-kit run
 gin-kit generate resource <Name> --fields "title:string,done:bool"
 gin-kit db up
@@ -49,25 +49,25 @@ gin-kit explain architecture
    local checks match CI (it always rebuilds the CLI — a stale binary at
    `/tmp/gin-kit` produces confusing "unknown flag" failures otherwise).
 3. If the change touches `tasks_*` templates, also scaffold `--example`
-   projects in both editions and both modes and run `go test ./...` in each —
+   projects in both project types and both modes and run `go test ./...` in each —
    **the CI matrix does not cover `--example`**.
-4. Framework-development smoke tests may use a local module replacement
-   (`--framework-replace`); user-facing generated projects must pin the
+4. Runtime-development smoke tests may use a local module replacement
+   (`--runtime-replace`); user-facing generated projects must pin the
    release version and must not contain a local replacement.
 
 Known traps:
 
-- The framework edition emits only an explicit allowlist of shared templates
+- The Runtime project type emits only an explicit allowlist of shared templates
   (`templateOutputPath` in `internal/cli/new.go`). The allowlist matches the
   file name **before** the `.tmpl` suffix is stripped — renaming a template
   to or from `.tmpl` without updating the allowlist silently drops it from
-  framework-edition projects.
+  Runtime projects.
 - Path gates: `auth_`/`/auth/` requires `--auth`, `tasks_` requires
   `--example`, `docker/` requires `--docker`, web/session paths require UI
   mode.
-- Templates under `templates/framework/` overwrite same-named shared files —
+- Templates under `templates/runtime/` overwrite same-named shared files —
   except `migrations/00001_init.sql`, where the shared file wins; add
-  framework-only migrations under new filenames.
+  runtime-only migrations under new filenames.
 
 ## Documentation discipline
 
@@ -83,7 +83,7 @@ workflow changes. Verify site changes with
 Use Argon2id for passwords, short-lived access tokens, rotating refresh tokens, secure cookies, CSRF protection, and explicit production-secret validation. Never log passwords, tokens, or credentials.
 
 Keep generic lifecycle, HTTP policy, response, validation, and security behavior
-inside the framework runtime. Customization must use explicit options,
+inside the runtime. Customization must use explicit options,
 interfaces, hooks, middleware, raw Gin access, or a documented module fork.
 Avoid reflection-based containers and hidden application dependencies.
 

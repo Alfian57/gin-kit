@@ -10,8 +10,8 @@ mode="${GIN_KIT_MODE:?GIN_KIT_MODE is required}"
 database="${GIN_KIT_DATABASE:?GIN_KIT_DATABASE is required}"
 orm="${GIN_KIT_ORM:?GIN_KIT_ORM is required}"
 auth="${GIN_KIT_AUTH:-false}"
-edition="${GIN_KIT_EDITION:-framework}"
-framework_version="${GIN_KIT_FRAMEWORK_VERSION:-0.3.0}"
+project_type="${GIN_KIT_PROJECT_TYPE:-runtime}"
+runtime_version="${GIN_KIT_RUNTIME_VERSION:-0.3.0}"
 project_name="${GIN_KIT_PROJECT_NAME:-matrixapp}"
 runner_temp="${RUNNER_TEMP:-${TMPDIR:-/tmp}}"
 cli_path="${GIN_KIT_CLI_PATH:-$runner_temp/gin-kit}"
@@ -34,7 +34,7 @@ args=(
   new "$project_name"
   --non-interactive
   --module "example.com/$project_name"
-  --edition "$edition"
+  --project-type "$project_type"
   --mode "$mode"
   --database "$database"
   --orm "$orm"
@@ -45,8 +45,8 @@ if [[ "$auth" == "true" ]]; then
   # gin-kit routes boots the application, which fail-fasts on a short secret.
   export JWT_SECRET="${JWT_SECRET:-gin-kit-smoke-secret-0123456789abcdef}"
 fi
-if [[ "$edition" == "framework" ]]; then
-  args+=(--framework-version "$framework_version" --framework-replace "$repo_root")
+if [[ "$project_type" == "runtime" ]]; then
+  args+=(--runtime-version "$runtime_version" --runtime-replace "$repo_root")
 fi
 
 (cd "$workdir" && "$cli_path" "${args[@]}")
@@ -118,7 +118,7 @@ fi
   "$cli_path" generate domain SmokeProfile --fields "email:string,age:int"
   "$cli_path" generate dto SmokeProfile --fields "email:string,age:int"
   "$cli_path" generate factory SmokeProfile --fields "email:string,age:int"
-  if [[ "$edition" == "framework" ]]; then
+  if [[ "$project_type" == "runtime" ]]; then
     "$cli_path" generate job SmokeJob
     "$cli_path" generate event SmokeEvent
     "$cli_path" generate mail SmokeMail

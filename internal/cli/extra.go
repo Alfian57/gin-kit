@@ -65,7 +65,7 @@ func doctorCommand() *cobra.Command {
 		if m.Database == "sqlite" {
 			fmt.Println("  sqlite: official driver selected; CGO/GCC is required for SQLite builds")
 		}
-		if m.Edition == "framework" && m.Mode == "ui" {
+		if m.ProjectType == "runtime" && m.Mode == "ui" {
 			fmt.Println("  playwright: optional; install browsers for e2e tests with " +
 				"'go run github.com/playwright-community/playwright-go/cmd/playwright@latest install --with-deps chromium' (tests skip otherwise)")
 		}

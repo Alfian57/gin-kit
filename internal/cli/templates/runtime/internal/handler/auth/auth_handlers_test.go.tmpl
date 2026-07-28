@@ -1,0 +1,200 @@
+package auth
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
+	"testing"
+	"time"
+
+	"github.com/Alfian57/gin-kit/runtime"
+	jwtauth "github.com/Alfian57/gin-kit/runtime/auth"
+	"{{.Module}}/internal/domain"
+	"{{.Module}}/internal/service"
+)
+
+type fakeUsers struct {
+	mu    sync.Mutex
+	users map[string]domain.User
+}
+
+func (f *fakeUsers) Create(_ context.Context, user *domain.User) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, existing := range f.users {
+		if existing.Email == user.Email {
+			return domain.ErrEmailTaken
+		}
+	}
+	f.users[user.ID] = *user
+	return nil
+}
+
+func (f *fakeUsers) FindByEmail(_ context.Context, email string) (domain.User, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for _, user := range f.users {
+		if user.Email == email {
+			return user, nil
+		}
+	}
+	return domain.User{}, domain.ErrUserNotFound
+}
+
+func (f *fakeUsers) FindByID(_ context.Context, id string) (domain.User, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	user, ok := f.users[id]
+	if !ok {
+		return domain.User{}, domain.ErrUserNotFound
+	}
+	return user, nil
+}
+
+type fakeRefresh struct {
+	mu     sync.Mutex
+	tokens map[string]domain.RefreshToken
+}
+
+func (f *fakeRefresh) Store(_ context.Context, token *domain.RefreshToken) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.tokens[token.TokenHash] = *token
+	return nil
+}
+
+func (f *fakeRefresh) FindByHash(_ context.Context, hash string) (domain.RefreshToken, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	token, ok := f.tokens[hash]
+	if !ok {
+		return domain.RefreshToken{}, domain.ErrRefreshTokenNotFound
+	}
+	return token, nil
+}
+
+func (f *fakeRefresh) DeleteByHash(_ context.Context, hash string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	delete(f.tokens, hash)
+	return nil
+}
+
+func (f *fakeRefresh) DeleteForUser(_ context.Context, userID string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for hash, token := range f.tokens {
+		if token.UserID == userID {
+			delete(f.tokens, hash)
+		}
+	}
+	return nil
+}
+
+func TestAuthenticationFlow(t *testing.T) {
+	application, err := runtime.New(runtime.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokens, err := jwtauth.New([]byte(strings.Repeat("s", jwtauth.MinimumSecretLength)), "{{.Project}}", 15*time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	accounts := service.NewAuthService(
+		&fakeUsers{users: map[string]domain.User{}},
+		&fakeRefresh{tokens: map[string]domain.RefreshToken{}},
+		tokens,
+		time.Hour,
+	)
+	Register(application.Router(), application.OpenAPI(), tokens, accounts)
+
+	do := func(method, path, body string, header http.Header) *httptest.ResponseRecorder {
+		t.Helper()
+		request := httptest.NewRequest(method, path, bytes.NewReader([]byte(body)))
+		if body != "" {
+			request.Header.Set("Content-Type", "application/json")
+		}
+		for key, values := range header {
+			for _, value := range values {
+				request.Header.Add(key, value)
+			}
+		}
+		recorder := httptest.NewRecorder()
+		application.Router().ServeHTTP(recorder, request)
+		return recorder
+	}
+	decode := func(t *testing.T, recorder *httptest.ResponseRecorder) map[string]any {
+		t.Helper()
+		var envelope struct {
+			Data map[string]any `json:"data"`
+		}
+		if err := json.Unmarshal(recorder.Body.Bytes(), &envelope); err != nil {
+			t.Fatalf("decode %s: %v", recorder.Body.String(), err)
+		}
+		return envelope.Data
+	}
+
+	credentials := `{"email":"USER@Example.com","password":"super-secret-1"}`
+
+	registered := do(http.MethodPost, "/api/v1/auth/register", credentials, nil)
+	if registered.Code != http.StatusCreated {
+		t.Fatalf("register: %d %s", registered.Code, registered.Body)
+	}
+	if do(http.MethodPost, "/api/v1/auth/register", credentials, nil).Code != http.StatusConflict {
+		t.Fatal("duplicate registration accepted")
+	}
+
+	loggedIn := do(http.MethodPost, "/api/v1/auth/login", credentials, nil)
+	if loggedIn.Code != http.StatusOK {
+		t.Fatalf("login: %d %s", loggedIn.Code, loggedIn.Body)
+	}
+	login := decode(t, loggedIn)
+	access, _ := login["access_token"].(string)
+	refresh, _ := login["refresh_token"].(string)
+	if access == "" || refresh == "" {
+		t.Fatalf("token pair incomplete: %v", login)
+	}
+	if user, ok := login["user"].(map[string]any); !ok || user["email"] != "user@example.com" {
+		t.Fatalf("login user payload wrong: %v", login["user"])
+	}
+
+	wrongPassword := `{"email":"user@example.com","password":"wrong-password-1"}`
+	if do(http.MethodPost, "/api/v1/auth/login", wrongPassword, nil).Code != http.StatusUnauthorized {
+		t.Fatal("wrong password accepted")
+	}
+
+	me := do(http.MethodGet, "/api/v1/me", "", http.Header{"Authorization": []string{"Bearer " + access}})
+	if me.Code != http.StatusOK || !strings.Contains(me.Body.String(), "user@example.com") {
+		t.Fatalf("me: %d %s", me.Code, me.Body)
+	}
+	if do(http.MethodGet, "/api/v1/me", "", nil).Code != http.StatusUnauthorized {
+		t.Fatal("unauthenticated /me accepted")
+	}
+
+	refreshBody := fmt.Sprintf(`{"refresh_token":%q}`, refresh)
+	rotated := do(http.MethodPost, "/api/v1/auth/refresh", refreshBody, nil)
+	if rotated.Code != http.StatusOK {
+		t.Fatalf("refresh: %d %s", rotated.Code, rotated.Body)
+	}
+	rotation := decode(t, rotated)
+	if rotation["refresh_token"] == refresh {
+		t.Fatal("refresh token was not rotated")
+	}
+	if do(http.MethodPost, "/api/v1/auth/refresh", refreshBody, nil).Code != http.StatusUnauthorized {
+		t.Fatal("rotated (used) refresh token accepted again")
+	}
+
+	newRefresh, _ := rotation["refresh_token"].(string)
+	logoutBody := fmt.Sprintf(`{"refresh_token":%q}`, newRefresh)
+	if do(http.MethodPost, "/api/v1/auth/logout", logoutBody, nil).Code != http.StatusNoContent {
+		t.Fatal("logout failed")
+	}
+	if do(http.MethodPost, "/api/v1/auth/refresh", logoutBody, nil).Code != http.StatusUnauthorized {
+		t.Fatal("refresh after logout accepted")
+	}
+}

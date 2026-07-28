@@ -1,11 +1,11 @@
 {{/*
 	This template mirrors templates/internal/platform/authz/authz.go.tmpl —
-	the scaffold's vendored authz copy. It back-fills starter projects created
+	the scaffold's vendored authz copy. It back-fills standalone projects created
 	before the authz package existed. Keep the two files identical.
 */ -}}
 // Package authz provides explicit, allowlist-style authorization decisions.
-// Standalone copy of the gin-kit framework authz package; it logs deny
-// reasons through slog.Default() because the starter runtime does not carry
+// Standalone copy of the gin-kit runtime authz package; it logs deny
+// reasons through slog.Default() because the standalone runtime does not carry
 // a request-scoped logger. The HTTP contract is identical.
 //
 // Policies return a Decision built with Allow or Deny. Handlers enforce a

@@ -8,7 +8,7 @@ gin-kit run
 gin-kit dev [--port]
 gin-kit build
 gin-kit check
-gin-kit upgrade [--diff] [--apply] [--force]   # starter edition only
+gin-kit upgrade [--diff] [--apply] [--force]   # standalone project type only
 gin-kit doctor
 gin-kit explain <topic>
 ```
@@ -22,22 +22,35 @@ application itself listens on `--app-port` (default: an automatically chosen
 free port, passed to the server as `PORT`). `gin-kit run` remains the simple
 `go run`-based runner.
 
-`gin-kit new` defaults to `--edition framework`. Use `--edition starter` for the
-standalone source-visible edition. Use `--example` to include the runnable
+`gin-kit new` defaults to `--project-type runtime`. Use `--project-type standalone` for the
+standalone source-visible project type. Use `--example` to include the runnable
 Tasks vertical slice. Generated projects expose the same
 domain/service/repository boundaries regardless of whether GORM or sqlx is
 selected.
+
+In the interactive form, authentication, the Tasks example, and Docker files
+start selected (`Yes`). With `--non-interactive`, opt into those features with
+`--auth`, `--example`, and `--docker`.
+
+New projects write a version 3 `.gin-kit.yaml` manifest. Its project selector
+is `project_type: runtime|standalone`; Runtime projects also pin
+`runtime_version`. The old selector and runtime import path are intentionally
+unsupported.
 
 Non-interactive creation requires the module, mode, database, and ORM:
 
 ```text
 gin-kit new ./services/orders --non-interactive \
-  --edition framework \
+  --project-type runtime \
   --module example.com/acme/orders \
   --mode api \
   --database postgres \
   --orm gorm
 ```
+
+When developing gin-kit itself, Runtime scaffolds may use
+`--runtime-version` and `--runtime-replace <local-repository>`. These options
+are rejected for Standalone projects.
 
 ## Generation
 
@@ -54,9 +67,9 @@ gin-kit generate policy <Name>
 gin-kit generate seeder <Name>
 gin-kit generate factory <Name> --fields "email:string,age:int"
 gin-kit generate migration <name>
-gin-kit generate job <Name>      # framework edition only
-gin-kit generate event <Name>    # framework edition only
-gin-kit generate mail <Name>     # framework edition only
+gin-kit generate job <Name>      # runtime project type only
+gin-kit generate event <Name>    # runtime project type only
+gin-kit generate mail <Name>     # runtime project type only
 ```
 
 `generate resource` renders a complete vertical slice from real,
@@ -84,7 +97,7 @@ from the response type.
 `generate policy` renders an authorization policy in `internal/policy`:
 `CanView`/`CanCreate`/`CanUpdate`/`CanDelete` methods returning
 `authz.Decision` values (deny reasons are logged, never serialized) plus a
-table test. It works in both editions; starter projects missing the vendored
+table test. It works in both project types; standalone projects missing the vendored
 `internal/platform/authz` package get it back-filled automatically.
 
 The `--fields` grammar is `name:type` pairs separated by commas, with types
@@ -120,9 +133,9 @@ fresh` resets the schema, migrates up, and seeds; `reset` and `fresh` are
 destructive and require `--yes`. Server, migrate, and seed binaries all load
 `.env` (the real environment always wins).
 
-## Upgrading starter projects
+## Upgrading standalone projects
 
-Starter projects vendor their runtime under `internal/platform/`, so bugfixes
+Standalone projects vendor their runtime under `internal/platform/`, so bugfixes
 in newer gin-kit releases do not reach them through `go get`. `gin-kit
 upgrade` closes that gap: it re-renders the **current CLI's** platform
 templates for the project's manifest (mode, ORM, and feature gates all
@@ -146,15 +159,15 @@ overwrites `modified` and `differs` files. Go files are compared after
 as a change.
 
 The baseline lives in `.gin-kit.sum` — sorted `sha256  path` lines recording
-the checksum each platform file had when the CLI last wrote it. New starter
+the checksum each platform file had when the CLI last wrote it. New standalone
 scaffolds create it automatically; projects created before it existed start
 with every changed file reported as `differs`, and the first
 `upgrade --apply` bootstraps baseline entries for all files that match the
 render. Commit the file: it is what lets a future upgrade distinguish your
 edits from stale vendored code.
 
-Framework-edition projects do not vendor the runtime, so `gin-kit upgrade`
-refuses to run there (`upgrade_edition_unsupported`); upgrade the versioned
+Runtime projects do not vendor the runtime, so `gin-kit upgrade`
+refuses to run there (`upgrade_project_type_unsupported`); upgrade the versioned
 module instead: `go get github.com/Alfian57/gin-kit@vX.Y.Z && go mod tidy`.
 
 ## Routes
@@ -182,18 +195,18 @@ Development uses local defaults where safe. Staging and production fail startup
 when database, CORS, or enabled-authentication secrets are missing or invalid,
 and malformed values are always startup errors.
 
-Framework-edition projects use `framework/config` with `PORT`, `APP_ENV`,
+Runtime projects use `runtime/config` with `PORT`, `APP_ENV`,
 `DATABASE_URL`, `JWT_SECRET`, `TRUSTED_PROXY_CIDRS`, `CORS_ALLOWED_ORIGINS`,
 `RATE_LIMIT_ENABLED`, `RATE_LIMIT_PER_MINUTE`, `RATE_LIMIT_BURST`,
 `MAX_BODY_BYTES`, `METRICS_ENABLED`, `PPROF_ENABLED`, and
 `READ/WRITE/IDLE/SHUTDOWN_TIMEOUT` Go durations.
 
-Starter-edition rate limiting is enabled by default and exposes separate
+Standalone rate limiting is enabled by default and exposes separate
 per-minute settings for general, authentication, and expensive endpoint
-classes. In both editions, forwarded client IP headers are trusted only when
+classes. In both project types, forwarded client IP headers are trusted only when
 `TRUSTED_PROXY_CIDRS` is configured.
 `generate client` reads OpenAPI JSON or YAML and emits a dependency-free
 TypeScript `ApiClient`, schema aliases, a token-provider hook, path/query/body
-parameters, and the canonical error shape. Framework projects generate the
-document from `go run ./cmd/server --openapi`; starter projects default to
+parameters, and the canonical error shape. Runtime projects generate the
+document from `go run ./cmd/server --openapi`; standalone projects default to
 `api/openapi.yaml`. Use `--from` to override either source.

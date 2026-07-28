@@ -17,12 +17,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-//go:embed templates/* templates/framework/.env.example
+//go:embed templates/* templates/runtime/.env.example
 var templateFS embed.FS
 
 func newCommand() *cobra.Command {
 	var nonInteractive bool
-	var modulePath, edition, mode, database, orm, frameworkVersion, frameworkReplace string
+	var modulePath, projectType, mode, database, orm, runtimeVersion, runtimeReplace string
 	var auth, example, docker bool
 	cmd := &cobra.Command{
 		Use:   "new <project>",
@@ -37,7 +37,7 @@ func newCommand() *cobra.Command {
 			if name == "." || name == string(filepath.Separator) || name == "" {
 				return diagnostic("target_invalid", "resolve project target", args[0], errors.New("target must name a project directory"), "Choose a path such as ./my-service.")
 			}
-			m := Manifest{Version: 2, Edition: edition, Project: name, Module: modulePath, Mode: mode, Database: database, ORM: orm, Auth: auth, Example: example, Docker: docker}
+			m := Manifest{Version: 3, ProjectType: projectType, Project: name, Module: modulePath, Mode: mode, Database: database, ORM: orm, Auth: auth, Example: example, Docker: docker}
 			if !nonInteractive {
 				m, err = promptManifest(name)
 				if err != nil {
@@ -46,17 +46,19 @@ func newCommand() *cobra.Command {
 			} else if m.Module == "" || m.Mode == "" || m.Database == "" || m.ORM == "" {
 				return diagnostic("selection_required", "validate project options", target, errors.New("non-interactive mode requires --module, --mode, --database and --orm"), "Provide every required flag or remove --non-interactive.")
 			}
-			if m.Edition == "" {
-				m.Edition = "framework"
+			if m.ProjectType == "" {
+				m.ProjectType = "runtime"
 			}
-			if m.Edition == "framework" {
-				m.FrameworkVersion = strings.TrimPrefix(frameworkVersion, "v")
-				if m.FrameworkVersion == "" {
-					m.FrameworkVersion = effectiveVersion()
+			if m.ProjectType == "runtime" {
+				m.RuntimeVersion = strings.TrimPrefix(runtimeVersion, "v")
+				if m.RuntimeVersion == "" {
+					m.RuntimeVersion = effectiveVersion()
 				}
-				if m.FrameworkVersion == "dev" && frameworkReplace == "" {
-					return diagnostic("framework_version_required", "resolve framework version", target, errors.New("development CLI builds do not identify a released framework version"), "Pass --framework-version <version>, or use --framework-replace <local-repository> while developing gin-kit.")
+				if m.RuntimeVersion == "dev" && runtimeReplace == "" {
+					return diagnostic("runtime_version_required", "resolve runtime version", target, errors.New("development CLI builds do not identify a released runtime version"), "Pass --runtime-version <version>, or use --runtime-replace <local-repository> while developing gin-kit.")
 				}
+			} else if runtimeVersion != "" || runtimeReplace != "" {
+				return diagnostic("runtime_option_unsupported", "validate project options", target, errors.New("runtime options require the runtime project type"), "Use --project-type runtime, or remove --runtime-version and --runtime-replace.")
 			}
 			if err := validateManifest(m); err != nil {
 				return err
@@ -66,32 +68,32 @@ func newCommand() *cobra.Command {
 			} else if !os.IsNotExist(err) {
 				return diagnostic("target_unavailable", "inspect project target", target, err, "Check the target permissions and try again.")
 			}
-			if err := scaffoldWithOptions(target, m, scaffoldOptions{FrameworkReplace: frameworkReplace}); err != nil {
+			if err := scaffoldWithOptions(target, m, scaffoldOptions{RuntimeReplace: runtimeReplace}); err != nil {
 				return err
 			}
-			fmt.Printf("Created %s (%s edition, %s, %s, %s).\nNext steps:\n  cd %s\n  gin-kit run\n", name, m.Edition, m.Mode, m.Database, m.ORM, target)
+			fmt.Printf("Created %s (%s project type, %s, %s, %s).\nNext steps:\n  cd %s\n  gin-kit run\n", name, m.ProjectType, m.Mode, m.Database, m.ORM, target)
 			return nil
 		},
 	}
 	cmd.Flags().BoolVar(&nonInteractive, "non-interactive", false, "disable prompts")
 	cmd.Flags().StringVar(&modulePath, "module", "", "Go module path")
-	cmd.Flags().StringVar(&edition, "edition", "framework", "framework or starter")
+	cmd.Flags().StringVar(&projectType, "project-type", "runtime", "runtime or standalone")
 	cmd.Flags().StringVar(&mode, "mode", "", "api or ui")
 	cmd.Flags().StringVar(&database, "database", "", "sqlite, postgres, mysql, or mariadb")
 	cmd.Flags().StringVar(&orm, "orm", "", "gorm or sqlx")
 	cmd.Flags().BoolVar(&auth, "auth", false, "include authentication")
 	cmd.Flags().BoolVar(&example, "example", false, "include tasks example")
 	cmd.Flags().BoolVar(&docker, "docker", false, "include Docker files")
-	cmd.Flags().StringVar(&frameworkVersion, "framework-version", "", "gin-kit framework version (defaults to the CLI release)")
-	cmd.Flags().StringVar(&frameworkReplace, "framework-replace", "", "local gin-kit repository override for framework development")
+	cmd.Flags().StringVar(&runtimeVersion, "runtime-version", "", "gin-kit runtime version (defaults to the CLI release)")
+	cmd.Flags().StringVar(&runtimeReplace, "runtime-replace", "", "local gin-kit repository override for runtime development")
 	return cmd
 }
 
 type templateData struct {
 	Manifest
-	Package          string
-	FrameworkRequire string
-	FrameworkReplace string
+	Package        string
+	RuntimeRequire string
+	RuntimeReplace string
 }
 
 func scaffold(target string, m Manifest) error {
@@ -99,7 +101,7 @@ func scaffold(target string, m Manifest) error {
 }
 
 type scaffoldOptions struct {
-	FrameworkReplace string
+	RuntimeReplace string
 }
 
 func scaffoldWithOptions(target string, m Manifest, options scaffoldOptions) error {
@@ -157,7 +159,7 @@ func scaffoldIntoWithOptions(target string, m Manifest, options scaffoldOptions)
 	if err := formatGeneratedGo(target); err != nil {
 		return err
 	}
-	if m.Edition == "starter" {
+	if m.ProjectType == "standalone" {
 		// Record the post-gofmt checksums of the vendored platform files so
 		// gin-kit upgrade can tell local edits from stale vendored copies.
 		if err := writeBaselineFromDisk(target); err != nil {
@@ -174,23 +176,23 @@ func renderScaffoldTree(m Manifest, options scaffoldOptions, filter func(rel str
 	if m.Module == "" {
 		m.Module = "example.com/" + m.Project
 	}
-	frameworkRequire := ""
-	frameworkReplace := ""
-	if m.Edition == "framework" {
-		version := strings.TrimPrefix(m.FrameworkVersion, "v")
+	runtimeRequire := ""
+	runtimeReplace := ""
+	if m.ProjectType == "runtime" {
+		version := strings.TrimPrefix(m.RuntimeVersion, "v")
 		if version == "" || version == "dev" {
 			version = "0.0.0"
 		}
-		frameworkRequire = "require github.com/Alfian57/gin-kit v" + version
-		if options.FrameworkReplace != "" {
-			local, err := filepath.Abs(options.FrameworkReplace)
+		runtimeRequire = "require github.com/Alfian57/gin-kit v" + version
+		if options.RuntimeReplace != "" {
+			local, err := filepath.Abs(options.RuntimeReplace)
 			if err != nil {
-				return nil, diagnostic("framework_replace_invalid", "resolve framework override", options.FrameworkReplace, err, "Pass a valid local gin-kit repository path.")
+				return nil, diagnostic("runtime_replace_invalid", "resolve runtime override", options.RuntimeReplace, err, "Pass a valid local gin-kit repository path.")
 			}
-			frameworkReplace = "\nreplace github.com/Alfian57/gin-kit => " + filepath.ToSlash(local)
+			runtimeReplace = "\nreplace github.com/Alfian57/gin-kit => " + filepath.ToSlash(local)
 		}
 	}
-	data := templateData{Manifest: m, Package: filepath.Base(m.Module), FrameworkRequire: frameworkRequire, FrameworkReplace: frameworkReplace}
+	data := templateData{Manifest: m, Package: filepath.Base(m.Module), RuntimeRequire: runtimeRequire, RuntimeReplace: runtimeReplace}
 	files := map[string][]byte{}
 	err := fs.WalkDir(templateFS, "templates", func(path string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -294,8 +296,8 @@ func formatGeneratedGo(root string) error {
 }
 
 func validateManifest(m Manifest) error {
-	if m.Version != 2 {
-		return diagnostic("manifest_version_invalid", "validate manifest", ".gin-kit.yaml", fmt.Errorf("expected version 2, got %d", m.Version), "Use a version 2 manifest.")
+	if m.Version != 3 {
+		return diagnostic("manifest_version_invalid", "validate manifest", ".gin-kit.yaml", fmt.Errorf("expected version 3, got %d", m.Version), "Use a version 3 manifest.")
 	}
 	if strings.TrimSpace(m.Project) == "" || strings.ContainsAny(m.Project, `/\`) || m.Project == "." || m.Project == ".." {
 		return diagnostic("project_name_invalid", "validate manifest", m.Project, errors.New("project name must be non-empty and must not contain path separators"), "Use a directory name such as orders-api.")
@@ -303,11 +305,14 @@ func validateManifest(m Manifest) error {
 	if err := checkModulePath(m.Module); err != nil {
 		return diagnostic("module_path_invalid", "validate manifest", m.Module, err, "Use a canonical Go module path such as example.com/team/service.")
 	}
-	if m.Edition != "framework" && m.Edition != "starter" {
-		return diagnostic("edition_invalid", "validate manifest", m.Edition, errors.New("edition must be framework or starter"), "Choose --edition framework or --edition starter.")
+	if m.ProjectType != "runtime" && m.ProjectType != "standalone" {
+		return diagnostic("project_type_invalid", "validate manifest", m.ProjectType, errors.New("project_type must be runtime or standalone"), "Choose --project-type runtime or --project-type standalone.")
 	}
-	if m.Edition == "framework" && (m.FrameworkVersion == "" || !regexp.MustCompile(`^(dev|[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)$`).MatchString(strings.TrimPrefix(m.FrameworkVersion, "v"))) {
-		return diagnostic("framework_version_invalid", "validate manifest", m.FrameworkVersion, errors.New("framework version must be semantic"), "Use a version such as 0.3.0.")
+	if m.ProjectType == "runtime" && (m.RuntimeVersion == "" || !regexp.MustCompile(`^(dev|[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?)$`).MatchString(strings.TrimPrefix(m.RuntimeVersion, "v"))) {
+		return diagnostic("runtime_version_invalid", "validate manifest", m.RuntimeVersion, errors.New("runtime version must be semantic"), "Use a version such as 0.3.0.")
+	}
+	if m.ProjectType == "standalone" && m.RuntimeVersion != "" {
+		return diagnostic("runtime_version_unsupported", "validate manifest", m.RuntimeVersion, errors.New("runtime_version is only valid for runtime projects"), "Remove runtime_version from a standalone project manifest.")
 	}
 	if m.Mode != "api" && m.Mode != "ui" {
 		return fmt.Errorf("invalid mode %q: use api or ui", m.Mode)
@@ -340,14 +345,14 @@ func checkModulePath(path string) error {
 }
 
 func templateOutputPath(rel string, m Manifest) (string, bool) {
-	const frameworkPrefix = "framework/"
-	if strings.HasPrefix(rel, frameworkPrefix) {
-		if m.Edition != "framework" {
+	const runtimePrefix = "runtime/"
+	if strings.HasPrefix(rel, runtimePrefix) {
+		if m.ProjectType != "runtime" {
 			return "", false
 		}
-		return strings.TrimPrefix(rel, frameworkPrefix), true
+		return strings.TrimPrefix(rel, runtimePrefix), true
 	}
-	if m.Edition == "framework" {
+	if m.ProjectType == "runtime" {
 		switch {
 		case rel == ".gitignore",
 			rel == "AGENTS.md.tmpl",

@@ -18,15 +18,19 @@ gin-kit build             # build a production binary
 gin-kit check             # read-only: report gofmt drift, run tests and vet
 gin-kit doctor            # diagnose toolchain, manifest, and database issues
 gin-kit routes            # boot the app and print the sorted routing table
-gin-kit upgrade           # starter: update vendored internal/platform code
+gin-kit upgrade           # standalone: update vendored internal/platform code
 gin-kit explain <topic>   # architecture | request-flow | database | auth | commands
 ```
 
-`new` defaults to `--edition framework`; use `--edition starter` for the
-standalone source-visible edition, `--auth` for the authentication vertical,
+`new` defaults to `--project-type runtime`; use `--project-type standalone` for the
+standalone source-visible project type, `--auth` for the authentication vertical,
 `--example` for the tasks example, and `--docker` for compose files.
 Non-interactive creation requires `--module`, `--mode`, `--database`, and
 `--orm`.
+
+New projects write manifest v3 with `project_type: runtime|standalone`.
+Runtime projects also pin `runtime_version`; the prior selector and runtime
+import path are intentionally unsupported.
 
 `routes` boots the application, so it needs a reachable database (SQLite
 always works) and valid required secrets.
@@ -50,9 +54,9 @@ gin-kit generate policy <Name>
 gin-kit generate factory <Name> [--fields ...]
 gin-kit generate seeder <Name>
 gin-kit generate migration <name>
-gin-kit generate job <Name>      # framework edition only
-gin-kit generate event <Name>    # framework edition only
-gin-kit generate mail <Name>     # framework edition only
+gin-kit generate job <Name>      # runtime project type only
+gin-kit generate event <Name>    # runtime project type only
+gin-kit generate mail <Name>     # runtime project type only
 ```
 
 `generate resource` is the flagship: it renders a working vertical slice —
@@ -77,14 +81,14 @@ regenerate soft-deleting pieces through the resource generator.
 `generate dto` renders just the DTO file for an existing model.
 `generate policy` renders an [authorization policy](/gin-kit/authorization/)
 in `internal/policy` — per-action decision methods with placeholder rules
-and a table test — and works in both editions; starter projects get the
+and a table test — and works in both project types; standalone projects get the
 vendored `internal/platform/authz` package back-filled when it is missing.
 `generate factory` creates a [model factory](/gin-kit/seeding-factories/)
 with field-aware fake data; `generate seeder` a registry-based seeder.
 `generate job`, `generate event`, and `generate mail` scaffold
 [background jobs](/gin-kit/background-work/), typed events, and
-[mailables](/gin-kit/mail-storage/) — they rely on framework packages, so
-they are framework-edition only.
+[mailables](/gin-kit/mail-storage/) — they rely on runtime packages, so
+they are runtime only.
 
 ### The `--fields` grammar
 
@@ -111,9 +115,9 @@ staging directory, and publish transactionally — a failed render leaves the
 project untouched. Use `--dry-run` to inspect intended files. Errors name the
 failed phase, a stable code, the affected path, and a recovery hint.
 
-## Upgrading starter projects
+## Upgrading standalone projects
 
-Starter projects vendor their runtime under `internal/platform/`, so
+Standalone projects vendor their runtime under `internal/platform/`, so
 `gin-kit upgrade` is how they receive platform fixes from newer CLI
 releases. It re-renders the current CLI's platform templates for the
 project's manifest, then reports each file as `up-to-date`, `outdated`
@@ -124,7 +128,7 @@ project's manifest, then reports each file as `up-to-date`, `outdated`
 `--diff` shows unified diffs, `--apply` writes the safe updates, and
 `--apply --force` also overwrites modified files. The `.gin-kit.sum`
 checksum baseline distinguishes your edits from stale vendored code — see
-[Upgrade notes](/gin-kit/upgrading/) for details. Framework-edition projects
+[Upgrade notes](/gin-kit/upgrading/) for details. Runtime projects
 upgrade the versioned module instead:
 `go get github.com/Alfian57/gin-kit@vX.Y.Z`.
 
@@ -156,6 +160,6 @@ selected database/ORM and migration workflow), `auth` (the token model), and
 `generate client --lang ts` creates a deterministic, dependency-free client
 from OpenAPI JSON or YAML. It emits schema aliases, path/query/body arguments,
 the canonical API error shape, and an optional bearer-token provider.
-Framework projects obtain the document from `go run ./cmd/server --openapi`;
-starter projects read `api/openapi.yaml`. Pass `--from` for another file or
+Runtime projects obtain the document from `go run ./cmd/server --openapi`;
+standalone projects read `api/openapi.yaml`. Pass `--from` for another file or
 URL and `--out` to choose the destination.

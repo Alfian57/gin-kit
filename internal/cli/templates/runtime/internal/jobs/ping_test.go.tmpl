@@ -1,0 +1,25 @@
+package jobs
+
+import (
+	"context"
+	"log/slog"
+	"strings"
+	"testing"
+
+	"github.com/Alfian57/gin-kit/runtime/queue"
+)
+
+func TestPingJobHandlesDispatchedPayload(t *testing.T) {
+	q, err := queue.New(queue.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var output strings.Builder
+	Register(q, slog.New(slog.NewTextHandler(&output, nil)))
+	if err := queue.Dispatch(context.Background(), q, TypePing, PingPayload{Message: "hello"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), "hello") {
+		t.Fatalf("ping job did not handle the payload: %s", output.String())
+	}
+}

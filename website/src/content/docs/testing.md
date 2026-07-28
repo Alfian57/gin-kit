@@ -5,11 +5,11 @@ description: Unit, integration, and browser testing with batteries included.
 
 ## Unit tests with apptest
 
-`framework/apptest` removes recorder boilerplate. Applications built with
+`runtime/apptest` removes recorder boilerplate. Applications built with
 `apptest.New` close automatically when the test finishes:
 
 ```go
-app := apptest.New(t, framework.Options{})
+app := apptest.New(t, runtime.Options{})
 app.Router().POST("/tasks", createTask)
 
 var task Task
@@ -50,12 +50,12 @@ ticket, err := factories.NewTicketFactory().Create(ctx, repo.Create)
 ```
 
 `gin-kit generate resource` emits a repository integration test automatically
-in framework-edition projects, alongside a model factory with realistic fake
+in runtime projects, alongside a model factory with realistic fake
 data (`Make`, `MakeMany`, deterministic `Seeded`).
 
 ## Browser tests
 
-Framework-edition UI projects scaffold `e2e/browser_test.go` on Playwright.
+Runtime UI projects scaffold `e2e/browser_test.go` on Playwright.
 Install the driver and Chromium once:
 
 ```sh
