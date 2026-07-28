@@ -5,7 +5,7 @@ package seeders
 import (
 	"context"
 
-{{if eq .Edition "framework"}}	"github.com/Alfian57/gin-kit/framework/database"
+{{if eq .ProjectType "runtime"}}	"github.com/Alfian57/gin-kit/runtime/database"
 {{else}}	"{{.Module}}/internal/platform/database"
 {{end}})
 
@@ -20,6 +20,6 @@ type Seeder struct {
 // All lists every seeder in run order.
 func All() []Seeder {
 	return []Seeder{
-{{if and .Example (eq .Edition "starter")}}		{Name: "tasks", Run: SeedTasks},
+{{if and .Example (eq .ProjectType "standalone")}}		{Name: "tasks", Run: SeedTasks},
 {{end}}	}
 }

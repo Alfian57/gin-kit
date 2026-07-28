@@ -1,0 +1,21 @@
+// Package mail holds this project's mailables.
+package mail
+
+import (
+	"html/template"
+
+	runtimemail "github.com/Alfian57/gin-kit/runtime/mail"
+)
+
+// New{{.Name}} builds the {{.Camel}} email. Parse the mail templates once at
+// startup and send with your mailer:
+//
+//	templates := template.Must(template.ParseGlob("web/templates/mail/*.html"))
+//	message := mail.New{{.Name}}(templates, recipient)
+//	err := mailer.Send(ctx, message)
+func New{{.Name}}(templates *template.Template, to string) *runtimemail.Message {
+	return runtimemail.NewMessage().
+		To(to).
+		Subject("{{.Name}}").
+		HTMLTemplate(templates, "{{.Snake}}.html", nil)
+}

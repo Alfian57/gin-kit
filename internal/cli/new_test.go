@@ -7,10 +7,17 @@ import (
 	"testing"
 )
 
+func TestInteractiveManifestIncludesFeaturesByDefault(t *testing.T) {
+	m := newInteractiveManifest("payments")
+	if !m.Auth || !m.Example || !m.Docker {
+		t.Fatalf("interactive defaults = auth:%t example:%t docker:%t; want all enabled", m.Auth, m.Example, m.Docker)
+	}
+}
+
 func TestScaffoldAPIPreservesSelections(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "sample")
 	m := Manifest{
-		Version: 2, Edition: "starter", Project: "sample", Module: "example.com/sample",
+		Version: 3, ProjectType: "standalone", Project: "sample", Module: "example.com/sample",
 		Mode: "api", Database: "postgres", ORM: "sqlx", Auth: false, Example: false, Docker: true,
 	}
 	if err := scaffold(dir, m); err != nil {
@@ -54,7 +61,7 @@ func TestScaffoldAPIPreservesSelections(t *testing.T) {
 		t.Fatal("legacy platform/response package should no longer be scaffolded")
 	}
 	if !strings.Contains(string(data), "github.com/go-playground/validator/v10") {
-		t.Fatalf("starter go.mod missing validator dependency:\n%s", data)
+		t.Fatalf("standalone go.mod missing validator dependency:\n%s", data)
 	}
 	assertAgentGuidance(t, dir, "example.com/sample")
 }
@@ -93,7 +100,7 @@ func assertAgentGuidance(t *testing.T, dir, module string) {
 
 func TestScaffoldUIHasEnglishLandingPage(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "webapp")
-	m := Manifest{Version: 2, Edition: "starter", Project: "webapp", Module: "example.com/webapp", Mode: "ui", Database: "sqlite", ORM: "gorm"}
+	m := Manifest{Version: 3, ProjectType: "standalone", Project: "webapp", Module: "example.com/webapp", Mode: "ui", Database: "sqlite", ORM: "gorm"}
 	if err := scaffold(dir, m); err != nil {
 		t.Fatal(err)
 	}
@@ -110,11 +117,12 @@ func TestScaffoldUIHasEnglishLandingPage(t *testing.T) {
 }
 
 func TestValidateManifestRejectsInvalidSelections(t *testing.T) {
-	base := Manifest{Version: 2, Edition: "starter", Project: "sample", Module: "example.com/sample", Mode: "api", Database: "sqlite", ORM: "gorm"}
+	base := Manifest{Version: 3, ProjectType: "standalone", Project: "sample", Module: "example.com/sample", Mode: "api", Database: "sqlite", ORM: "gorm"}
 	for name, mutate := range map[string]func(*Manifest){
 		"mode":         func(m *Manifest) { m.Mode = "desktop" },
 		"database":     func(m *Manifest) { m.Database = "redis" },
 		"orm":          func(m *Manifest) { m.ORM = "raw" },
+		"project type": func(m *Manifest) { m.ProjectType = "framework" },
 		"project path": func(m *Manifest) { m.Project = "../escape" },
 	} {
 		t.Run(name, func(t *testing.T) {
@@ -127,17 +135,43 @@ func TestValidateManifestRejectsInvalidSelections(t *testing.T) {
 	}
 }
 
-func TestValidateManifestRejectsVersionOneWithMigrationHint(t *testing.T) {
-	err := validateManifest(Manifest{Version: 1, Project: "sample", Module: "example.com/sample", Edition: "starter", Mode: "api", Database: "sqlite", ORM: "gorm"})
+func TestValidateManifestRejectsPreV3Manifest(t *testing.T) {
+	err := validateManifest(Manifest{Version: 2, Project: "sample", Module: "example.com/sample", ProjectType: "runtime", RuntimeVersion: "0.3.0", Mode: "api", Database: "sqlite", ORM: "gorm"})
 	if err == nil {
-		t.Fatal("expected manifest version one to be rejected")
+		t.Fatal("expected pre-v3 manifest to be rejected")
 	}
 }
 
-func TestFrameworkScaffoldIsThinAndPinsRuntime(t *testing.T) {
+func TestNewCommandUsesProjectTypeFlagOnly(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "standalone")
+	cmd := newCommand()
+	cmd.SetArgs([]string{
+		target, "--non-interactive", "--project-type", "standalone",
+		"--module", "example.com/standalone", "--mode", "api",
+		"--database", "sqlite", "--orm", "gorm",
+	})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	manifest, err := os.ReadFile(filepath.Join(target, ".gin-kit.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(manifest), "version: 3") || !strings.Contains(string(manifest), "project_type: standalone") {
+		t.Fatalf("unexpected manifest:\n%s", manifest)
+	}
+
+	legacy := newCommand()
+	legacy.SetArgs([]string{filepath.Join(t.TempDir(), "legacy"), "--" + "edition", "start" + "er"})
+	if err := legacy.Execute(); err == nil {
+		t.Fatal("expected legacy project selector to be rejected")
+	}
+}
+
+func TestRuntimeScaffoldIsThinAndPinsRuntime(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "services", "orders")
 	m := Manifest{
-		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+		Version: 3, ProjectType: "runtime", RuntimeVersion: "0.3.0",
 		Project: "orders", Module: "example.com/acme/orders",
 		Mode: "api", Database: "sqlite", ORM: "gorm",
 	}
@@ -150,25 +184,32 @@ func TestFrameworkScaffoldIsThinAndPinsRuntime(t *testing.T) {
 	}
 	if !strings.Contains(string(data), "module example.com/acme/orders") ||
 		!strings.Contains(string(data), "github.com/Alfian57/gin-kit v0.3.0") {
-		t.Fatalf("framework go.mod did not preserve module/runtime:\n%s", data)
+		t.Fatalf("runtime go.mod did not preserve module/runtime:\n%s", data)
+	}
+	appSource, err := os.ReadFile(filepath.Join(dir, "internal", "app", "app.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(appSource), "github.com/Alfian57/gin-kit/runtime") {
+		t.Fatalf("runtime scaffold did not use the runtime import path:\n%s", appSource)
 	}
 	for _, rel := range []string{"internal/app/app.go", "cmd/server/main.go"} {
 		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
-			t.Fatalf("framework edition missing %s: %v", rel, err)
+			t.Fatalf("runtime project type missing %s: %v", rel, err)
 		}
 	}
 	assertAgentGuidance(t, dir, "example.com/acme/orders")
 	for _, rel := range []string{"internal/platform/config/config.go", "internal/platform/authz/authz.go", "internal/middleware/security.go"} {
 		if _, err := os.Stat(filepath.Join(dir, rel)); err == nil {
-			t.Fatalf("framework edition copied generic core %s", rel)
+			t.Fatalf("runtime project type copied generic core %s", rel)
 		}
 	}
 }
 
-func TestFrameworkReplaceAddsLocalOverride(t *testing.T) {
+func TestRuntimeReplaceAddsLocalOverride(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "app")
-	m := Manifest{Version: 2, Edition: "framework", FrameworkVersion: "0.3.0", Project: "app", Module: "example.com/app", Mode: "api", Database: "sqlite", ORM: "gorm"}
-	if err := scaffoldWithOptions(dir, m, scaffoldOptions{FrameworkReplace: t.TempDir()}); err != nil {
+	m := Manifest{Version: 3, ProjectType: "runtime", RuntimeVersion: "0.3.0", Project: "app", Module: "example.com/app", Mode: "api", Database: "sqlite", ORM: "gorm"}
+	if err := scaffoldWithOptions(dir, m, scaffoldOptions{RuntimeReplace: t.TempDir()}); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(filepath.Join(dir, "go.mod"))
@@ -176,14 +217,14 @@ func TestFrameworkReplaceAddsLocalOverride(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(data), "replace github.com/Alfian57/gin-kit =>") {
-		t.Fatalf("expected local framework replace:\n%s", data)
+		t.Fatalf("expected local runtime replace:\n%s", data)
 	}
 }
 
-func TestFrameworkScaffoldUsesTypedConfig(t *testing.T) {
+func TestRuntimeScaffoldUsesTypedConfig(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "cfg")
 	m := Manifest{
-		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+		Version: 3, ProjectType: "runtime", RuntimeVersion: "0.3.0",
 		Project: "cfg", Module: "example.com/cfg",
 		Mode: "api", Database: "sqlite", ORM: "gorm",
 	}
@@ -196,19 +237,19 @@ func TestFrameworkScaffoldUsesTypedConfig(t *testing.T) {
 	}
 	if !strings.Contains(string(appSource), "config.LoadDotenv(") ||
 		!strings.Contains(string(appSource), "config.Load()") {
-		t.Fatalf("framework app.go does not use typed configuration:\n%s", appSource)
+		t.Fatalf("runtime app.go does not use typed configuration:\n%s", appSource)
 	}
 	if !strings.Contains(string(appSource), "jobs.Register(") {
-		t.Fatalf("framework app.go does not register jobs:\n%s", appSource)
+		t.Fatalf("runtime app.go does not register jobs:\n%s", appSource)
 	}
 	if !strings.Contains(string(appSource), "application.OpenAPI()") {
-		t.Fatalf("framework app.go does not wire the docs registry:\n%s", appSource)
+		t.Fatalf("runtime app.go does not wire the docs registry:\n%s", appSource)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "internal", "handler", "api", "docs_test.go")); err != nil {
-		t.Fatalf("framework api scaffold missing docs test: %v", err)
+		t.Fatalf("runtime api scaffold missing docs test: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, "internal", "jobs", "ping.go")); err != nil {
-		t.Fatalf("framework scaffold missing jobs example: %v", err)
+		t.Fatalf("runtime scaffold missing jobs example: %v", err)
 	}
 	envExample, err := os.ReadFile(filepath.Join(dir, ".env.example"))
 	if err != nil {
@@ -216,49 +257,49 @@ func TestFrameworkScaffoldUsesTypedConfig(t *testing.T) {
 	}
 	if !strings.Contains(string(envExample), "READ_TIMEOUT") ||
 		strings.Contains(string(envExample), "RATE_LIMIT_GENERAL_PER_MINUTE") {
-		t.Fatalf("framework .env.example should use the framework variable set:\n%s", envExample)
+		t.Fatalf("runtime .env.example should use the runtime variable set:\n%s", envExample)
 	}
 }
 
-func TestComposeRedisServiceIsFrameworkOnly(t *testing.T) {
-	frameworkDir := filepath.Join(t.TempDir(), "fw")
+func TestComposeRedisServiceIsRuntimeOnly(t *testing.T) {
+	runtimeDir := filepath.Join(t.TempDir(), "fw")
 	m := Manifest{
-		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+		Version: 3, ProjectType: "runtime", RuntimeVersion: "0.3.0",
 		Project: "fw", Module: "example.com/fw",
 		Mode: "api", Database: "postgres", ORM: "gorm", Docker: true,
 	}
-	if err := scaffold(frameworkDir, m); err != nil {
+	if err := scaffold(runtimeDir, m); err != nil {
 		t.Fatal(err)
 	}
-	compose, err := os.ReadFile(filepath.Join(frameworkDir, "docker", "docker-compose.yml"))
+	compose, err := os.ReadFile(filepath.Join(runtimeDir, "docker", "docker-compose.yml"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(compose), "redis:") {
-		t.Fatalf("framework compose missing redis service:\n%s", compose)
+		t.Fatalf("runtime compose missing redis service:\n%s", compose)
 	}
 
-	starterDir := filepath.Join(t.TempDir(), "st")
-	m.Edition = "starter"
-	m.FrameworkVersion = ""
+	standaloneDir := filepath.Join(t.TempDir(), "st")
+	m.ProjectType = "standalone"
+	m.RuntimeVersion = ""
 	m.Project = "st"
 	m.Module = "example.com/st"
-	if err := scaffold(starterDir, m); err != nil {
+	if err := scaffold(standaloneDir, m); err != nil {
 		t.Fatal(err)
 	}
-	compose, err = os.ReadFile(filepath.Join(starterDir, "docker", "docker-compose.yml"))
+	compose, err = os.ReadFile(filepath.Join(standaloneDir, "docker", "docker-compose.yml"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(string(compose), "redis:") {
-		t.Fatalf("starter compose unexpectedly gained redis:\n%s", compose)
+		t.Fatalf("standalone compose unexpectedly gained redis:\n%s", compose)
 	}
 }
 
-func TestFrameworkScaffoldWiresAuth(t *testing.T) {
+func TestRuntimeScaffoldWiresAuth(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "secure")
 	m := Manifest{
-		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+		Version: 3, ProjectType: "runtime", RuntimeVersion: "0.3.0",
 		Project: "secure", Module: "example.com/secure",
 		Mode: "api", Database: "sqlite", ORM: "gorm", Auth: true,
 	}
@@ -271,7 +312,7 @@ func TestFrameworkScaffoldWiresAuth(t *testing.T) {
 	}
 	if !strings.Contains(string(appSource), "auth.New(") ||
 		!strings.Contains(string(appSource), "service.NewAuthService(") {
-		t.Fatalf("framework app.go does not wire authentication:\n%s", appSource)
+		t.Fatalf("runtime app.go does not wire authentication:\n%s", appSource)
 	}
 	for _, rel := range []string{
 		"internal/domain/auth_user.go",
@@ -290,12 +331,12 @@ func TestFrameworkScaffoldWiresAuth(t *testing.T) {
 		"migrations/00003_auth_tokens.sql",
 	} {
 		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
-			t.Fatalf("framework auth scaffold missing %s: %v", rel, err)
+			t.Fatalf("runtime auth scaffold missing %s: %v", rel, err)
 		}
 	}
 	tokenMigration, err := os.ReadFile(filepath.Join(dir, "migrations", "00003_auth_tokens.sql"))
 	if err != nil || !strings.Contains(string(tokenMigration), "-- +goose Up") || !strings.Contains(string(tokenMigration), "-- +goose Down") {
-		t.Fatalf("framework API token migration is not a valid goose migration: %v", err)
+		t.Fatalf("runtime API token migration is not a valid goose migration: %v", err)
 	}
 
 	plain := filepath.Join(t.TempDir(), "plain")
@@ -313,52 +354,52 @@ func TestFrameworkScaffoldWiresAuth(t *testing.T) {
 }
 
 func TestSeedScaffoldFollowsExampleFlag(t *testing.T) {
-	// The tasks seeder belongs to the starter edition only: the framework
-	// edition's tasks example is an in-memory stub without a tasks table.
-	starterExample := filepath.Join(t.TempDir(), "demo")
+	// The tasks seeder belongs to the standalone project type only: the runtime
+	// project type's tasks example is an in-memory stub without a tasks table.
+	standaloneExample := filepath.Join(t.TempDir(), "demo")
 	m := Manifest{
-		Version: 2, Edition: "starter",
+		Version: 3, ProjectType: "standalone",
 		Project: "demo", Module: "example.com/demo",
 		Mode: "api", Database: "sqlite", ORM: "gorm", Example: true,
 	}
-	if err := scaffold(starterExample, m); err != nil {
+	if err := scaffold(standaloneExample, m); err != nil {
 		t.Fatal(err)
 	}
 	for _, rel := range []string{"cmd/seed/main.go", "internal/database/seeders/seeders.go", "internal/database/seeders/tasks_seeder.go", "internal/dto/tasks_dto.go"} {
-		if _, err := os.Stat(filepath.Join(starterExample, rel)); err != nil {
-			t.Fatalf("starter example scaffold missing %s: %v", rel, err)
+		if _, err := os.Stat(filepath.Join(standaloneExample, rel)); err != nil {
+			t.Fatalf("standalone example scaffold missing %s: %v", rel, err)
 		}
 	}
-	registry, err := os.ReadFile(filepath.Join(starterExample, "internal", "database", "seeders", "seeders.go"))
+	registry, err := os.ReadFile(filepath.Join(standaloneExample, "internal", "database", "seeders", "seeders.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(registry), "SeedTasks") {
-		t.Fatalf("starter example registry does not register SeedTasks:\n%s", registry)
+		t.Fatalf("standalone example registry does not register SeedTasks:\n%s", registry)
 	}
 
-	frameworkExample := filepath.Join(t.TempDir(), "fwdemo")
-	m.Edition = "framework"
-	m.FrameworkVersion = "0.3.0"
+	runtimeExample := filepath.Join(t.TempDir(), "fwdemo")
+	m.ProjectType = "runtime"
+	m.RuntimeVersion = "0.3.0"
 	m.Project = "fwdemo"
 	m.Module = "example.com/fwdemo"
-	if err := scaffold(frameworkExample, m); err != nil {
+	if err := scaffold(runtimeExample, m); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := os.Stat(filepath.Join(frameworkExample, "internal", "database", "seeders", "tasks_seeder.go")); err == nil {
-		t.Fatal("framework edition received the tasks seeder despite lacking a tasks table")
+	if _, err := os.Stat(filepath.Join(runtimeExample, "internal", "database", "seeders", "tasks_seeder.go")); err == nil {
+		t.Fatal("runtime project type received the tasks seeder despite lacking a tasks table")
 	}
-	registry, err = os.ReadFile(filepath.Join(frameworkExample, "internal", "database", "seeders", "seeders.go"))
+	registry, err = os.ReadFile(filepath.Join(runtimeExample, "internal", "database", "seeders", "seeders.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if strings.Contains(string(registry), "SeedTasks") {
-		t.Fatal("framework registry references SeedTasks")
+		t.Fatal("runtime registry references SeedTasks")
 	}
 
 	plain := filepath.Join(t.TempDir(), "plain")
-	m.Edition = "starter"
-	m.FrameworkVersion = ""
+	m.ProjectType = "standalone"
+	m.RuntimeVersion = ""
 	m.Example = false
 	m.Project = "plain"
 	m.Module = "example.com/plain"
@@ -370,9 +411,9 @@ func TestSeedScaffoldFollowsExampleFlag(t *testing.T) {
 	}
 }
 
-func TestPlatformSessionIsStarterUIOnly(t *testing.T) {
+func TestPlatformSessionIsStandaloneUIOnly(t *testing.T) {
 	ui := filepath.Join(t.TempDir(), "webapp")
-	m := Manifest{Version: 2, Edition: "starter", Project: "webapp", Module: "example.com/webapp", Mode: "ui", Database: "sqlite", ORM: "gorm"}
+	m := Manifest{Version: 3, ProjectType: "standalone", Project: "webapp", Module: "example.com/webapp", Mode: "ui", Database: "sqlite", ORM: "gorm"}
 	if err := scaffold(ui, m); err != nil {
 		t.Fatal(err)
 	}
@@ -382,7 +423,7 @@ func TestPlatformSessionIsStarterUIOnly(t *testing.T) {
 		"internal/platform/session/flash.go",
 	} {
 		if _, err := os.Stat(filepath.Join(ui, rel)); err != nil {
-			t.Fatalf("starter UI missing %s: %v", rel, err)
+			t.Fatalf("standalone UI missing %s: %v", rel, err)
 		}
 	}
 	goMod, err := os.ReadFile(filepath.Join(ui, "go.mod"))
@@ -390,7 +431,7 @@ func TestPlatformSessionIsStarterUIOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(goMod), "gin-contrib/sessions") {
-		t.Fatalf("starter UI go.mod missing sessions dependency:\n%s", goMod)
+		t.Fatalf("standalone UI go.mod missing sessions dependency:\n%s", goMod)
 	}
 
 	apiDir := filepath.Join(t.TempDir(), "apionly")
@@ -406,10 +447,10 @@ func TestPlatformSessionIsStarterUIOnly(t *testing.T) {
 	}
 }
 
-func TestStarterScaffoldWiresAuth(t *testing.T) {
+func TestStandaloneScaffoldWiresAuth(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "secure")
 	m := Manifest{
-		Version: 2, Edition: "starter",
+		Version: 3, ProjectType: "standalone",
 		Project: "secure", Module: "example.com/secure",
 		Mode: "api", Database: "sqlite", ORM: "sqlx", Auth: true,
 	}
@@ -433,26 +474,26 @@ func TestStarterScaffoldWiresAuth(t *testing.T) {
 		"migrations/00004_auth_tokens.sql",
 	} {
 		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
-			t.Fatalf("starter auth scaffold missing %s: %v", rel, err)
+			t.Fatalf("standalone auth scaffold missing %s: %v", rel, err)
 		}
 	}
 	tokenMigration, err := os.ReadFile(filepath.Join(dir, "migrations", "00004_auth_tokens.sql"))
 	if err != nil || !strings.Contains(string(tokenMigration), "-- +goose Up") || !strings.Contains(string(tokenMigration), "-- +goose Down") {
-		t.Fatalf("starter API token migration is not a valid goose migration: %v", err)
+		t.Fatalf("standalone API token migration is not a valid goose migration: %v", err)
 	}
 	healthSource, err := os.ReadFile(filepath.Join(dir, "internal", "handler", "api", "health.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(healthSource), "authhandler.Register(") {
-		t.Fatalf("starter API register does not wire auth:\n%s", healthSource)
+		t.Fatalf("standalone API register does not wire auth:\n%s", healthSource)
 	}
 }
 
-func TestFrameworkUIIncludesAssetTooling(t *testing.T) {
+func TestRuntimeUIIncludesAssetTooling(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "portal")
 	m := Manifest{
-		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+		Version: 3, ProjectType: "runtime", RuntimeVersion: "0.3.0",
 		Project: "portal", Module: "example.com/portal",
 		Mode: "ui", Database: "sqlite", ORM: "gorm",
 	}
@@ -461,7 +502,7 @@ func TestFrameworkUIIncludesAssetTooling(t *testing.T) {
 	}
 	for _, rel := range []string{"package.json", "web/src/input.css", "web/templates/index.html"} {
 		if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
-			t.Fatalf("framework UI edition missing %s: %v", rel, err)
+			t.Fatalf("runtime UI project type missing %s: %v", rel, err)
 		}
 	}
 }

@@ -5,12 +5,12 @@ description: Metrics, request-scoped logging, and profiling.
 
 ## Prometheus metrics
 
-Enable the scrape endpoint with `METRICS_ENABLED=true` (framework projects) or
+Enable the scrape endpoint with `METRICS_ENABLED=true` (runtime projects) or
 directly through options:
 
 ```go
-app, err := framework.New(framework.Options{
-    Metrics: framework.MetricsOptions{Enabled: true}, // serves GET /metrics
+app, err := runtime.New(runtime.Options{
+    Metrics: runtime.MetricsOptions{Enabled: true}, // serves GET /metrics
 })
 ```
 
@@ -30,12 +30,12 @@ httpx.Logger(c).Info("task created", "task_id", task.ID)
 ```
 
 Inject your base logger through `Options.Logger`; access logs and the
-request-scoped logger share it. Without the framework middleware the accessor
+request-scoped logger share it. Without the runtime middleware the accessor
 falls back to `slog.Default()`, so handler code stays testable.
 
 ## Profiling
 
-`PPROF_ENABLED=true` (or `framework.PProfOptions{Enabled: true}`) mounts the
+`PPROF_ENABLED=true` (or `runtime.PProfOptions{Enabled: true}`) mounts the
 standard library profiler under `/debug/pprof`.
 
 Never expose `/metrics` or `/debug/pprof` publicly: keep them behind your

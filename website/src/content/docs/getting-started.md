@@ -44,12 +44,13 @@ simpler alternative).
 
 `generate resource` prints the wiring snippet to paste into
 `internal/app/app.go`, then `gin-kit db up` applies its migration. In
-framework-edition development, interactive API docs are already live at
+runtime development, interactive API docs are already live at
 `http://localhost:8080/docs`. Run `gin-kit check` before committing, and
 `gin-kit explain architecture` whenever the layout is unclear.
 
 ## The interactive path
 
-Run `gin-kit new ./orders` without `--non-interactive` to choose the edition,
+Run `gin-kit new ./orders` without `--non-interactive` to choose the project type,
 API/UI mode, SQL database, ORM, authentication, example slice, and Docker
-support. Use `gin-kit check` before committing.
+support. Authentication, the example slice, and Docker support begin selected;
+choose `No` for anything you do not need. Use `gin-kit check` before committing.

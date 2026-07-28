@@ -5,8 +5,8 @@ description: Built-in rules, human messages, and custom validators.
 
 gin-kit validates request DTOs with
 [go-playground/validator](https://github.com/go-playground/validator) behind
-an explicit wrapper (`framework/validation`, vendored as
-`internal/platform/validation` in starter projects). Failures are reported by
+an explicit wrapper (`runtime/validation`, vendored as
+`internal/platform/validation` in standalone projects). Failures are reported by
 JSON/form field name with human-readable messages and named parameters —
 never the submitted values.
 
@@ -56,11 +56,11 @@ register a message (below) when you use them.
 The `httpx` binders resolve the validator in a fixed order:
 
 1. An explicit argument: `httpx.BindJSON[T](c, myValidator)`.
-2. The application validator from `framework.Options.Validator` — the
-   framework places it on the request context, so rules registered through
+2. The application validator from `runtime.Options.Validator` — the
+   runtime places it on the request context, so rules registered through
    `app.Validator()` apply to every binder with no extra wiring.
 3. `validation.Default` as the fallback (plain `gin.Engine` in tests, and
-   always in starter projects, where `validation.Default` is the application
+   always in standalone projects, where `validation.Default` is the application
    validator).
 
 ## Custom rules, messages, and translations
@@ -76,7 +76,7 @@ err := v.RegisterRule("slug", func(fl validator.FieldLevel) bool {
 // Its message. {field} and {parameter} expand at render time.
 v.RegisterMessage("slug", "The {field} field must not contain spaces.")
 
-app, err := framework.New(framework.Options{Validator: v})
+app, err := runtime.New(runtime.Options{Validator: v})
 ```
 
 Every handler using `httpx.BindJSON`/`BindQuery`/`BindURI` now enforces

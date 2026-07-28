@@ -1,0 +1,43 @@
+package service
+
+import (
+	"context"
+	"strings"
+	"time"
+
+	jwtauth "github.com/Alfian57/gin-kit/runtime/auth"
+	"github.com/google/uuid"
+	"{{.Module}}/internal/domain"
+	"{{.Module}}/internal/dto"
+)
+
+type APITokenService struct{ tokens domain.APITokenRepository }
+
+func NewAPITokenService(tokens domain.APITokenRepository) *APITokenService {
+	return &APITokenService{tokens: tokens}
+}
+
+func (s *APITokenService) Create(ctx context.Context, userID string, request dto.APITokenCreateRequest) (domain.APIToken, string, error) {
+	runtimeToken, plaintext, err := jwtauth.NewAPIToken(userID, request.Name, request.Abilities, request.ExpiresIn)
+	if err != nil {
+		return domain.APIToken{}, "", err
+	}
+	now := time.Now().UTC()
+	token := domain.APIToken{
+		ID: uuid.NewString(), UserID: userID, Name: strings.TrimSpace(request.Name),
+		TokenHash: runtimeToken.TokenHash, Abilities: strings.Join(runtimeToken.Abilities, ","),
+		ExpiresAt: runtimeToken.ExpiresAt, CreatedAt: now, UpdatedAt: now,
+	}
+	if err := s.tokens.Create(ctx, &token); err != nil {
+		return domain.APIToken{}, "", err
+	}
+	return token, plaintext, nil
+}
+
+func (s *APITokenService) List(ctx context.Context, userID string) ([]domain.APIToken, error) {
+	return s.tokens.ListForUser(ctx, userID)
+}
+
+func (s *APITokenService) Revoke(ctx context.Context, userID, id string) error {
+	return s.tokens.RevokeForUser(ctx, userID, id, time.Now().UTC())
+}

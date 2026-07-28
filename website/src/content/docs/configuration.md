@@ -8,7 +8,7 @@ Required database credentials, CORS origins, and authentication secrets are
 validated before the server starts — malformed values are startup errors, not
 runtime surprises.
 
-Framework-edition applications use the `framework/config` package:
+Runtime applications use the `runtime/config` package:
 
 ```go
 if err := config.LoadDotenv(".env"); err != nil {
@@ -29,7 +29,7 @@ required when the feature that consumes them is enabled.
 
 ## Reference
 
-All variables read by `config.Load()` in framework-edition projects, grouped
+All variables read by `config.Load()` in runtime projects, grouped
 by subsystem. Durations use Go syntax (`15s`, `2m`).
 
 ### Core
@@ -56,8 +56,8 @@ by subsystem. Durations use Go syntax (`15s`, `2m`).
 | Variable | Default |
 | --- | --- |
 | `RATE_LIMIT_ENABLED` | `true` |
-| `RATE_LIMIT_PER_MINUTE` / `RATE_LIMIT_BURST` | framework edition |
-| `RATE_LIMIT_GENERAL_PER_MINUTE` / `RATE_LIMIT_AUTH_PER_MINUTE` / `RATE_LIMIT_EXPENSIVE_PER_MINUTE` | starter edition (per endpoint class) |
+| `RATE_LIMIT_PER_MINUTE` / `RATE_LIMIT_BURST` | runtime project type |
+| `RATE_LIMIT_GENERAL_PER_MINUTE` / `RATE_LIMIT_AUTH_PER_MINUTE` / `RATE_LIMIT_EXPENSIVE_PER_MINUTE` | standalone project type (per endpoint class) |
 
 ### Queue and cache
 
@@ -89,7 +89,7 @@ by subsystem. Durations use Go syntax (`15s`, `2m`).
 | `S3_USE_SSL` / `S3_USE_PATH_STYLE` | — | Endpoint style toggles. |
 | `S3_PUBLIC_BASE_URL` / `S3_PRESIGN_TTL` | — | Public URLs, or presigned URLs with a TTL. |
 
-### API docs (framework edition)
+### API docs (runtime project type)
 
 | Variable | Default | Notes |
 | --- | --- | --- |
@@ -98,14 +98,14 @@ by subsystem. Durations use Go syntax (`15s`, `2m`).
 | `DOCS_TITLE` / `DOCS_DESCRIPTION` / `DOCS_VERSION` / `DOCS_SERVERS` | — | Spec metadata. |
 | `DOCS_BASIC_AUTH_USERNAME` / `DOCS_BASIC_AUTH_PASSWORD` | — | Protect the docs routes. |
 
-### Devtools dashboard (framework edition)
+### Devtools dashboard (runtime project type)
 
 | Variable | Default | Notes |
 | --- | --- | --- |
 | `DEVTOOLS_ENABLED` | on in development only | Enabling it outside development is a startup error. |
 | `DEVTOOLS_PATH` | `/_ginkit` | Dashboard mount point. |
 
-### Feature flags (framework edition)
+### Feature flags (runtime project type)
 
 | Variable | Default | Notes |
 | --- | --- | --- |
@@ -118,11 +118,11 @@ by subsystem. Durations use Go syntax (`15s`, `2m`).
 | `METRICS_ENABLED` | off | Prometheus `/metrics`. |
 | `PPROF_ENABLED` | off | Never expose publicly. |
 
-Starter-edition projects read the same core, auth/session, and rate-limit
+Standalone projects read the same core, auth/session, and rate-limit
 variables through `internal/platform/config` (the queue/cache/mail/storage
-subsystems are framework-edition features).
+subsystems are runtime features).
 
-The framework refuses unsafe production defaults, applies request timeouts
+The runtime refuses unsafe production defaults, applies request timeouts
 and body limits, and accepts trusted proxy CIDRs explicitly. Liveness never
 depends on a database; readiness may check it with a short timeout. See
 [Deployment](/gin-kit/deployment/) for production checklists.

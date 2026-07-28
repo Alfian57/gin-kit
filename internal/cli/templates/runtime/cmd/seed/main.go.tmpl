@@ -1,0 +1,40 @@
+package main
+
+import (
+	"context"
+	"log"
+	"os"
+
+	"github.com/Alfian57/gin-kit/runtime/config"
+	"github.com/Alfian57/gin-kit/runtime/database"
+	"{{.Module}}/internal/database/seeders"
+)
+
+func main() {
+	if err := config.LoadDotenv(".env"); err != nil {
+		log.Fatal(err)
+	}
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+{{if eq .Database "sqlite"}}		dsn = "file:{{.Project}}.sqlite?_busy_timeout=5000"
+{{else}}		log.Fatal("DATABASE_URL is required for {{.Database}}")
+{{end}}	}
+	ctx := context.Background()
+	db, err := database.Open(ctx, database.Config{
+		Dialect: database.{{if eq .Database "postgres"}}Postgres{{else if eq .Database "sqlite"}}SQLite{{else if eq .Database "mariadb"}}MariaDB{{else}}MySQL{{end}},
+		DSN:     dsn,
+		ORM:     database.{{if eq .ORM "gorm"}}GORM{{else}}SQLX{{end}},
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	for _, seeder := range seeders.All() {
+		log.Printf("seeding %s", seeder.Name)
+		if err := seeder.Run(ctx, db); err != nil {
+			log.Fatalf("seeder %s: %v", seeder.Name, err)
+		}
+	}
+	log.Println("seeding complete")
+}

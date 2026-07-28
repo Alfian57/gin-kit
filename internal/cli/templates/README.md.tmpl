@@ -10,7 +10,7 @@ gin-kit db up
 gin-kit run
 ```
 
-The server runs at `http://localhost:8080`.{{if eq .Edition "framework"}} In development, interactive API
+The server runs at `http://localhost:8080`.{{if eq .ProjectType "runtime"}} In development, interactive API
 docs are live at `http://localhost:8080/docs`.{{end}}
 
 The generated runtime includes request IDs, security headers, body limits,
@@ -39,7 +39,7 @@ handler vertical slice. {{if eq .Mode "api"}}API projects expose `/api/v1/tasks`
 {{end}}
 ## Stack
 
-- Edition: `{{.Edition}}`
+- Project type: `{{.ProjectType}}`
 - Mode: `{{.Mode}}`
 - Database: `{{.Database}}`
 - Data access: `{{.ORM}}`

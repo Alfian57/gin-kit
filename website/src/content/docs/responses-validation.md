@@ -60,12 +60,12 @@ the application validator from `Options.Validator` (exposed via the request
 context), then `validation.Default`. The [Validation](/gin-kit/validation/)
 page covers the full rule catalogue, custom rules, and message overrides.
 
-### Parity across editions
+### Parity across project types
 
-Starter projects vendor the same contract in `internal/platform/httpx` and
+Standalone projects vendor the same contract in `internal/platform/httpx` and
 `internal/platform/validation`: identical envelope, identical `422` details,
-identical binder behavior. Code written against one edition reads the same in
-the other. In the starter, binders resolve an explicit argument first and fall
+identical binder behavior. Code written against one project type reads the same in
+the other. In the standalone, binders resolve an explicit argument first and fall
 back to `validation.Default`.
 
 List endpoints respond with the standard pagination metadata produced by the

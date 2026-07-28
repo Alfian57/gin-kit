@@ -3,7 +3,7 @@ title: Devtools dashboard
 description: A development-only dashboard with a request log, mail outbox, route list, config report, and queue stats.
 ---
 
-Framework-edition applications ship a development dashboard at `/_ginkit`: a
+Runtime applications ship a development dashboard at `/_ginkit`: a
 single page that polls the running application every two seconds. It exists
 so you can see what your application just did — the request you sent, the
 mail it tried to deliver, the routes it registered — without leaving the
@@ -20,7 +20,7 @@ it is refused outside development twice, independently:
 1. `config.Load()` fails when `DEVTOOLS_ENABLED=true` and `APP_ENV` is not
    `development`. The default is enabled only in development, exactly like
    `DOCS_ENABLED`.
-2. `framework.New` returns an error when
+2. `runtime.New` returns an error when
    `Options.DevTools.Enabled` is set and `Options.Environment` is not
    `"development"` — even if you bypass `config.Load` entirely.
 
@@ -67,9 +67,9 @@ with and without it.
 Or directly through options:
 
 ```go
-app, err := framework.New(framework.Options{
+app, err := runtime.New(runtime.Options{
     Environment: "development",
-    DevTools:    framework.DevToolsOptions{Enabled: true}, // serves GET /_ginkit
+    DevTools:    runtime.DevToolsOptions{Enabled: true}, // serves GET /_ginkit
 })
 ```
 

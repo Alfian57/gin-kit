@@ -30,10 +30,10 @@ type genData struct {
 	HasTime        bool        // any user field is time-typed
 	StringFields   []fieldSpec // required string/text fields (service validation)
 	SampleJSON     string      // JSON body with valid sample values for tests
-	QueryImport    string      // edition-specific query package import path
-	AuthzImport    string      // edition-specific authz package import path
-	DatabaseImport string      // edition-specific database package import path
-	FactoryImport  string      // edition-specific factory package import path
+	QueryImport    string      // project-type-specific query package import path
+	AuthzImport    string      // project-type-specific authz package import path
+	DatabaseImport string      // project-type-specific database package import path
+	FactoryImport  string      // project-type-specific factory package import path
 	HasNullable    bool        // any nullable field (factory ptr helper)
 	HasStringFake  bool        // any FakeExpr using the strings package
 	HasSensitive   bool        // any credential-like field (kept out of responses)
@@ -74,11 +74,11 @@ func buildGenData(m Manifest, name, fieldsSpec, table string, softDelete bool) (
 		Fields:      fields,
 		SoftDelete:  softDelete,
 	}
-	if m.Edition == "framework" {
-		data.QueryImport = "github.com/Alfian57/gin-kit/framework/query"
-		data.AuthzImport = "github.com/Alfian57/gin-kit/framework/authz"
-		data.DatabaseImport = "github.com/Alfian57/gin-kit/framework/database"
-		data.FactoryImport = "github.com/Alfian57/gin-kit/framework/factory"
+	if m.ProjectType == "runtime" {
+		data.QueryImport = "github.com/Alfian57/gin-kit/runtime/query"
+		data.AuthzImport = "github.com/Alfian57/gin-kit/runtime/authz"
+		data.DatabaseImport = "github.com/Alfian57/gin-kit/runtime/database"
+		data.FactoryImport = "github.com/Alfian57/gin-kit/runtime/factory"
 	} else {
 		data.QueryImport = m.Module + "/internal/platform/query"
 		data.AuthzImport = m.Module + "/internal/platform/authz"
@@ -197,9 +197,9 @@ func runGenerate(rootDir string, m Manifest, request generateRequest) (map[strin
 	if err != nil {
 		return nil, "", diagnostic("generator_input_invalid", "generate "+request.Kind, request.Name, err, "Fix the generator input and retry: "+fieldsGrammar)
 	}
-	edition := "starter"
-	if m.Edition == "framework" {
-		edition = "framework"
+	projectType := "standalone"
+	if m.ProjectType == "runtime" {
+		projectType = "runtime"
 	}
 	handlerDir, handlerPackage := "api", "api"
 	if m.Mode == "ui" {
@@ -226,23 +226,23 @@ func runGenerate(rootDir string, m Manifest, request generateRequest) (map[strin
 			{filepath.Join("internal", "service", data.Snake+"_service_test.go"), "generators/resource/shared/service_test.go.tmpl"},
 			{filepath.Join("internal", "database", "factories", data.Snake+"_factory.go"), "generators/single/factory.go.tmpl"},
 		}
-		if m.Edition == "framework" {
-			// The repository integration test relies on framework/apptest,
-			// which starter projects cannot import.
+		if m.ProjectType == "runtime" {
+			// The repository integration test relies on runtime/apptest,
+			// which standalone projects cannot import.
 			steps = append(steps, struct{ rel, tmpl string }{
 				filepath.Join("internal", "repository", data.Snake+"_repository_test.go"),
-				"generators/resource/framework/repository_test.go.tmpl",
+				"generators/resource/runtime/repository_test.go.tmpl",
 			})
 		}
-		if m.Edition == "starter" && m.Mode == "ui" {
+		if m.ProjectType == "standalone" && m.Mode == "ui" {
 			steps = append(steps,
-				struct{ rel, tmpl string }{filepath.Join("internal", "handler", "web", data.Snake+"_handler.go"), "generators/resource/starter/handler_web.go.tmpl"},
-				struct{ rel, tmpl string }{filepath.Join("web", "templates", data.PluralCamel+".html"), "generators/resource/starter/web_template.html.tmpl"},
+				struct{ rel, tmpl string }{filepath.Join("internal", "handler", "web", data.Snake+"_handler.go"), "generators/resource/standalone/handler_web.go.tmpl"},
+				struct{ rel, tmpl string }{filepath.Join("web", "templates", data.PluralCamel+".html"), "generators/resource/standalone/web_template.html.tmpl"},
 			)
 		} else {
 			steps = append(steps,
-				struct{ rel, tmpl string }{filepath.Join("internal", "handler", handlerDir, data.Snake+"_handler.go"), "generators/resource/" + edition + "/handler_api.go.tmpl"},
-				struct{ rel, tmpl string }{filepath.Join("internal", "handler", handlerDir, data.Snake+"_handler_test.go"), "generators/resource/" + edition + "/handler_api_test.go.tmpl"},
+				struct{ rel, tmpl string }{filepath.Join("internal", "handler", handlerDir, data.Snake+"_handler.go"), "generators/resource/" + projectType + "/handler_api.go.tmpl"},
+				struct{ rel, tmpl string }{filepath.Join("internal", "handler", handlerDir, data.Snake+"_handler_test.go"), "generators/resource/" + projectType + "/handler_api_test.go.tmpl"},
 			)
 		}
 		for _, step := range steps {
@@ -281,27 +281,27 @@ func runGenerate(rootDir string, m Manifest, request generateRequest) (map[strin
 		}
 		nextSteps = fmt.Sprintf("Wire the routes where %s.Register is called:\n  %s.Register%sRoutes(...)", handlerPackage, handlerPackage, data.Plural)
 	case "job", "event", "mail":
-		if m.Edition != "framework" {
-			return nil, "", diagnostic("generator_edition_unsupported", "generate "+request.Kind, m.Edition,
-				fmt.Errorf("the %s generator relies on gin-kit framework packages", request.Kind),
-				"Use a framework-edition project, or write a standalone implementation by hand.")
+		if m.ProjectType != "runtime" {
+			return nil, "", diagnostic("generator_project_type_unsupported", "generate "+request.Kind, m.ProjectType,
+				fmt.Errorf("the %s generator relies on gin-kit runtime packages", request.Kind),
+				"Use a Runtime project, or write a standalone implementation by hand.")
 		}
 		switch request.Kind {
 		case "job":
-			if err := add(filepath.Join("internal", "jobs", data.Snake+".go"), "generators/framework-only/job.go.tmpl"); err != nil {
+			if err := add(filepath.Join("internal", "jobs", data.Snake+".go"), "generators/runtime-only/job.go.tmpl"); err != nil {
 				return nil, "", err
 			}
 			nextSteps = fmt.Sprintf("Register the handler inside func Register in internal/jobs:\n\n    queue.Register(q, Type%s, Handle%s)\n\nDispatch it with:\n\n    queue.Dispatch(ctx, application.Queue(), jobs.Type%s, jobs.%sPayload{...})", data.Name, data.Name, data.Name, data.Name)
 		case "event":
-			if err := add(filepath.Join("internal", "event", data.Snake+".go"), "generators/framework-only/event.go.tmpl"); err != nil {
+			if err := add(filepath.Join("internal", "event", data.Snake+".go"), "generators/runtime-only/event.go.tmpl"); err != nil {
 				return nil, "", err
 			}
 			nextSteps = fmt.Sprintf("Create a bus during wiring and subscribe the listener:\n\n    bus := events.NewBus()\n    events.On(bus, event.On%s)\n\nEmit it where the change happens:\n\n    err := events.Emit(ctx, bus, event.%s{...})", data.Name, data.Name)
 		case "mail":
-			if err := add(filepath.Join("internal", "mail", data.Snake+".go"), "generators/framework-only/mail.go.tmpl"); err != nil {
+			if err := add(filepath.Join("internal", "mail", data.Snake+".go"), "generators/runtime-only/mail.go.tmpl"); err != nil {
 				return nil, "", err
 			}
-			if err := add(filepath.Join("web", "templates", "mail", data.Snake+".html"), "generators/framework-only/mail_template.html.tmpl"); err != nil {
+			if err := add(filepath.Join("web", "templates", "mail", data.Snake+".html"), "generators/runtime-only/mail_template.html.tmpl"); err != nil {
 				return nil, "", err
 			}
 			nextSteps = fmt.Sprintf("Build the mailer from configuration and send:\n\n    mailer, err := mail.New(cfg.MailOptions())\n    templates := template.Must(template.ParseGlob(\"web/templates/mail/*.html\"))\n    err = mailer.Send(ctx, projectmail.New%s(templates, recipient))", data.Name)
@@ -323,8 +323,8 @@ func runGenerate(rootDir string, m Manifest, request generateRequest) (map[strin
 		if err := add(filepath.Join("internal", "policy", data.Snake+"_policy_test.go"), "generators/single/policy_test.go.tmpl"); err != nil {
 			return nil, "", err
 		}
-		if m.Edition == "starter" {
-			// Back-fill the vendored authz package for starter projects
+		if m.ProjectType == "standalone" {
+			// Back-fill the vendored authz package for standalone projects
 			// scaffolded before it existed.
 			if _, statErr := os.Stat(filepath.Join(rootDir, "internal", "platform", "authz", "authz.go")); os.IsNotExist(statErr) {
 				if err := add(filepath.Join("internal", "platform", "authz", "authz.go"), "generators/single/platform_authz.go.tmpl"); err != nil {
@@ -333,7 +333,7 @@ func runGenerate(rootDir string, m Manifest, request generateRequest) (map[strin
 			}
 		}
 		subjectExpr := "auth.UserID(c)"
-		if m.Edition != "framework" {
+		if m.ProjectType != "runtime" {
 			subjectExpr = `c.GetString("user_id")`
 		}
 		nextSteps = fmt.Sprintf(`Enforce the policy in the handler before acting (explicit wiring):
@@ -354,7 +354,7 @@ gin-kit generate domain %s first if it does not exist.`,
 		if err := add(filepath.Join("internal", "middleware", data.Snake+".go"), "generators/single/middleware.go.tmpl"); err != nil {
 			return nil, "", err
 		}
-		if m.Edition == "framework" {
+		if m.ProjectType == "runtime" {
 			nextSteps = fmt.Sprintf("Install it in internal/app/app.go:\n  application.Use(middleware.%s())", data.Name)
 		} else {
 			nextSteps = fmt.Sprintf("Install it in internal/app/app.go:\n  r.Use(middleware.%s())", data.Name)
@@ -379,7 +379,7 @@ func migrationPath(rootDir, name string) string {
 
 func resourceNextSteps(m Manifest, data genData, handlerPackage string) string {
 	var wiring string
-	if m.Edition == "framework" {
+	if m.ProjectType == "runtime" {
 		wiring = fmt.Sprintf(`In internal/app/app.go, after the existing Register call, add:
 
     %s := service.New%sService(repository.New%sRepository(application.Database()))
@@ -524,7 +524,7 @@ func generateCommand() *cobra.Command {
 		source := from
 		var spec *clientSpec
 		if source == "" {
-			if m.Edition == "starter" {
+			if m.ProjectType == "standalone" {
 				source = filepath.Join(root, "api", "openapi.yaml")
 			} else {
 				p := filepath.Join(root, "cmd", "server", "main.go")
@@ -535,7 +535,7 @@ func generateCommand() *cobra.Command {
 				if !bytes.Contains(d, []byte("--openapi")) {
 					return diagnostic("openapi_flag_missing", "generate client", p, errors.New("server does not support --openapi"), "Add --openapi or pass --from URL|file")
 				}
-				spec, err = loadFrameworkOpenAPI(root)
+				spec, err = loadRuntimeOpenAPI(root)
 			}
 		}
 		if spec == nil && err == nil {

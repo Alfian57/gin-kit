@@ -7,47 +7,61 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Breaking
+
+- Project selection is now **Runtime** or **Standalone**. New projects write
+  manifest v3 with `project_type: runtime|standalone`; the CLI uses
+  `--project-type`, `--runtime-version`, and `--runtime-replace`.
+- The public versioned runtime is now imported from
+  `github.com/Alfian57/gin-kit/runtime/...`. Prior import paths and manifest
+  formats are not supported.
+
+### Fixed
+
+- Interactive project creation keeps confirmation buttons left-aligned and
+  selects authentication, the tasks example, and Docker files by default.
+
 ## [0.3.0] - 2026-07-27
 
 ### Added
 
-- Boolean feature flags for framework-edition applications: the new
-  `framework/flags` package parses comma-separated names from `FLAGS`, supports
+- Boolean feature flags for runtime applications: the new
+  `runtime/flags` package parses comma-separated names from `FLAGS`, supports
   concurrency-safe runtime updates, and keeps wiring explicit without global
   state or persistence.
-- `framework/realtime`: explicit in-process WebSocket and server-sent-event
+- `runtime/realtime`: explicit in-process WebSocket and server-sent-event
   fan-out with named public/private channels, per-channel authorization,
   bounded client buffers with slow-client eviction, a compact subscribe /
   unsubscribe protocol, graceful application-runner shutdown, and a typed
   `events` forwarding bridge.
 - `gin-kit generate client --lang ts` generates a deterministic, dependency-free
-  TypeScript API client from a local or remote OpenAPI document. Framework
+  TypeScript API client from a local or remote OpenAPI document. Runtime
   projects can emit their runtime document with `cmd/server --openapi`;
-  starter projects use `api/openapi.yaml`.
-- Personal API tokens in `framework/auth` (and the starter runtime) use
+  standalone projects use `api/openapi.yaml`.
+- Personal API tokens in `runtime/auth` (and the standalone runtime) use
   `gk_`-prefixed random secrets, persist only SHA-256 hashes, support optional
   expiry and AND-matched abilities (including `*`), and provide a separate
   `RequireToken` middleware with stable token error codes.
 
-- Development dashboard (framework edition): the new `framework/devtools`
+- Development dashboard (runtime project type): the new `runtime/devtools`
   package serves `/_ginkit` in development — a request log (paths, statuses,
   durations, mapped error codes; never bodies, query strings, or headers
   beyond the user agent), a mail outbox via `DevTools().WrapMailer` with
   sandboxed HTML previews, the registered route list, an allowlisted and
   redacted config report, and queue statistics through the new
   `queue.Stats`. Enabling `DEVTOOLS_ENABLED` outside development is a
-  startup error, enforced by both `config.Load` and `framework.New`;
+  startup error, enforced by both `config.Load` and `runtime.New`;
   `mail.Message` gains a content-safe `Envelope()` snapshot.
-- `gin-kit upgrade`: starter projects can now receive fixes for their
+- `gin-kit upgrade`: standalone projects can now receive fixes for their
   vendored `internal/platform/` code. The command re-renders the current
   CLI's platform templates for the project manifest, reports every file as
   up-to-date, outdated, modified, differs, missing, or unmanaged, and
   `--apply` writes the safe updates transactionally (`--diff` prints unified
   diffs, `--force` also overwrites locally modified files; Go files are
-  compared gofmt-normalized). New starter scaffolds record a `.gin-kit.sum`
+  compared gofmt-normalized). New standalone scaffolds record a `.gin-kit.sum`
   checksum baseline so local edits are never confused with stale vendored
   copies; older projects without the file bootstrap it on the first
-  `upgrade --apply`. Framework-edition projects keep upgrading via
+  `upgrade --apply`. Runtime projects keep upgrading via
   `go get github.com/Alfian57/gin-kit@vX.Y.Z` and get a diagnostic saying so.
 
 - `gin-kit generate resource --soft-delete`: opts a resource into explicit
@@ -55,7 +69,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
   JSON), every repository query filters on a visible `deleted_at IS NULL` —
   no implicit ORM scoping — `Delete` becomes an `UPDATE` that stamps
   `deleted_at`, and the migration adds the nullable column plus an index.
-  `deleted_at` joins the reserved field names, and the framework-edition
+  `deleted_at` joins the reserved field names, and the runtime
   repository integration test verifies the row survives deletion.
 - `gin-kit dev`: a hot-reload development server that builds `./cmd/server`
   to a binary, watches the project, and serves it through a local reverse
@@ -69,17 +83,17 @@ and versions follow [Semantic Versioning](https://semver.org/).
   opaque keyset token tie-broken on `id`, `BuildCursorSQL`/`ApplyCursorGORM`
   fetch one probe row past `per_page`, and `NextCursor` plus `CursorMeta`
   produce `{"next_cursor": ..., "per_page": ...}` metadata. Offset
-  pagination remains the default; the starter edition's vendored query
+  pagination remains the default; the standalone project type's vendored query
   package gains the same API.
-- Authorization policies: the new `framework/authz` package (vendored as
-  `internal/platform/authz` in starter projects) provides allowlist-style
+- Authorization policies: the new `runtime/authz` package (vendored as
+  `internal/platform/authz` in standalone projects) provides allowlist-style
   `Decision` values with one stable `403 forbidden` envelope — deny reasons
   are logged and wrapped as error causes, never serialized — enforced in
   handlers via `authz.Authorize` or converted to a mapper-ready error with
   `Decision.Err()`. `gin-kit generate policy <Name>` renders a per-resource
   policy (CanView/CanCreate/CanUpdate/CanDelete) with placeholder rules, a
-  table test, and the exact handler wiring snippet in both editions, and
-  back-fills the vendored authz package into older starter projects.
+  table test, and the exact handler wiring snippet in both project types, and
+  back-fills the vendored authz package into older standalone projects.
 
 - Visual identity: the gin-kit gopher mascot (tool belt included) becomes the
   project logo, with light/dark variants in the site header, a hero
@@ -89,7 +103,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
   site declared `summary_large_image` with no image at all).
 
 - Complete AI-agent workflow: generated projects now render `AGENTS.md` from
-  the project manifest (edition, mode, database, ORM, auth/example flags,
+  the project manifest (project type, mode, database, ORM, auth/example flags,
   module path) with the full command tree, DTO and error-contract rules, and
   a documentation-discipline section; the generated skill gains YAML
   frontmatter and concrete workflows (add a resource, custom validation
@@ -121,13 +135,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - The `httpx` binders (`BindJSON`/`BindQuery`/`BindURI`) validated with the
   package-level `validation.Default` even when the application configured
   `Options.Validator`, so custom rules and messages registered on the
-  application validator were silently ignored. The framework now exposes the
+  application validator were silently ignored. The runtime now exposes the
   application validator to binders through the request context; resolution
   order is explicit argument, then application validator, then
   `validation.Default`.
-- Starter projects discarded binding errors and answered a bare
-  `400 validation_failed` with no field details, while the framework edition
-  answered `422` with per-field messages. Both editions now share the same
+- Standalone projects discarded binding errors and answered a bare
+  `400 validation_failed` with no field details, while the runtime project type
+  answered `422` with per-field messages. Both project types now share the same
   contract: `422 validation_failed` with `details.fields`, `400 invalid_json`
   for malformed bodies (never echoing the submitted payload), and
   `413 body_too_large` for oversized bodies.
@@ -144,9 +158,9 @@ and versions follow [Semantic Versioning](https://semver.org/).
   with sentinel-error validation; validation happens once, at bind time, with
   `422` field details. `/api/v1/me` returns a `UserResponse`; register and
   login responses are typed `AuthResponse` values with identical wire shapes.
-- **Breaking (regenerated starter projects only):** the starter
+- **Breaking (regenerated standalone projects only):** the standalone
   `internal/platform/response` package is replaced by
-  `internal/platform/httpx` — a standalone copy of the framework envelope and
+  `internal/platform/httpx` — a standalone copy of the runtime envelope and
   binders (`OK`, `Created`, `List`, `NoContent`, `Fail`, `BindJSON`,
   `BindQuery`, `BindURI`) plus `internal/platform/validation`. Error
   responses gain `details` and `request_id` fields. Existing generated
@@ -155,7 +169,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 - Docs site landing page rebuilt on real Starlight components — fixing the
   card icon that never rendered (an empty MDX expression) — with a
-  feature grid covering the current framework, a quickstart, and edition
+  feature grid covering the current runtime, a quickstart, and project type
   cards; the header logo now has light/dark variants (it was invisible in
   dark mode) and the background grid is theme-aware. Repository description
   and topics updated to the framework positioning.
@@ -171,7 +185,7 @@ and versions follow [Semantic Versioning](https://semver.org/).
   in responses. Services accept request DTOs and return domain values;
   handlers wrap results in response DTOs. A standalone `gin-kit generate dto
   <Name> --fields ...` command renders just the DTO file.
-- The auth scaffold ships typed DTOs in both editions (`RegisterRequest`,
+- The auth scaffold ships typed DTOs in both project types (`RegisterRequest`,
   `LoginRequest`, `RefreshRequest`, `UserResponse`, `TokenResponse`,
   `AuthResponse`) replacing ad-hoc `gin.H` payloads and doc-only mirror
   structs — the OpenAPI spec and the wire format now come from the same
@@ -180,10 +194,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Thirteen additional built-in validation messages (`gte`, `lte`, `gt`, `lt`,
   `url`, `uuid`, `numeric`, `alphanum`, `datetime`, `eqfield`, `ne`,
   `startswith`, `endswith`) with named parameters in field error details, in
-  both the framework `validation` package and the starter copy.
+  both the runtime `validation` package and the standalone copy.
 
-- Auto-generated OpenAPI docs for framework-edition applications — zero
-  annotations: `framework/openapi` builds the 3.0.3 spec at runtime from the
+- Auto-generated OpenAPI docs for runtime applications — zero
+  annotations: `runtime/openapi` builds the 3.0.3 spec at runtime from the
   live route table plus typed `Describe` calls that generated code carries
   (schemas reflected from Go structs, validation tags becoming constraints,
   list endpoints documenting filters/sorts/pagination). Swagger UI at
@@ -193,44 +207,44 @@ and versions follow [Semantic Versioning](https://semver.org/).
   `generate resource` handlers self-describe, and generated projects include
   a docs test.
 
-- `framework/apptest` v2: PATCH, request options (`WithHeader`, `WithBearer`,
+- `runtime/apptest` v2: PATCH, request options (`WithHeader`, `WithBearer`,
   `WithCookie`), form/multipart/raw bodies, `Meta`/`JSON` decoders, and a
   cookie-jar `Client` with a `CSRFToken` helper for session flows; apps built
   with `apptest.New` now close automatically via `t.Cleanup`. New integration
   helpers run repositories against unique in-memory SQLite databases:
   `OpenSQLite`, `Migrate` (goose), and `Seed`.
-- `framework.Application.Close(ctx)`: runs shutdown hooks exactly once
+- `runtime.Application.Close(ctx)`: runs shutdown hooks exactly once
   without serving, for tests and short-lived binaries.
-- `framework/browsertest`: Playwright helpers (`Launch`, `NewPage`,
+- `runtime/browsertest`: Playwright helpers (`Launch`, `NewPage`,
   `StartServer`, `Install`) that skip cleanly when browsers are absent;
-  framework-edition UI projects scaffold an `e2e/` browser test, and
+  runtime UI projects scaffold an `e2e/` browser test, and
   `generate resource` now also emits a repository integration test in
-  framework-edition projects.
+  runtime projects.
 
 ### Changed
 
 - `apptest.Do` takes request options instead of an `http.Header` parameter
   (breaking within the pre-1.0 test helper API).
 
-- `framework/factory`: generic, ORM-agnostic model factories
+- `runtime/factory`: generic, ORM-agnostic model factories
   (`factory.Define`, `Make`, `MakeMany`, `Create`, `CreateMany`, deterministic
   `Seeded`) backed by gofakeit. `gin-kit generate factory` emits a per-model
   factory with field-aware fake data, `generate resource` now includes one,
-  and starter projects receive a standalone `internal/platform/factory` copy.
+  and standalone projects receive a standalone `internal/platform/factory` copy.
 
 ### Changed
 
 - Seeders now receive the full `*database.Connection` (SQL plus the project's
   GORM or sqlx handle) instead of `*sql.DB`, so repositories and factories
-  work inside seeders; `cmd/seed` opens the connection through the edition's
+  work inside seeders; `cmd/seed` opens the connection through the project type's
   database package. Breaking for previously generated projects that
   regenerate seeders.
 
-- Framework-edition generators for infrastructure concepts:
+- Runtime generators for infrastructure concepts:
   `gin-kit generate job` (typed queue job with registration and dispatch
   snippets), `generate event` (domain event plus listener for the event bus),
-  and `generate mail` (mailable builder with an HTML template). Starter
-  projects receive a clear diagnostic since these depend on framework
+  and `generate mail` (mailable builder with an HTML template). Standalone
+  projects receive a clear diagnostic since these depend on runtime
   packages.
 
 - Database seeding: generated projects ship `cmd/seed` with an explicit
@@ -242,10 +256,10 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- Framework-edition `cmd/migrate` now loads `.env` like the server; starter
+- Runtime `cmd/migrate` now loads `.env` like the server; standalone
   projects load `.env` in the server, migrate, and seed binaries (a copied
-  dotenv parser in `internal/platform/config`), and the starter migrate
-  binary gains the same SQLite DSN fallback as the framework edition.
+  dotenv parser in `internal/platform/config`), and the standalone migrate
+  binary gains the same SQLite DSN fallback as the runtime project type.
 
 - Template-based, manifest-aware generators: `gin-kit generate resource`
   renders a complete vertical slice (domain model + repository interface,
@@ -265,14 +279,14 @@ and versions follow [Semantic Versioning](https://semver.org/).
   full-coverage generators while keeping explicit wiring and rejecting
   reflection-based dependency injection.
 
-- `framework/session`: encrypted cookie sessions (gin-contrib/sessions) with
+- `runtime/session`: encrypted cookie sessions (gin-contrib/sessions) with
   one-shot flash messages and constant-time CSRF protection (form field or
   header, `/api/` exempt by default), wired automatically into UI-mode
-  projects in both editions; `SESSION_SECRET` is finally consumed, the tasks
-  form carries a CSRF field, and starter projects receive a standalone
+  projects in both project types; `SESSION_SECRET` is finally consumed, the tasks
+  form carries a CSRF field, and standalone projects receive a standalone
   `internal/platform/session` copy.
 
-- Full `--auth` scaffold in both editions, a complete token-API vertical:
+- Full `--auth` scaffold in both project types, a complete token-API vertical:
   `users` and `refresh_tokens` migrations, domain models, GORM and sqlx
   repositories, an auth service with Argon2id passwords, timing-leveled
   login, and single-use refresh-token rotation, plus JSON endpoints for
@@ -281,43 +295,43 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
-- Framework-edition `api.Register`/`web.Register` signatures for `--auth`
+- Runtime `api.Register`/`web.Register` signatures for `--auth`
   projects now receive the auth service; the previous sample-only
   `/api/v1/me` handlers were replaced by the full auth handler package.
 
-- `framework/mail`: transactional mailer with a fluent message builder,
+- `runtime/mail`: transactional mailer with a fluent message builder,
   html/template rendering, an SMTP driver (wneessen/go-mail with
   none/tls/starttls), and a development log driver that renders the full MIME
   message; configured through `MAIL_*` variables and `config.MailOptions()`.
-  Framework compose scaffolds an opt-in Mailpit service
+  Runtime compose scaffolds an opt-in Mailpit service
   (`docker compose --profile mail up`).
-- `framework/storage`: disk abstraction with a path-confined, atomic local
+- `runtime/storage`: disk abstraction with a path-confined, atomic local
   driver and an S3-compatible driver (minio-go; AWS S3, MinIO, R2, Spaces)
   with presigned or public URLs, a gin `SaveUpload` multipart helper, and
   `STORAGE_*`/`S3_*` configuration via `config.StorageOptions()`; compose
   scaffolds an opt-in MinIO service (`--profile storage`).
 
-- `framework/queue`: explicit background jobs with typed `Register`/`Dispatch`,
+- `runtime/queue`: explicit background jobs with typed `Register`/`Dispatch`,
   an inline sync driver for development, and a Redis (asynq) driver with
   delays, retries, named queues, worker concurrency, and graceful drain,
   supervised by the application lifecycle; configured via
   `QUEUE_DRIVER`/`QUEUE_CONCURRENCY`/`REDIS_URL`. `app.Queue()` is always
-  available, and framework-edition projects scaffold an `internal/jobs`
+  available, and runtime projects scaffold an `internal/jobs`
   example.
-- `framework/schedule`: cron scheduling on robfig/cron with
+- `runtime/schedule`: cron scheduling on robfig/cron with
   `Cron`/`Every`/`Daily`/`Hourly`, per-job panic recovery, optional
   skip-if-still-running, and graceful stop as an application runner
   (single-instance in this version).
 
-- `framework/cache`: application cache with in-memory (default) and Redis
+- `runtime/cache`: application cache with in-memory (default) and Redis
   drivers behind one interface, a JSON `Remember` helper, key prefixes,
   increments and TTLs; configured with `CACHE_DRIVER`/`REDIS_URL`, with an
   automatic `redis` readiness check and shutdown-managed cleanup.
   `app.Cache()` is always available.
-- `framework/events`: dependency-free in-process typed event bus (`On`/`Emit`)
+- `runtime/events`: dependency-free in-process typed event bus (`On`/`Emit`)
   with synchronous ordered dispatch, joined handler errors, panic recovery,
   and unsubscribe.
-- Framework-edition Docker Compose now includes a Redis service
+- Runtime Docker Compose now includes a Redis service
   (`GIN_KIT_REDIS_PORT` override supported).
 
 - Supervised background runners: `Application.Go(name, runner)` runs
@@ -325,18 +339,18 @@ and versions follow [Semantic Versioning](https://semver.org/).
   or panic triggers graceful HTTP shutdown, runners drain before shutdown
   hooks, and hooks keep their LIFO order.
 
-- `framework/query`: allowlist-based filtering (exact, partial, in,
+- `runtime/query`: allowlist-based filtering (exact, partial, in,
   gte/lte/gt/lt), sorting, and pagination for list endpoints with GORM and
   parameterized-SQL appliers, portable LIKE escaping, native boolean binding,
-  and standard pagination metadata. Starter-edition projects receive a
+  and standard pagination metadata. Standalone projects receive a
   standalone `internal/platform/query` copy.
-- The Tasks examples in both editions now demonstrate query filtering,
+- The Tasks examples in both project types now demonstrate query filtering,
   sorting, and pagination end to end.
 
 - `httpx.BindQuery` and `httpx.BindURI` generic binders with the same
   validation behavior and error envelopes as `BindJSON` (`invalid_query` /
   `invalid_path`).
-- `framework/apptest` test helpers: build an application, perform JSON
+- `runtime/apptest` test helpers: build an application, perform JSON
   requests, and decode envelope responses without recorder boilerplate.
 
 - Opt-in Prometheus metrics endpoint (`MetricsOptions` / `METRICS_ENABLED`)
@@ -347,23 +361,23 @@ and versions follow [Semantic Versioning](https://semver.org/).
 - Opt-in pprof endpoints under `/debug/pprof` (`PProfOptions` /
   `PPROF_ENABLED`).
 
-- `framework/config`: typed environment loading with fail-fast validation,
+- `runtime/config`: typed environment loading with fail-fast validation,
   production requirements, Go-duration timeouts, and dependency-free `.env`
   support where the real environment always wins.
-- Framework-edition applications now apply timeouts, CORS origins, rate
+- Runtime applications now apply timeouts, CORS origins, rate
   limiting, body limits, and trusted proxies from the environment through
-  `framework/config`, and ship a framework-specific `.env.example`.
+  `runtime/config`, and ship a runtime-specific `.env.example`.
 
-- `framework/auth` Gin middleware: `RequireAuth`, `ClaimsFromContext`, and
+- `runtime/auth` Gin middleware: `RequireAuth`, `ClaimsFromContext`, and
   `UserID` with canonical `401` envelopes and `WWW-Authenticate` headers.
 - `HTTPOptions.TrustedProxies` for explicit forwarded-header trust.
-- Framework-edition `--auth` scaffolding: JWT manager wiring from `JWT_SECRET`,
+- Runtime `--auth` scaffolding: JWT manager wiring from `JWT_SECRET`,
   a Bearer-protected `/api/v1/me` sample route, and generated tests for both
   API and UI modes.
 
 ### Security
 
-- Framework applications no longer trust `X-Forwarded-For` from any peer by
+- Runtime applications no longer trust `X-Forwarded-For` from any peer by
   default; list your proxies in `HTTPOptions.TrustedProxies`
   (`TRUSTED_PROXY_CIDRS` in generated projects) to restore forwarded client
   addresses. Rate limiting and access logs now key on non-spoofable client
@@ -371,18 +385,18 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- Framework-edition projects generated with `--example` no longer register
+- Runtime projects generated with `--example` no longer register
   the tasks seeder: their tasks example is an in-memory stub without a tasks
-  table, so `gin-kit db seed` failed. The seeder stays starter-only.
-- Generated framework README instructed copying `.env.example` to `.env`
-  although nothing loaded the file; framework applications now load it.
-- Framework-edition projects received the starter's `.env.example` with
+  table, so `gin-kit db seed` failed. The seeder stays standalone-only.
+- Generated runtime README instructed copying `.env.example` to `.env`
+  although nothing loaded the file; runtime applications now load it.
+- Runtime projects received the standalone's `.env.example` with
   variables their runtime never read.
-- `--auth` was silently ignored for framework-edition projects.
-- Framework-edition UI projects registered the Tasks example route only when
+- `--auth` was silently ignored for runtime projects.
+- Runtime UI projects registered the Tasks example route only when
   HTML templates were absent.
 - Documentation described a functional-options API and middleware order that
-  never existed; it now shows the real `framework.Options` API and order.
+  never existed; it now shows the real `runtime.Options` API and order.
 
 ### Changed
 
@@ -396,11 +410,11 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ### Added
 
-- Opinionated framework runtime on Gin with lifecycle, security, rate limiting,
+- Opinionated runtime on Gin with lifecycle, security, rate limiting,
   SQL/GORM/sqlx adapters, authentication, password hashing, and extension
   hooks.
 - Detailed field-level validation errors and a canonical response envelope.
-- Framework and standalone starter editions with module-aware scaffolding,
+- Runtime and Standalone project types with module-aware scaffolding,
   transactional generators, diagnostics, and local runtime replacement support.
 - English Astro/Starlight documentation deployed through GitHub Pages.
 

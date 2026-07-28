@@ -3,7 +3,7 @@ title: API documentation
 description: Swagger docs generated automatically — no annotations, ever.
 ---
 
-Framework-edition applications document themselves. There are no doc
+Runtime applications document themselves. There are no doc
 comments, no `swag init`, no YAML to maintain: the OpenAPI 3.0.3 document is
 built at runtime from two sources —
 
@@ -68,5 +68,5 @@ docs.Describe(openapi.Operation{
 })
 ```
 
-The starter edition keeps its editable static `api/openapi.yaml` instead —
+The standalone project type keeps its editable static `api/openapi.yaml` instead —
 its philosophy is source-visible, hand-maintained infrastructure.

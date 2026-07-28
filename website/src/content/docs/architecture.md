@@ -18,7 +18,7 @@ requests carry validation tags, responses exclude credential-like fields.
 Constructors make each boundary explicit; gin-kit does not use a
 reflection-based container or service locator.
 
-The framework runtime owns generic HTTP policy, recovery, request IDs,
+The runtime owns generic HTTP policy, recovery, request IDs,
 configuration validation, database lifecycle, and graceful shutdown. The
 generated project owns routes, business behavior, integrations, and
 deployment configuration.

@@ -1,6 +1,6 @@
 ---
 name: gin-kit-development
-description: Work on {{.Project}}, a gin-kit {{.Edition}}-edition {{.Mode}} project ({{.Database}}/{{.ORM}}) — add resources, endpoints, validation rules, background work, and tests while preserving the generated architecture.
+description: Work on {{.Project}}, a gin-kit {{.ProjectType}} {{.Mode}} project ({{.Database}}/{{.ORM}}) — add resources, endpoints, validation rules, background work, and tests while preserving the generated architecture.
 compatibility: Requires Go 1.26{{if eq .Mode "ui"}}; asset work requires Node.js 20+{{end}}.
 ---
 
@@ -10,8 +10,8 @@ Read `AGENTS.md` before changing generated code. Keep the explicit
 router → handler → service → repository → database flow, pass
 `context.Context` through every boundary, and keep transport shapes in
 `internal/dto`.
-{{if eq .Edition "framework"}}
-This project consumes the versioned `github.com/Alfian57/gin-kit/framework`
+{{if eq .ProjectType "runtime"}}
+This project consumes the versioned `github.com/Alfian57/gin-kit/runtime`
 runtime; customize it through public options, hooks, middleware, and
 interfaces — never copy or edit gin-kit core.
 {{else}}
@@ -33,13 +33,13 @@ To evolve it, edit the generated files directly (they are yours).
 
 ## Add a custom validation rule
 
-{{if eq .Edition "framework"}}Register on the application validator during wiring, before `framework.New`:
+{{if eq .ProjectType "runtime"}}Register on the application validator during wiring, before `runtime.New`:
 
 ```go
 v := validation.New()
 _ = v.RegisterRule("slug", func(fl validator.FieldLevel) bool { ... })
 v.RegisterMessage("slug", "The {field} field must not contain spaces.")
-// framework.Options{Validator: v}
+// runtime.Options{Validator: v}
 ```
 {{else}}Register on `validation.Default` during startup (`internal/app/app.go`):
 
@@ -50,7 +50,7 @@ validation.Default.RegisterMessage("slug", "The {field} field must not contain s
 {{end}}
 Then use `validate:"slug"` in request DTOs — every `httpx.BindJSON/Query/URI`
 call enforces it and renders the message with field details.
-{{if eq .Edition "framework"}}
+{{if eq .ProjectType "runtime"}}
 ## Background work
 
 ```bash
@@ -69,8 +69,8 @@ with `schedule.New` + `app.Go("scheduler", scheduler.Run)`.
   fakes (see any generated `*_handler_test.go`).
 - Factories (`internal/database/factories/`) build realistic test data;
   `.Seeded(n)` makes them deterministic.
-{{if eq .Edition "framework"}}- `framework/apptest` boots the full application for integration tests
-  (`apptest.New`, `OpenSQLite`, `Migrate`, `Seed`); `framework/browsertest`
+{{if eq .ProjectType "runtime"}}- `runtime/apptest` boots the full application for integration tests
+  (`apptest.New`, `OpenSQLite`, `Migrate`, `Seed`); `runtime/browsertest`
   adds Playwright browser tests{{if eq .Mode "ui"}} (see `e2e/`){{end}}.
 {{end}}- Run everything with `gin-kit check` (read-only: gofmt report, tests, vet).
 

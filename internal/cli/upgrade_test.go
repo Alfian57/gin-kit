@@ -9,11 +9,11 @@ import (
 	"testing"
 )
 
-func scaffoldStarterForUpgrade(t *testing.T, mode string) (string, Manifest) {
+func scaffoldStandaloneForUpgrade(t *testing.T, mode string) (string, Manifest) {
 	t.Helper()
 	dir := filepath.Join(t.TempDir(), "app")
 	m := Manifest{
-		Version: 2, Edition: "starter", Project: "app", Module: "example.com/app",
+		Version: 3, ProjectType: "standalone", Project: "app", Module: "example.com/app",
 		Mode: mode, Database: "sqlite", ORM: "gorm",
 	}
 	if err := scaffold(dir, m); err != nil {
@@ -47,8 +47,8 @@ func mutatePlatformFile(t *testing.T, rootDir, rel string) {
 	}
 }
 
-func TestStarterScaffoldWritesBaselineAndPlanIsClean(t *testing.T) {
-	dir, m := scaffoldStarterForUpgrade(t, "api")
+func TestStandaloneScaffoldWritesBaselineAndPlanIsClean(t *testing.T) {
+	dir, m := scaffoldStandaloneForUpgrade(t, "api")
 	baseline, err := readBaseline(dir)
 	if err != nil {
 		t.Fatal(err)
@@ -76,7 +76,7 @@ func TestStarterScaffoldWritesBaselineAndPlanIsClean(t *testing.T) {
 }
 
 func TestUpgradePlanClassifiesModifiedAndOutdated(t *testing.T) {
-	dir, m := scaffoldStarterForUpgrade(t, "api")
+	dir, m := scaffoldStandaloneForUpgrade(t, "api")
 	const rel = "internal/platform/query/query.go"
 
 	// A local edit differs from both the render and the baseline.
@@ -105,7 +105,7 @@ func TestUpgradePlanClassifiesModifiedAndOutdated(t *testing.T) {
 }
 
 func TestUpgradePlanNormalizesGoBeforeComparingBaseline(t *testing.T) {
-	dir, m := scaffoldStarterForUpgrade(t, "api")
+	dir, m := scaffoldStandaloneForUpgrade(t, "api")
 	const rel = "internal/platform/query/query.go"
 	path := filepath.Join(dir, filepath.FromSlash(rel))
 	content, err := os.ReadFile(path)
@@ -137,7 +137,7 @@ func TestUpgradePlanNormalizesGoBeforeComparingBaseline(t *testing.T) {
 }
 
 func TestUpgradePlanWithoutBaseline(t *testing.T) {
-	dir, m := scaffoldStarterForUpgrade(t, "api")
+	dir, m := scaffoldStandaloneForUpgrade(t, "api")
 	if err := os.Remove(filepath.Join(dir, baselineFile)); err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +154,7 @@ func TestUpgradePlanWithoutBaseline(t *testing.T) {
 }
 
 func TestApplyUpgradeWritesSafeUpdatesAndRefreshesBaseline(t *testing.T) {
-	dir, m := scaffoldStarterForUpgrade(t, "api")
+	dir, m := scaffoldStandaloneForUpgrade(t, "api")
 	const outdatedRel = "internal/platform/query/query.go"
 	const modifiedRel = "internal/platform/httpx/bind.go"
 	const missingRel = "internal/platform/config/config.go"
@@ -266,7 +266,7 @@ func TestApplyUpgradeWritesSafeUpdatesAndRefreshesBaseline(t *testing.T) {
 }
 
 func TestApplyUpgradeBootstrapsBaselineForOldProjects(t *testing.T) {
-	dir, m := scaffoldStarterForUpgrade(t, "api")
+	dir, m := scaffoldStandaloneForUpgrade(t, "api")
 	if err := os.Remove(filepath.Join(dir, baselineFile)); err != nil {
 		t.Fatal(err)
 	}
@@ -287,9 +287,9 @@ func TestApplyUpgradeBootstrapsBaselineForOldProjects(t *testing.T) {
 }
 
 func TestUpgradePlanFollowsManifestGates(t *testing.T) {
-	// An API-mode starter renders no platform/session, so an on-disk session
+	// An API-mode standalone renders no platform/session, so an on-disk session
 	// file (for example from a UI project converted by hand) is unmanaged.
-	dir, m := scaffoldStarterForUpgrade(t, "api")
+	dir, m := scaffoldStandaloneForUpgrade(t, "api")
 	const sessionRel = "internal/platform/session/session.go"
 	sessionPath := filepath.Join(dir, filepath.FromSlash(sessionRel))
 	if err := os.MkdirAll(filepath.Dir(sessionPath), 0o755); err != nil {
@@ -304,17 +304,17 @@ func TestUpgradePlanFollowsManifestGates(t *testing.T) {
 }
 
 func TestUpgradePlanManagesSessionInUIMode(t *testing.T) {
-	dir, m := scaffoldStarterForUpgrade(t, "ui")
+	dir, m := scaffoldStandaloneForUpgrade(t, "ui")
 	const sessionRel = "internal/platform/session/session.go"
 	if got := planByPath(t, dir, m)[sessionRel].Status; got != statusUpToDate {
 		t.Fatalf("session file in ui mode classified %s, want %s", got, statusUpToDate)
 	}
 }
 
-func TestUpgradeCommandRejectsFrameworkEdition(t *testing.T) {
+func TestUpgradeCommandRejectsRuntimeProjectType(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "fw")
 	m := Manifest{
-		Version: 2, Edition: "framework", FrameworkVersion: "0.3.0",
+		Version: 3, ProjectType: "runtime", RuntimeVersion: "0.3.0",
 		Project: "fw", Module: "example.com/fw",
 		Mode: "api", Database: "sqlite", ORM: "gorm",
 	}
@@ -325,11 +325,11 @@ func TestUpgradeCommandRejectsFrameworkEdition(t *testing.T) {
 	cmd := upgradeCommand()
 	err := cmd.RunE(cmd, nil)
 	if err == nil {
-		t.Fatal("expected the framework edition to be rejected")
+		t.Fatal("expected the runtime project type to be rejected")
 	}
 	var diag *Diagnostic
-	if !errors.As(err, &diag) || diag.Code != "upgrade_edition_unsupported" {
-		t.Fatalf("expected upgrade_edition_unsupported diagnostic, got %v", err)
+	if !errors.As(err, &diag) || diag.Code != "upgrade_project_type_unsupported" {
+		t.Fatalf("expected upgrade_project_type_unsupported diagnostic, got %v", err)
 	}
 	if !strings.Contains(diag.Recovery, "go get github.com/Alfian57/gin-kit@") {
 		t.Fatalf("recovery does not point at the module upgrade path: %s", diag.Recovery)

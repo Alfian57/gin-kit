@@ -4,14 +4,14 @@ description: Start with practical security defaults.
 ---
 
 Enable authentication during project creation (`--auth`) to receive a
-complete, working authentication vertical in both editions: `users` and
+complete, working authentication vertical in both project types: `users` and
 `refresh_tokens` migrations, repositories for GORM and sqlx, an auth service
 with Argon2id password hashing and timing-leveled login, and JSON endpoints —
 `POST /api/v1/auth/register`, `/login`, `/refresh`, `/logout`, and a
 database-backed `GET /api/v1/me`. Refresh tokens are stored hashed and are
 single-use: every refresh rotates the token and revokes the old one.
 
-Framework-edition projects protect routes with the framework middleware:
+Runtime projects protect routes with the runtime middleware:
 
 ```go
 protected := router.Group("/api/v1", auth.RequireAuth(tokens))
@@ -45,7 +45,7 @@ update `last_used_at`; never log or persist the plaintext secret.
 
 ## Password hashing
 
-`framework/password` provides the Argon2id primitives the auth service is
+`runtime/password` provides the Argon2id primitives the auth service is
 built on, usable on their own:
 
 ```go

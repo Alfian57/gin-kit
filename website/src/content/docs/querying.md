@@ -3,8 +3,8 @@ title: Filtering, sorting, and pagination
 description: Safe list endpoints with an allowlist-based query builder.
 ---
 
-The `framework/query` package (mirrored as `internal/platform/query` in
-starter-edition projects) parses list-endpoint parameters with a bracketed
+The `runtime/query` package (mirrored as `internal/platform/query` in
+standalone projects) parses list-endpoint parameters with a bracketed
 filter syntax:
 
 ```

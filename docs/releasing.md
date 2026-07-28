@@ -46,7 +46,7 @@ the binary, so do not edit a version constant for a release.
    ./gin-kit --version
    ./gin-kit new release-check \
      --non-interactive \
-     --edition framework \
+     --project-type runtime \
      --module example.com/release-check \
      --mode api \
      --database sqlite \
@@ -55,7 +55,7 @@ the binary, so do not edit a version constant for a release.
 
 Only annotated `v0.x.y` tags created from `main` are accepted by the release
 workflow. Do not reuse a published tag; create a new patch or prerelease tag.
-The CLI and framework runtime share the same tag. A released framework-edition
+The CLI and runtime share the same tag. A released runtime
 project pins that exact runtime version in its generated `go.mod`.
 
 ## Failed releases
