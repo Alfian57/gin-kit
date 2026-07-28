@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// explainCommand performs this package operation.
 func explainCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "explain <topic>",
@@ -37,6 +38,7 @@ func explainCommand() *cobra.Command {
 	}
 }
 
+// doctorCommand performs this package operation.
 func doctorCommand() *cobra.Command {
 	return &cobra.Command{Use: "doctor", Short: "Check local prerequisites", RunE: func(cmd *cobra.Command, args []string) error {
 		rootDir, m, err := projectRoot()
@@ -73,6 +75,7 @@ func doctorCommand() *cobra.Command {
 	}}
 }
 
+// checkCommand performs this package operation.
 func checkCommand() *cobra.Command {
 	return &cobra.Command{Use: "check", Short: "Run formatting, tests, and static checks", RunE: func(cmd *cobra.Command, args []string) error {
 		rootDir, _, err := projectRoot()
@@ -94,6 +97,7 @@ func checkCommand() *cobra.Command {
 	}}
 }
 
+// writeGeneratedFiles performs this package operation.
 func writeGeneratedFiles(rootDir string, files map[string][]byte, dryRun bool) error {
 	paths := make([]string, 0, len(files))
 	for path := range files {

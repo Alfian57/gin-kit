@@ -8,6 +8,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// RedisOptions defines an implementation type used by this package.
 type RedisOptions struct {
 	// Client is required. The caller owns it and closes it; the runtime
 	// shares one client between the cache and other Redis consumers.
@@ -18,10 +19,13 @@ type RedisOptions struct {
 
 // Redis is a Store backed by a shared Redis client.
 type Redis struct {
+	// client store data used by this type.
 	client *redis.Client
+	// prefix store data used by this type.
 	prefix string
 }
 
+// NewRedis performs this package operation.
 func NewRedis(options RedisOptions) (*Redis, error) {
 	if options.Client == nil {
 		return nil, errors.New("cache: redis store requires a client")
@@ -29,6 +33,7 @@ func NewRedis(options RedisOptions) (*Redis, error) {
 	return &Redis{client: options.Client, prefix: options.Prefix}, nil
 }
 
+// Get performs this package operation.
 func (r *Redis) Get(ctx context.Context, key string) (string, bool, error) {
 	value, err := r.client.Get(ctx, r.prefix+key).Result()
 	if errors.Is(err, redis.Nil) {
@@ -40,6 +45,7 @@ func (r *Redis) Get(ctx context.Context, key string) (string, bool, error) {
 	return value, true, nil
 }
 
+// Set performs this package operation.
 func (r *Redis) Set(ctx context.Context, key, value string, ttl time.Duration) error {
 	if ttl < 0 {
 		ttl = 0
@@ -47,10 +53,12 @@ func (r *Redis) Set(ctx context.Context, key, value string, ttl time.Duration) e
 	return r.client.Set(ctx, r.prefix+key, value, ttl).Err()
 }
 
+// Forget performs this package operation.
 func (r *Redis) Forget(ctx context.Context, key string) error {
 	return r.client.Del(ctx, r.prefix+key).Err()
 }
 
+// Increment performs this package operation.
 func (r *Redis) Increment(ctx context.Context, key string, by int64) (int64, error) {
 	return r.client.IncrBy(ctx, r.prefix+key, by).Result()
 }

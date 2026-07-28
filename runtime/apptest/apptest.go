@@ -24,7 +24,9 @@ import (
 
 // App wraps a runtime application for in-process HTTP testing.
 type App struct {
-	t   *testing.T
+	// t store data used by this type.
+	t *testing.T
+	// app store data used by this type.
 	app *runtime.Application
 }
 
@@ -85,23 +87,30 @@ type Form = url.Values
 
 // Raw sends the body verbatim with the given content type.
 type Raw struct {
+	// ContentType store data used by this type.
 	ContentType string
-	Body        []byte
+	// Body store data used by this type.
+	Body []byte
 }
 
 // MultipartBody builds a multipart/form-data request body.
 type MultipartBody struct {
+	// buffer store data used by this type.
 	buffer bytes.Buffer
+	// writer store data used by this type.
 	writer *multipart.Writer
-	err    error
+	// err store data used by this type.
+	err error
 }
 
+// NewMultipart performs this package operation.
 func NewMultipart() *MultipartBody {
 	body := &MultipartBody{}
 	body.writer = multipart.NewWriter(&body.buffer)
 	return body
 }
 
+// Field performs this package operation.
 func (m *MultipartBody) Field(name, value string) *MultipartBody {
 	if m.err == nil {
 		m.err = m.writer.WriteField(name, value)
@@ -109,6 +118,7 @@ func (m *MultipartBody) Field(name, value string) *MultipartBody {
 	return m
 }
 
+// File performs this package operation.
 func (m *MultipartBody) File(field, filename, contentType string, content []byte) *MultipartBody {
 	if m.err != nil {
 		return m
@@ -138,6 +148,7 @@ func (a *App) Do(method, path string, body any, opts ...RequestOption) *Response
 	return &Response{ResponseRecorder: recorder, t: a.t}
 }
 
+// buildRequest performs this package operation.
 func buildRequest(t *testing.T, method, path string, body any, opts []RequestOption) *http.Request {
 	t.Helper()
 	var reader io.Reader
@@ -177,22 +188,27 @@ func buildRequest(t *testing.T, method, path string, body any, opts []RequestOpt
 	return request
 }
 
+// GET performs this package operation.
 func (a *App) GET(path string, opts ...RequestOption) *Response {
 	return a.Do(http.MethodGet, path, nil, opts...)
 }
 
+// POST performs this package operation.
 func (a *App) POST(path string, body any, opts ...RequestOption) *Response {
 	return a.Do(http.MethodPost, path, body, opts...)
 }
 
+// PUT performs this package operation.
 func (a *App) PUT(path string, body any, opts ...RequestOption) *Response {
 	return a.Do(http.MethodPut, path, body, opts...)
 }
 
+// PATCH performs this package operation.
 func (a *App) PATCH(path string, body any, opts ...RequestOption) *Response {
 	return a.Do(http.MethodPatch, path, body, opts...)
 }
 
+// DELETE performs this package operation.
 func (a *App) DELETE(path string, opts ...RequestOption) *Response {
 	return a.Do(http.MethodDelete, path, nil, opts...)
 }
@@ -212,10 +228,13 @@ var clientBase = &url.URL{Scheme: "http", Host: "apptest.local"}
 
 // Client performs requests while persisting cookies between them.
 type Client struct {
+	// app store data used by this type.
 	app *App
+	// jar store data used by this type.
 	jar *cookiejar.Jar
 }
 
+// Do performs this package operation.
 func (c *Client) Do(method, path string, body any, opts ...RequestOption) *Response {
 	c.app.t.Helper()
 	request := buildRequest(c.app.t, method, path, body, opts)
@@ -228,26 +247,32 @@ func (c *Client) Do(method, path string, body any, opts ...RequestOption) *Respo
 	return &Response{ResponseRecorder: recorder, t: c.app.t}
 }
 
+// GET performs this package operation.
 func (c *Client) GET(path string, opts ...RequestOption) *Response {
 	return c.Do(http.MethodGet, path, nil, opts...)
 }
 
+// POST performs this package operation.
 func (c *Client) POST(path string, body any, opts ...RequestOption) *Response {
 	return c.Do(http.MethodPost, path, body, opts...)
 }
 
+// PUT performs this package operation.
 func (c *Client) PUT(path string, body any, opts ...RequestOption) *Response {
 	return c.Do(http.MethodPut, path, body, opts...)
 }
 
+// PATCH performs this package operation.
 func (c *Client) PATCH(path string, body any, opts ...RequestOption) *Response {
 	return c.Do(http.MethodPatch, path, body, opts...)
 }
 
+// DELETE performs this package operation.
 func (c *Client) DELETE(path string, opts ...RequestOption) *Response {
 	return c.Do(http.MethodDelete, path, nil, opts...)
 }
 
+// csrfFieldPattern define package-level implementation state.
 var csrfFieldPattern = regexp.MustCompile(`name="_csrf" value="([^"]+)"`)
 
 // CSRFToken GETs path with this client (establishing the session cookie) and
@@ -265,6 +290,7 @@ func (c *Client) CSRFToken(path string) string {
 // Response wraps a recorded response with envelope decoding helpers.
 type Response struct {
 	*httptest.ResponseRecorder
+	// t store data used by this type.
 	t *testing.T
 }
 

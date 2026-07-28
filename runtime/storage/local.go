@@ -13,10 +13,13 @@ import (
 
 // Local stores files under a confined root directory.
 type Local struct {
-	root    string
+	// root store data used by this type.
+	root string
+	// baseURL store data used by this type.
 	baseURL string
 }
 
+// newLocal performs this package operation.
 func newLocal(options LocalOptions) (*Local, error) {
 	root := options.Root
 	if root == "" {
@@ -84,6 +87,7 @@ func (l *Local) Put(_ context.Context, name string, r io.Reader, _ ...PutOption)
 	return nil
 }
 
+// Get performs this package operation.
 func (l *Local) Get(_ context.Context, name string) (io.ReadCloser, error) {
 	full, _, err := l.resolve(name)
 	if err != nil {
@@ -96,6 +100,7 @@ func (l *Local) Get(_ context.Context, name string) (io.ReadCloser, error) {
 	return file, err
 }
 
+// Exists performs this package operation.
 func (l *Local) Exists(_ context.Context, name string) (bool, error) {
 	full, _, err := l.resolve(name)
 	if err != nil {
@@ -108,6 +113,7 @@ func (l *Local) Exists(_ context.Context, name string) (bool, error) {
 	return err == nil, err
 }
 
+// Size performs this package operation.
 func (l *Local) Size(_ context.Context, name string) (int64, error) {
 	full, _, err := l.resolve(name)
 	if err != nil {
@@ -123,6 +129,7 @@ func (l *Local) Size(_ context.Context, name string) (int64, error) {
 	return info.Size(), nil
 }
 
+// Delete performs this package operation.
 func (l *Local) Delete(_ context.Context, name string) error {
 	full, _, err := l.resolve(name)
 	if err != nil {
@@ -134,6 +141,7 @@ func (l *Local) Delete(_ context.Context, name string) error {
 	return nil
 }
 
+// URL performs this package operation.
 func (l *Local) URL(_ context.Context, name string) (string, error) {
 	_, cleaned, err := l.resolve(name)
 	if err != nil {

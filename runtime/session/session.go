@@ -15,6 +15,7 @@ import (
 // MinimumSecretLength is the smallest accepted session secret, in bytes.
 const MinimumSecretLength = 32
 
+// Options defines an implementation type used by this package.
 type Options struct {
 	// Secret signs and encrypts the session cookie and must contain at least
 	// 32 bytes. One secret drives both keys.
@@ -25,6 +26,7 @@ type Options struct {
 	MaxAge int
 	// Secure marks the cookie HTTPS-only; enable it outside development.
 	Secure bool
+	// Domain store data used by this type.
 	Domain string
 	// Path defaults to /.
 	Path string

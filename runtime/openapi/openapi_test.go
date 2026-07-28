@@ -7,27 +7,45 @@ import (
 	"time"
 )
 
+// nested defines an implementation type used by this package.
 type nested struct {
+	// Label store data used by this type.
 	Label string `json:"label"`
 }
 
+// node defines an implementation type used by this package.
 type node struct {
+	// Value store data used by this type.
 	Value string `json:"value"`
-	Next  *node  `json:"next"`
+	// Next store data used by this type.
+	Next *node `json:"next"`
 }
 
+// sample defines an implementation type used by this package.
 type sample struct {
-	Title     string            `json:"title" validate:"required,min=3,max=255"`
-	Count     int64             `json:"count"`
-	Price     float64           `json:"price"`
-	Done      bool              `json:"done"`
-	Due       time.Time         `json:"due"`
-	Notes     *string           `json:"notes"`
-	Tags      []string          `json:"tags"`
-	Labels    map[string]string `json:"labels"`
-	Nested    nested            `json:"nested"`
-	Secret    string            `json:"-"`
-	Stringly  int               `json:"stringly,string"`
+	// Title store data used by this type.
+	Title string `json:"title" validate:"required,min=3,max=255"`
+	// Count store data used by this type.
+	Count int64 `json:"count"`
+	// Price store data used by this type.
+	Price float64 `json:"price"`
+	// Done store data used by this type.
+	Done bool `json:"done"`
+	// Due store data used by this type.
+	Due time.Time `json:"due"`
+	// Notes store data used by this type.
+	Notes *string `json:"notes"`
+	// Tags store data used by this type.
+	Tags []string `json:"tags"`
+	// Labels store data used by this type.
+	Labels map[string]string `json:"labels"`
+	// Nested store data used by this type.
+	Nested nested `json:"nested"`
+	// Secret store data used by this type.
+	Secret string `json:"-"`
+	// Stringly store data used by this type.
+	Stringly int `json:"stringly,string"`
+	// unexposed store data used by this type.
 	unexposed string
 }
 
@@ -83,6 +101,7 @@ func TestSchemaForTerminatesOnCycles(t *testing.T) {
 	}
 }
 
+// buildDocument performs this package operation.
 func buildDocument(t *testing.T, registry *Registry, routes []Route) *Document {
 	t.Helper()
 	return registry.Build(BuildOptions{

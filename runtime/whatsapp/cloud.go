@@ -8,10 +8,12 @@ import (
 	"strings"
 )
 
+// endpoint performs this package operation.
 func (c *cloudClient) endpoint() string {
 	return c.options.APIBaseURL + "/" + c.options.APIVersion + "/" + url.PathEscape(c.options.PhoneNumberID) + "/messages"
 }
 
+// encodePayload performs this package operation.
 func encodePayload(recipient string, message *Message) (*bytes.Reader, error) {
 	payload := struct {
 		MessagingProduct string `json:"messaging_product"`

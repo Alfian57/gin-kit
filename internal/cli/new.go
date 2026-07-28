@@ -17,9 +17,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// templateFS define package-level implementation state.
+//
 //go:embed templates/* templates/runtime/.env.example
 var templateFS embed.FS
 
+// newCommand performs this package operation.
 func newCommand() *cobra.Command {
 	var nonInteractive bool
 	var modulePath, projectType, mode, database, orm, runtimeVersion, runtimeReplace string
@@ -90,21 +93,29 @@ func newCommand() *cobra.Command {
 	return cmd
 }
 
+// templateData defines an implementation type used by this package.
 type templateData struct {
 	Manifest
-	Package        string
+	// Package store data used by this type.
+	Package string
+	// RuntimeRequire store data used by this type.
 	RuntimeRequire string
+	// RuntimeReplace store data used by this type.
 	RuntimeReplace string
 }
 
+// scaffold performs this package operation.
 func scaffold(target string, m Manifest) error {
 	return scaffoldWithOptions(target, m, scaffoldOptions{})
 }
 
+// scaffoldOptions defines an implementation type used by this package.
 type scaffoldOptions struct {
+	// RuntimeReplace store data used by this type.
 	RuntimeReplace string
 }
 
+// scaffoldWithOptions performs this package operation.
 func scaffoldWithOptions(target string, m Manifest, options scaffoldOptions) error {
 	parent := filepath.Dir(target)
 	if err := os.MkdirAll(parent, 0o755); err != nil {
@@ -125,10 +136,12 @@ func scaffoldWithOptions(target string, m Manifest, options scaffoldOptions) err
 	return nil
 }
 
+// scaffoldInto performs this package operation.
 func scaffoldInto(target string, m Manifest) error {
 	return scaffoldIntoWithOptions(target, m, scaffoldOptions{})
 }
 
+// scaffoldIntoWithOptions performs this package operation.
 func scaffoldIntoWithOptions(target string, m Manifest, options scaffoldOptions) error {
 	if m.Module == "" {
 		m.Module = "example.com/" + m.Project
@@ -270,6 +283,7 @@ func renderScaffoldTree(m Manifest, options scaffoldOptions, filter func(rel str
 	return files, nil
 }
 
+// formatGeneratedGo performs this package operation.
 func formatGeneratedGo(root string) error {
 	var files []string
 	if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, walkErr error) error {
@@ -299,6 +313,7 @@ func formatGeneratedGo(root string) error {
 	return nil
 }
 
+// validateManifest performs this package operation.
 func validateManifest(m Manifest) error {
 	if m.Version != 3 {
 		return diagnostic("manifest_version_invalid", "validate manifest", ".gin-kit.yaml", fmt.Errorf("expected version 3, got %d", m.Version), "Use a version 3 manifest.")
@@ -335,6 +350,7 @@ func validateManifest(m Manifest) error {
 	return nil
 }
 
+// checkModulePath performs this package operation.
 func checkModulePath(path string) error {
 	if path == "" || strings.TrimSpace(path) != path || strings.ContainsAny(path, " \t\r\n") ||
 		strings.HasPrefix(path, "/") || strings.HasSuffix(path, "/") || strings.Contains(path, "//") {
@@ -351,6 +367,7 @@ func checkModulePath(path string) error {
 	return nil
 }
 
+// templateOutputPath performs this package operation.
 func templateOutputPath(rel string, m Manifest) (string, bool) {
 	const runtimePrefix = "runtime/"
 	if strings.HasPrefix(rel, runtimePrefix) {

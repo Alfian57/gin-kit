@@ -26,14 +26,21 @@ const baselineFile = ".gin-kit.sum"
 // gin-kit upgrade manages in standalone projects.
 const platformPrefix = "internal/platform/"
 
+// upgradeStatus defines an implementation type used by this package.
 type upgradeStatus string
 
 const (
-	statusUpToDate  upgradeStatus = "up-to-date"
-	statusOutdated  upgradeStatus = "outdated"
-	statusModified  upgradeStatus = "modified"
-	statusDiffers   upgradeStatus = "differs"
-	statusMissing   upgradeStatus = "missing"
+	// statusUpToDate define package-level implementation state.
+	statusUpToDate upgradeStatus = "up-to-date"
+	// statusOutdated define package-level implementation state.
+	statusOutdated upgradeStatus = "outdated"
+	// statusModified define package-level implementation state.
+	statusModified upgradeStatus = "modified"
+	// statusDiffers define package-level implementation state.
+	statusDiffers upgradeStatus = "differs"
+	// statusMissing define package-level implementation state.
+	statusMissing upgradeStatus = "missing"
+	// statusUnmanaged define package-level implementation state.
 	statusUnmanaged upgradeStatus = "unmanaged"
 )
 
@@ -46,6 +53,7 @@ type upgradeEntry struct {
 	Disk     []byte        // current on-disk content; nil for missing files
 }
 
+// upgradeCommand performs this package operation.
 func upgradeCommand() *cobra.Command {
 	var applyChanges, showDiff, force bool
 	cmd := &cobra.Command{
@@ -266,6 +274,7 @@ func normalizeGo(rel string, content []byte) []byte {
 	return formatted
 }
 
+// hashBytes performs this package operation.
 func hashBytes(data []byte) string {
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])

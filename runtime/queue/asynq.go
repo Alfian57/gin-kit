@@ -15,16 +15,25 @@ import (
 // asynqDriver backs the queue with Redis through asynq: persistent jobs,
 // exponential-backoff retries, delayed execution, and graceful drain.
 type asynqDriver struct {
-	client          *asynq.Client
-	redis           asynq.RedisConnOpt
-	concurrency     int
-	queues          map[string]int
+	// client store data used by this type.
+	client *asynq.Client
+	// redis store data used by this type.
+	redis asynq.RedisConnOpt
+	// concurrency store data used by this type.
+	concurrency int
+	// queues store data used by this type.
+	queues map[string]int
+	// shutdownTimeout store data used by this type.
 	shutdownTimeout time.Duration
-	logger          *slog.Logger
-	inspectorOnce   sync.Once
-	inspector       *asynq.Inspector
+	// logger store data used by this type.
+	logger *slog.Logger
+	// inspectorOnce store data used by this type.
+	inspectorOnce sync.Once
+	// inspector store data used by this type.
+	inspector *asynq.Inspector
 }
 
+// newAsynqDriver performs this package operation.
 func newAsynqDriver(options Options) (*asynqDriver, error) {
 	redisOpt, err := asynq.ParseRedisURI(options.RedisURL)
 	if err != nil {
@@ -40,6 +49,7 @@ func newAsynqDriver(options Options) (*asynqDriver, error) {
 	}, nil
 }
 
+// enqueue performs this package operation.
 func (d *asynqDriver) enqueue(ctx context.Context, name string, payload []byte, options jobOptions) error {
 	if _, ok := d.queues[options.queue]; !ok {
 		return fmt.Errorf("queue: %q is not a configured queue", options.queue)
@@ -55,6 +65,7 @@ func (d *asynqDriver) enqueue(ctx context.Context, name string, payload []byte, 
 	return err
 }
 
+// run performs this package operation.
 func (d *asynqDriver) run(ctx context.Context, handlers map[string]HandlerFunc) error {
 	mux := asynq.NewServeMux()
 	for name, handler := range handlers {
@@ -107,6 +118,7 @@ func (d *asynqDriver) stats(ctx context.Context) (Stats, error) {
 	return result, nil
 }
 
+// close performs this package operation.
 func (d *asynqDriver) close() error {
 	err := d.client.Close()
 	// Synchronize with a concurrent lazy creation before reading the field.
@@ -120,11 +132,21 @@ func (d *asynqDriver) close() error {
 // slogAsynqAdapter keeps asynq's logs inside the application's structured
 // logging discipline.
 type slogAsynqAdapter struct {
+	// logger store data used by this type.
 	logger *slog.Logger
 }
 
+// Debug performs this package operation.
 func (a *slogAsynqAdapter) Debug(args ...any) { a.logger.Debug(fmt.Sprint(args...)) }
-func (a *slogAsynqAdapter) Info(args ...any)  { a.logger.Info(fmt.Sprint(args...)) }
-func (a *slogAsynqAdapter) Warn(args ...any)  { a.logger.Warn(fmt.Sprint(args...)) }
+
+// Info performs this package operation.
+func (a *slogAsynqAdapter) Info(args ...any) { a.logger.Info(fmt.Sprint(args...)) }
+
+// Warn performs this package operation.
+func (a *slogAsynqAdapter) Warn(args ...any) { a.logger.Warn(fmt.Sprint(args...)) }
+
+// Error performs this package operation.
 func (a *slogAsynqAdapter) Error(args ...any) { a.logger.Error(fmt.Sprint(args...)) }
+
+// Fatal performs this package operation.
 func (a *slogAsynqAdapter) Fatal(args ...any) { a.logger.Error(fmt.Sprint(args...)) }

@@ -12,6 +12,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// protectedRouter performs this package operation.
 func protectedRouter(t *testing.T, manager *Manager) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)

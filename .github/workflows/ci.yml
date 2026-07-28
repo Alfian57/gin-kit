@@ -33,6 +33,9 @@ jobs:
         run: |
           test -z "$(gofmt -l cmd runtime internal)"
 
+      - name: Check documentation comments
+        run: go run ./cmd/doccheck
+
       - name: Test
         run: go test -race ./...
 

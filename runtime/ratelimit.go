@@ -11,28 +11,42 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// RateLimitOptions defines an implementation type used by this package.
 type RateLimitOptions struct {
-	Enabled           bool
+	// Enabled store data used by this type.
+	Enabled bool
+	// RequestsPerMinute store data used by this type.
 	RequestsPerMinute int
-	Burst             int
-	Key               func(*gin.Context) string
+	// Burst store data used by this type.
+	Burst int
+	// Key store data used by this type.
+	Key func(*gin.Context) string
 }
 
+// rateClient defines an implementation type used by this package.
 type rateClient struct {
-	limiter  *rate.Limiter
+	// limiter store data used by this type.
+	limiter *rate.Limiter
+	// lastSeen store data used by this type.
 	lastSeen time.Time
 }
 
 // RateLimiter is an in-memory limiter that can be installed selectively on
 // routes or route groups when different policies are needed.
 type RateLimiter struct {
-	mu      sync.Mutex
+	// mu store data used by this type.
+	mu sync.Mutex
+	// clients store data used by this type.
 	clients map[string]*rateClient
-	rate    rate.Limit
-	burst   int
-	key     func(*gin.Context) string
+	// rate store data used by this type.
+	rate rate.Limit
+	// burst store data used by this type.
+	burst int
+	// key store data used by this type.
+	key func(*gin.Context) string
 }
 
+// NewRateLimiter performs this package operation.
 func NewRateLimiter(options RateLimitOptions) *RateLimiter {
 	burst := options.Burst
 	if burst < 1 {
@@ -50,6 +64,7 @@ func NewRateLimiter(options RateLimitOptions) *RateLimiter {
 	}
 }
 
+// Middleware performs this package operation.
 func (l *RateLimiter) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		key := l.key(c)

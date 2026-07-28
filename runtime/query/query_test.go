@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// testContext performs this package operation.
 func testContext(t *testing.T, rawQuery string) *gin.Context {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -19,6 +20,7 @@ func testContext(t *testing.T, rawQuery string) *gin.Context {
 	return c
 }
 
+// taskOptions performs this package operation.
 func taskOptions() Options {
 	return Options{
 		AllowedFilters: []Filter{

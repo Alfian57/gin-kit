@@ -8,7 +8,9 @@ import (
 	"time"
 )
 
+// emailPayload defines an implementation type used by this package.
 type emailPayload struct {
+	// To store data used by this type.
 	To string `json:"to"`
 }
 

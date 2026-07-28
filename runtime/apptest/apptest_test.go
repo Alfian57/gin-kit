@@ -14,7 +14,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// echoBody defines an implementation type used by this package.
 type echoBody struct {
+	// Name store data used by this type.
 	Name string `json:"name"`
 }
 

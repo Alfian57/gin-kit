@@ -18,6 +18,7 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
+// Options defines an implementation type used by this package.
 type Options struct {
 	Logger   *slog.Logger   // defaults to slog.Default()
 	Location *time.Location // defaults to time.Local
@@ -25,7 +26,9 @@ type Options struct {
 	StopTimeout time.Duration
 }
 
+// jobConfig defines an implementation type used by this package.
 type jobConfig struct {
+	// skipIfRunning store data used by this type.
 	skipIfRunning bool
 }
 
@@ -38,8 +41,11 @@ func SkipIfRunning() JobOption { return func(c *jobConfig) { c.skipIfRunning = t
 
 // Scheduler runs named jobs on cron schedules.
 type Scheduler struct {
-	cron        *cron.Cron
-	logger      *slog.Logger
+	// cron store data used by this type.
+	cron *cron.Cron
+	// logger store data used by this type.
+	logger *slog.Logger
+	// stopTimeout store data used by this type.
 	stopTimeout time.Duration
 	runCtx      atomic.Value // ctxHolder
 }
@@ -47,9 +53,11 @@ type Scheduler struct {
 // ctxHolder gives atomic.Value one consistent concrete type regardless of the
 // stored context's implementation.
 type ctxHolder struct {
+	// ctx store data used by this type.
 	ctx context.Context
 }
 
+// New performs this package operation.
 func New(options Options) *Scheduler {
 	if options.Logger == nil {
 		options.Logger = slog.Default()
@@ -106,6 +114,7 @@ func (s *Scheduler) Hourly(name string, job func(context.Context) error, opts ..
 	return s.Cron("0 * * * *", name, job, opts...)
 }
 
+// schedule performs this package operation.
 func (s *Scheduler) schedule(when cron.Schedule, name string, job func(context.Context) error, opts ...JobOption) {
 	config := jobConfig{}
 	for _, opt := range opts {
@@ -118,6 +127,7 @@ func (s *Scheduler) schedule(when cron.Schedule, name string, job func(context.C
 	s.cron.Schedule(when, wrapped)
 }
 
+// runJob performs this package operation.
 func (s *Scheduler) runJob(name string, job func(context.Context) error) {
 	ctx := s.runCtx.Load().(ctxHolder).ctx
 	started := time.Now()

@@ -22,17 +22,23 @@ import (
 )
 
 const (
+	// devDebounceDelay define package-level implementation state.
 	devDebounceDelay = 250 * time.Millisecond
-	devHoldTimeout   = 30 * time.Second
-	devReadyTimeout  = 15 * time.Second
-	devStopGrace     = 5 * time.Second
-	devTailLines     = 100
+	// devHoldTimeout define package-level implementation state.
+	devHoldTimeout = 30 * time.Second
+	// devReadyTimeout define package-level implementation state.
+	devReadyTimeout = 15 * time.Second
+	// devStopGrace define package-level implementation state.
+	devStopGrace = 5 * time.Second
+	// devTailLines define package-level implementation state.
+	devTailLines = 100
 )
 
 // errDevChildExited reports that the server process exited while gin-kit dev
 // was waiting for it to accept connections.
 var errDevChildExited = errors.New("server process exited")
 
+// devCommand performs this package operation.
 func devCommand() *cobra.Command {
 	var proxyPort, appPort int
 	cmd := &cobra.Command{
@@ -51,6 +57,7 @@ func devCommand() *cobra.Command {
 	return cmd
 }
 
+// runDev performs this package operation.
 func runDev(cmd *cobra.Command, proxyPort, appPort int) error {
 	rootDir, manifest, err := projectRoot()
 	if err != nil {
@@ -239,6 +246,7 @@ func devShouldRebuild(path string, uiMode bool) bool {
 	return false
 }
 
+// addDevDirs performs this package operation.
 func addDevDirs(w *fsnotify.Watcher, root string) error {
 	return filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
@@ -326,12 +334,17 @@ func waitTCPReady(addr string, timeout time.Duration, childExited <-chan error) 
 // debouncer coalesces bursts of triggers into a single fire on its channel
 // once the burst has been quiet for the configured delay.
 type debouncer struct {
-	mu    sync.Mutex
+	// mu store data used by this type.
+	mu sync.Mutex
+	// timer store data used by this type.
 	timer *time.Timer
+	// delay store data used by this type.
 	delay time.Duration
-	ch    chan struct{}
+	// ch store data used by this type.
+	ch chan struct{}
 }
 
+// newDebouncer performs this package operation.
 func newDebouncer(delay time.Duration) *debouncer {
 	return &debouncer{delay: delay, ch: make(chan struct{}, 1)}
 }
@@ -356,14 +369,20 @@ func (d *debouncer) C() <-chan struct{} { return d.ch }
 
 // tailBuffer is an io.Writer that retains the last max lines written to it.
 type tailBuffer struct {
-	mu      sync.Mutex
-	max     int
-	lines   []string
+	// mu store data used by this type.
+	mu sync.Mutex
+	// max store data used by this type.
+	max int
+	// lines store data used by this type.
+	lines []string
+	// partial store data used by this type.
 	partial strings.Builder
 }
 
+// newTailBuffer performs this package operation.
 func newTailBuffer(max int) *tailBuffer { return &tailBuffer{max: max} }
 
+// Write performs this package operation.
 func (b *tailBuffer) Write(p []byte) (int, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()

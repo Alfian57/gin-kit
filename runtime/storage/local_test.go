@@ -10,6 +10,7 @@ import (
 	"testing"
 )
 
+// testLocal performs this package operation.
 func testLocal(t *testing.T, baseURL string) *Local {
 	t.Helper()
 	disk, err := newLocal(LocalOptions{Root: t.TempDir(), BaseURL: baseURL})
@@ -98,8 +99,10 @@ func TestLocalPutIsAtomic(t *testing.T) {
 	}
 }
 
+// failingReader defines an implementation type used by this package.
 type failingReader struct{}
 
+// Read performs this package operation.
 func (*failingReader) Read([]byte) (int, error) { return 0, errors.New("stream broke") }
 
 func TestLocalURL(t *testing.T) {

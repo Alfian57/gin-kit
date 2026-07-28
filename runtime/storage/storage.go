@@ -20,9 +20,13 @@ var (
 
 // Disk stores and retrieves files under slash-separated paths.
 type Disk interface {
+	// Put define an operation required by this interface.
 	Put(ctx context.Context, path string, r io.Reader, opts ...PutOption) error
+	// Get define an operation required by this interface.
 	Get(ctx context.Context, path string) (io.ReadCloser, error)
+	// Exists define an operation required by this interface.
 	Exists(ctx context.Context, path string) (bool, error)
+	// Size define an operation required by this interface.
 	Size(ctx context.Context, path string) (int64, error)
 	// Delete removes the file and is a no-op for missing paths.
 	Delete(ctx context.Context, path string) error
@@ -30,22 +34,28 @@ type Disk interface {
 	URL(ctx context.Context, path string) (string, error)
 }
 
+// PutOptions defines an implementation type used by this package.
 type PutOptions struct {
+	// ContentType store data used by this type.
 	ContentType string
 	// Size is the number of bytes when known, or -1 to stream.
 	Size int64
 }
 
+// PutOption defines an implementation type used by this package.
 type PutOption func(*PutOptions)
 
+// WithContentType performs this package operation.
 func WithContentType(contentType string) PutOption {
 	return func(o *PutOptions) { o.ContentType = contentType }
 }
 
+// WithSize performs this package operation.
 func WithSize(size int64) PutOption {
 	return func(o *PutOptions) { o.Size = size }
 }
 
+// applyPutOptions performs this package operation.
 func applyPutOptions(opts []PutOption) PutOptions {
 	options := PutOptions{Size: -1}
 	for _, opt := range opts {
@@ -54,6 +64,7 @@ func applyPutOptions(opts []PutOption) PutOptions {
 	return options
 }
 
+// LocalOptions defines an implementation type used by this package.
 type LocalOptions struct {
 	// Root is the directory that confines every file, defaulting to
 	// ./storage. It is created when missing.
@@ -62,11 +73,16 @@ type LocalOptions struct {
 	BaseURL string
 }
 
+// S3Options defines an implementation type used by this package.
 type S3Options struct {
-	Endpoint  string // host[:port] without scheme, e.g. s3.amazonaws.com
-	Region    string
-	Bucket    string
+	Endpoint string // host[:port] without scheme, e.g. s3.amazonaws.com
+	// Region store data used by this type.
+	Region string
+	// Bucket store data used by this type.
+	Bucket string
+	// AccessKey store data used by this type.
 	AccessKey string
+	// SecretKey store data used by this type.
 	SecretKey string
 	// UseSSL defaults to true.
 	UseSSL *bool
@@ -79,11 +95,14 @@ type S3Options struct {
 	PublicBaseURL string
 }
 
+// Options defines an implementation type used by this package.
 type Options struct {
 	// Driver selects the disk: "local" (default) or "s3".
 	Driver string
-	Local  LocalOptions
-	S3     S3Options
+	// Local store data used by this type.
+	Local LocalOptions
+	// S3 store data used by this type.
+	S3 S3Options
 }
 
 // New builds a Disk for the configured driver.

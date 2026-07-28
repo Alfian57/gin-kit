@@ -12,11 +12,15 @@ import (
 	"time"
 )
 
+// devState defines an implementation type used by this package.
 type devState int
 
 const (
+	// devBuilding define package-level implementation state.
 	devBuilding devState = iota
+	// devReady define package-level implementation state.
 	devReady
+	// devFailed define package-level implementation state.
 	devFailed
 )
 
@@ -24,15 +28,23 @@ const (
 // application when a build is ready, holds requests while a rebuild is in
 // flight, and answers with a compile-error overlay after a failed build.
 type devProxy struct {
-	mu          sync.Mutex
-	state       devState
-	target      *url.URL
-	proxy       *httputil.ReverseProxy
-	failOutput  string
-	changed     chan struct{}
+	// mu store data used by this type.
+	mu sync.Mutex
+	// state store data used by this type.
+	state devState
+	// target store data used by this type.
+	target *url.URL
+	// proxy store data used by this type.
+	proxy *httputil.ReverseProxy
+	// failOutput store data used by this type.
+	failOutput string
+	// changed store data used by this type.
+	changed chan struct{}
+	// holdTimeout store data used by this type.
 	holdTimeout time.Duration
 }
 
+// newDevProxy performs this package operation.
 func newDevProxy(holdTimeout time.Duration) *devProxy {
 	return &devProxy{state: devBuilding, changed: make(chan struct{}), holdTimeout: holdTimeout}
 }
@@ -61,6 +73,7 @@ func (p *devProxy) SetReady(target *url.URL) { p.setState(devReady, target, "") 
 // SetFailed answers requests with the build output until a build succeeds.
 func (p *devProxy) SetFailed(output string) { p.setState(devFailed, nil, output) }
 
+// ServeHTTP performs this package operation.
 func (p *devProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	deadline := time.Now().Add(p.holdTimeout)
 	for {
@@ -99,6 +112,7 @@ func (p *devProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// writeDevHoldTimeout performs this package operation.
 func writeDevHoldTimeout(w http.ResponseWriter) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -106,6 +120,7 @@ func writeDevHoldTimeout(w http.ResponseWriter) {
 	fmt.Fprintln(w, "gin-kit dev: rebuild timed out")
 }
 
+// writeDevFailure performs this package operation.
 func writeDevFailure(w http.ResponseWriter, r *http.Request, output string) {
 	w.Header().Set("Cache-Control", "no-store")
 	if wantsHTML(r) {
@@ -124,6 +139,7 @@ func wantsHTML(r *http.Request) bool {
 	return strings.Contains(r.Header.Get("Accept"), "text/html")
 }
 
+// devOverlayTemplate define package-level implementation state.
 var devOverlayTemplate = template.Must(template.New("overlay").Parse(`<!doctype html>
 <html lang="en">
 <head>

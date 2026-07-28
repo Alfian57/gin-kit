@@ -17,11 +17,16 @@ import (
 // Operation describes one HTTP operation. Paths use gin syntax
 // ("/api/v1/tickets/:id").
 type Operation struct {
-	Method      string
-	Path        string
-	Summary     string
+	// Method store data used by this type.
+	Method string
+	// Path store data used by this type.
+	Path string
+	// Summary store data used by this type.
+	Summary string
+	// Description store data used by this type.
 	Description string
-	Tags        []string
+	// Tags store data used by this type.
+	Tags []string
 	// Request is an instance of the JSON body struct; nil means no body.
 	Request any
 	// Query is a struct whose `form` fields become query parameters.
@@ -50,12 +55,17 @@ type Operation struct {
 
 // Registry collects described operations before the document is built.
 type Registry struct {
-	mu         sync.Mutex
+	// mu store data used by this type.
+	mu sync.Mutex
+	// operations store data used by this type.
 	operations []Operation
+	// schemeName store data used by this type.
 	schemeName string
-	scheme     SecurityScheme
+	// scheme store data used by this type.
+	scheme SecurityScheme
 }
 
+// NewRegistry performs this package operation.
 func NewRegistry() *Registry {
 	return &Registry{
 		schemeName: "bearerAuth",
@@ -87,15 +97,23 @@ func (r *Registry) SetSecurityScheme(name string, scheme SecurityScheme) {
 
 // Route is one live router entry.
 type Route struct {
+	// Method store data used by this type.
 	Method string
-	Path   string
+	// Path store data used by this type.
+	Path string
 }
 
+// BuildOptions defines an implementation type used by this package.
 type BuildOptions struct {
-	Info            Info
-	Servers         []string
-	Routes          []Route
-	ExcludePaths    []string
+	// Info store data used by this type.
+	Info Info
+	// Servers store data used by this type.
+	Servers []string
+	// Routes store data used by this type.
+	Routes []Route
+	// ExcludePaths store data used by this type.
+	ExcludePaths []string
+	// ExcludePrefixes store data used by this type.
 	ExcludePrefixes []string
 }
 
@@ -203,6 +221,7 @@ func (r *Registry) Build(options BuildOptions) *Document {
 	return document
 }
 
+// excluded performs this package operation.
 func excluded(path string, options BuildOptions) bool {
 	for _, exact := range options.ExcludePaths {
 		if path == exact {
@@ -231,6 +250,7 @@ func convertPath(path string) (string, []string) {
 	return strings.Join(segments, "/"), params
 }
 
+// defaultTag performs this package operation.
 func defaultTag(path string) string {
 	segments := strings.Split(strings.TrimPrefix(path, "/"), "/")
 	if len(segments) >= 3 && segments[0] == "api" && strings.HasPrefix(segments[1], "v") {
@@ -242,6 +262,7 @@ func defaultTag(path string) string {
 	return "default"
 }
 
+// defaultOperation performs this package operation.
 func defaultOperation(route Route) *OperationObject {
 	return &OperationObject{
 		Summary: route.Method + " " + route.Path,
@@ -259,6 +280,7 @@ func defaultOperation(route Route) *OperationObject {
 	}
 }
 
+// operationObject performs this package operation.
 func (r *Registry) operationObject(op Operation, defs map[string]*Schema) *OperationObject {
 	object := &OperationObject{
 		Summary:     op.Summary,
@@ -372,6 +394,7 @@ func queryParameters(value any, defs map[string]*Schema) []Parameter {
 	return parameters
 }
 
+// errorResponse performs this package operation.
 func errorResponse(description string, _ ...string) *Response {
 	return &Response{
 		Description: description,
@@ -381,6 +404,7 @@ func errorResponse(description string, _ ...string) *Response {
 	}
 }
 
+// errorComponent performs this package operation.
 func errorComponent() *Schema {
 	return &Schema{
 		Type: "object",
@@ -399,6 +423,7 @@ func errorComponent() *Schema {
 	}
 }
 
+// metaComponent performs this package operation.
 func metaComponent() *Schema {
 	return &Schema{
 		Type: "object",
@@ -411,6 +436,7 @@ func metaComponent() *Schema {
 	}
 }
 
+// attach performs this package operation.
 func attach(item *PathItem, method string, object *OperationObject) {
 	switch method {
 	case http.MethodGet:
@@ -426,6 +452,7 @@ func attach(item *PathItem, method string, object *OperationObject) {
 	}
 }
 
+// dedupe performs this package operation.
 func dedupe(values []string) []string {
 	seen := map[string]bool{}
 	var out []string
@@ -439,4 +466,5 @@ func dedupe(values []string) []string {
 	return out
 }
 
+// itoa performs this package operation.
 func itoa(status int) string { return strconv.Itoa(status) }

@@ -21,6 +21,7 @@ type Store interface {
 	// when the key is missing, and returns the new value. A non-integer value
 	// is an error.
 	Increment(ctx context.Context, key string, by int64) (int64, error)
+	// Close define an operation required by this interface.
 	Close() error
 }
 

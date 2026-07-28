@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// testScheduler performs this package operation.
 func testScheduler() *Scheduler {
 	return New(Options{Logger: slog.New(slog.DiscardHandler), StopTimeout: time.Second})
 }
@@ -39,8 +40,12 @@ func TestDailyAndHourlyRegister(t *testing.T) {
 }
 
 // fastSchedule fires every few milliseconds so lifecycle tests stay quick.
-type fastSchedule struct{ interval time.Duration }
+type fastSchedule struct {
+	// interval is added to the supplied time on every Next call.
+	interval time.Duration
+}
 
+// Next performs this package operation.
 func (s fastSchedule) Next(t time.Time) time.Time { return t.Add(s.interval) }
 
 func TestRunExecutesJobsAndStopsOnCancel(t *testing.T) {

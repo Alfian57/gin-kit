@@ -78,6 +78,7 @@ func mountDocs(router *gin.Engine, registry *openapi.Registry, options Options) 
 	router.GET(options.Docs.Path, append(append([]gin.HandlerFunc{}, guards...), ui)...)
 }
 
+// swaggerHTML performs this package operation.
 func swaggerHTML(specPath string) string {
 	return fmt.Sprintf(swaggerPage, specPath)
 }

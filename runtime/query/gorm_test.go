@@ -11,13 +11,19 @@ import (
 	"gorm.io/gorm/logger"
 )
 
+// task defines an implementation type used by this package.
 type task struct {
-	ID        int
-	Title     string
+	// ID store data used by this type.
+	ID int
+	// Title store data used by this type.
+	Title string
+	// Completed store data used by this type.
 	Completed bool
+	// CreatedAt store data used by this type.
 	CreatedAt time.Time
 }
 
+// seededGORM performs this package operation.
 func seededGORM(t *testing.T) *gorm.DB {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Discard})

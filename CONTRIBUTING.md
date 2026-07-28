@@ -21,6 +21,7 @@ go test ./...
 go test -race ./...
 go vet ./...
 test -z "$(gofmt -l cmd runtime internal)"
+go run ./cmd/doccheck
 go run ./cmd/gin-kit new /tmp/gin-kit-check --non-interactive --project-type standalone --module example.com/check --mode api --database sqlite --orm gorm
 cd website && npm ci && npm run check && npm run build
 ```
@@ -29,6 +30,15 @@ The pull request workflow validates the runtime, documentation, and generated
 Runtime and Standalone projects. Template changes must pass the complete
 database/ORM matrix on `main`, including migration smoke tests for PostgreSQL,
 MySQL, MariaDB, and SQLite.
+
+## Source documentation
+
+Write English doc comments for every package-level declaration, struct field,
+and interface method in `cmd/`, `runtime/`, and `internal/`. Explain behavior,
+defaults, ownership, concurrency, errors, or security boundaries when they are
+relevant; do not merely repeat the identifier. Test entry points use their
+names as their specification, while reusable helpers and fixtures need comments.
+Run `go run ./cmd/doccheck` locally — CI and release checks enforce it.
 
 ## Pull requests
 

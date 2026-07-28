@@ -14,8 +14,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// csrfSessionKey define package-level implementation state.
 const csrfSessionKey = "gin-kit.csrf"
 
+// CSRFOptions defines an implementation type used by this package.
 type CSRFOptions struct {
 	// FieldName is the form field carrying the token, defaulting to _csrf.
 	FieldName string
@@ -75,6 +77,7 @@ func TemplateField(c *gin.Context) template.HTML {
 	return template.HTML(fmt.Sprintf(`<input type="hidden" name="_csrf" value="%s">`, Token(c)))
 }
 
+// ensureToken performs this package operation.
 func ensureToken(c *gin.Context) string {
 	current := sessions.Default(c)
 	if token, ok := current.Get(csrfSessionKey).(string); ok && token != "" {

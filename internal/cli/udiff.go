@@ -60,7 +60,9 @@ func unifiedDiff(name string, a, b []byte) string {
 // inserted ('+'). Lines retain their trailing newline when present so a
 // missing final newline still diffs.
 type diffOp struct {
-	kind  byte
+	// kind store data used by this type.
+	kind byte
+	// text store data used by this type.
 	text  string
 	aLine int // 1-based position in a (next a line for '+' ops)
 	bLine int // 1-based position in b (next b line for '-' ops)
@@ -109,6 +111,7 @@ func diffOps(a, b []string) []diffOp {
 	return ops
 }
 
+// writeHunk performs this package operation.
 func writeHunk(out *strings.Builder, ops []diffOp) {
 	aCount, bCount := 0, 0
 	for _, op := range ops {

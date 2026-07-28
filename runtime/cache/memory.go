@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// MemoryOptions defines an implementation type used by this package.
 type MemoryOptions struct {
 	// CleanupInterval between janitor sweeps of expired entries; defaults to
 	// one minute. A negative interval disables the janitor.
@@ -17,18 +18,26 @@ type MemoryOptions struct {
 // deployments. It is unbounded; use the Redis driver when eviction or shared
 // state is needed.
 type Memory struct {
-	mu        sync.RWMutex
-	entries   map[string]memoryEntry
-	now       func() time.Time
-	stop      chan struct{}
+	// mu store data used by this type.
+	mu sync.RWMutex
+	// entries store data used by this type.
+	entries map[string]memoryEntry
+	// now store data used by this type.
+	now func() time.Time
+	// stop store data used by this type.
+	stop chan struct{}
+	// closeOnce store data used by this type.
 	closeOnce sync.Once
 }
 
+// memoryEntry defines an implementation type used by this package.
 type memoryEntry struct {
+	// value store data used by this type.
 	value     string
 	expiresAt time.Time // zero means never
 }
 
+// NewMemory performs this package operation.
 func NewMemory(options MemoryOptions) *Memory {
 	interval := options.CleanupInterval
 	if interval == 0 {
@@ -45,6 +54,7 @@ func NewMemory(options MemoryOptions) *Memory {
 	return memory
 }
 
+// Get performs this package operation.
 func (m *Memory) Get(_ context.Context, key string) (string, bool, error) {
 	m.mu.RLock()
 	entry, ok := m.entries[key]
@@ -55,6 +65,7 @@ func (m *Memory) Get(_ context.Context, key string) (string, bool, error) {
 	return entry.value, true, nil
 }
 
+// Set performs this package operation.
 func (m *Memory) Set(_ context.Context, key, value string, ttl time.Duration) error {
 	entry := memoryEntry{value: value}
 	if ttl > 0 {
@@ -66,6 +77,7 @@ func (m *Memory) Set(_ context.Context, key, value string, ttl time.Duration) er
 	return nil
 }
 
+// Forget performs this package operation.
 func (m *Memory) Forget(_ context.Context, key string) error {
 	m.mu.Lock()
 	delete(m.entries, key)
@@ -73,6 +85,7 @@ func (m *Memory) Forget(_ context.Context, key string) error {
 	return nil
 }
 
+// Increment performs this package operation.
 func (m *Memory) Increment(_ context.Context, key string, by int64) (int64, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -100,10 +113,12 @@ func (m *Memory) Close() error {
 	return nil
 }
 
+// expired performs this package operation.
 func (m *Memory) expired(entry memoryEntry) bool {
 	return !entry.expiresAt.IsZero() && m.now().After(entry.expiresAt)
 }
 
+// janitor performs this package operation.
 func (m *Memory) janitor(interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()

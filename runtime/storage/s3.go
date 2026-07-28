@@ -15,12 +15,17 @@ import (
 // S3 stores files in any S3-compatible object store (AWS S3, MinIO,
 // Cloudflare R2, DigitalOcean Spaces).
 type S3 struct {
-	client        *minio.Client
-	bucket        string
-	presignTTL    time.Duration
+	// client store data used by this type.
+	client *minio.Client
+	// bucket store data used by this type.
+	bucket string
+	// presignTTL store data used by this type.
+	presignTTL time.Duration
+	// publicBaseURL store data used by this type.
 	publicBaseURL string
 }
 
+// newS3 performs this package operation.
 func newS3(options S3Options) (*S3, error) {
 	if options.Endpoint == "" || options.Bucket == "" {
 		return nil, errors.New("storage: the s3 driver requires an endpoint and a bucket")
@@ -57,6 +62,7 @@ func newS3(options S3Options) (*S3, error) {
 	}, nil
 }
 
+// Put performs this package operation.
 func (s *S3) Put(ctx context.Context, name string, r io.Reader, opts ...PutOption) error {
 	options := applyPutOptions(opts)
 	_, err := s.client.PutObject(ctx, s.bucket, name, r, options.Size, minio.PutObjectOptions{
@@ -65,6 +71,7 @@ func (s *S3) Put(ctx context.Context, name string, r io.Reader, opts ...PutOptio
 	return err
 }
 
+// Get performs this package operation.
 func (s *S3) Get(ctx context.Context, name string) (io.ReadCloser, error) {
 	object, err := s.client.GetObject(ctx, s.bucket, name, minio.GetObjectOptions{})
 	if err != nil {
@@ -78,6 +85,7 @@ func (s *S3) Get(ctx context.Context, name string) (io.ReadCloser, error) {
 	return object, nil
 }
 
+// Exists performs this package operation.
 func (s *S3) Exists(ctx context.Context, name string) (bool, error) {
 	_, err := s.client.StatObject(ctx, s.bucket, name, minio.StatObjectOptions{})
 	if err == nil {
@@ -89,6 +97,7 @@ func (s *S3) Exists(ctx context.Context, name string) (bool, error) {
 	return false, err
 }
 
+// Size performs this package operation.
 func (s *S3) Size(ctx context.Context, name string) (int64, error) {
 	info, err := s.client.StatObject(ctx, s.bucket, name, minio.StatObjectOptions{})
 	if err != nil {
@@ -97,10 +106,12 @@ func (s *S3) Size(ctx context.Context, name string) (int64, error) {
 	return info.Size, nil
 }
 
+// Delete performs this package operation.
 func (s *S3) Delete(ctx context.Context, name string) error {
 	return s.client.RemoveObject(ctx, s.bucket, name, minio.RemoveObjectOptions{})
 }
 
+// URL performs this package operation.
 func (s *S3) URL(ctx context.Context, name string) (string, error) {
 	if s.publicBaseURL != "" {
 		return s.publicBaseURL + "/" + strings.TrimPrefix(name, "/"), nil
@@ -112,6 +123,7 @@ func (s *S3) URL(ctx context.Context, name string) (string, error) {
 	return presigned.String(), nil
 }
 
+// mapS3Error performs this package operation.
 func mapS3Error(err error) error {
 	response := minio.ToErrorResponse(err)
 	if response.Code == "NoSuchKey" || response.StatusCode == 404 {

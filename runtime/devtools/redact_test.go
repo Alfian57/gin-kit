@@ -4,6 +4,7 @@ import (
 	"testing"
 )
 
+// findEntry performs this package operation.
 func findEntry(t *testing.T, report []ConfigEntry, key string) ConfigEntry {
 	t.Helper()
 	for _, entry := range report {

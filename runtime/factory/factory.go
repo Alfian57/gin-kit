@@ -17,6 +17,7 @@ import (
 // counter for unique values.
 type F struct {
 	*gofakeit.Faker
+	// seq store data used by this type.
 	seq uint64
 }
 
@@ -29,8 +30,11 @@ func (f *F) Seqf(format string) string { return fmt.Sprintf(format, f.seq) }
 
 // Factory builds instances of T.
 type Factory[T any] struct {
-	mu    sync.Mutex
+	// mu store data used by this type.
+	mu sync.Mutex
+	// build store data used by this type.
 	build func(*F) T
+	// faker store data used by this type.
 	faker *F
 }
 

@@ -14,6 +14,31 @@ func TestInteractiveManifestIncludesFeaturesByDefault(t *testing.T) {
 	}
 }
 
+func TestEnvExamplesSeparateConfigurationGroups(t *testing.T) {
+	for path, groups := range map[string][]string{
+		"templates/.env.example": {
+			"DATABASE_URL=\n\nJWT_SECRET=",
+			"OAUTH_FAILURE_REDIRECT=/\n\nTRUSTED_PROXY_CIDRS=",
+		},
+		"templates/runtime/.env.example": {
+			"DATABASE_URL=\n\nJWT_SECRET=",
+			"MAX_BODY_BYTES=1048576\n\nCACHE_DRIVER=memory",
+			"MAIL_FROM_NAME=\n\nWHATSAPP_DRIVER=log",
+			"S3_PUBLIC_BASE_URL=\n\nREAD_TIMEOUT=10s",
+		},
+	} {
+		contents, err := templateFS.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, group := range groups {
+			if !strings.Contains(string(contents), group) {
+				t.Fatalf("%s does not separate %q", path, group)
+			}
+		}
+	}
+}
+
 func TestScaffoldAPIPreservesSelections(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "sample")
 	m := Manifest{

@@ -14,18 +14,25 @@ import (
 	"sync"
 )
 
+// subscription defines an implementation type used by this package.
 type subscription struct {
-	id   uint64
+	// id store data used by this type.
+	id uint64
+	// call store data used by this type.
 	call func(context.Context, any) error
 }
 
 // Bus routes emitted events to subscribers of the same event type.
 type Bus struct {
-	mu       sync.RWMutex
-	nextID   uint64
+	// mu store data used by this type.
+	mu sync.RWMutex
+	// nextID store data used by this type.
+	nextID uint64
+	// handlers store data used by this type.
 	handlers map[reflect.Type][]subscription
 }
 
+// NewBus performs this package operation.
 func NewBus() *Bus {
 	return &Bus{handlers: make(map[reflect.Type][]subscription)}
 }
@@ -78,6 +85,7 @@ func Emit[T any](ctx context.Context, bus *Bus, event T) error {
 	return result
 }
 
+// safeCall performs this package operation.
 func safeCall[T any](ctx context.Context, item subscription, event T) (err error) {
 	defer func() {
 		if recovered := recover(); recovered != nil {

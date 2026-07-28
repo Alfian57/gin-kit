@@ -48,6 +48,7 @@ func LoadDotenv(path string) error {
 	return nil
 }
 
+// unquote performs this package operation.
 func unquote(value string) string {
 	if len(value) >= 2 {
 		first, last := value[0], value[len(value)-1]

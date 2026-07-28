@@ -7,9 +7,12 @@ import (
 	"time"
 )
 
+// profile defines an implementation type used by this package.
 type profile struct {
-	Name  string `json:"name"`
-	Score int    `json:"score"`
+	// Name store data used by this type.
+	Name string `json:"name"`
+	// Score store data used by this type.
+	Score int `json:"score"`
 }
 
 func TestRememberComputesOnMissAndSkipsOnHit(t *testing.T) {

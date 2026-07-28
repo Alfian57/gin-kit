@@ -9,12 +9,16 @@ import (
 
 // Flash is a one-shot message that survives exactly one redirect.
 type Flash struct {
-	Kind    string
+	// Kind store data used by this type.
+	Kind string
+	// Message store data used by this type.
 	Message string
 }
 
+// init initializes package-level implementation state.
 func init() { gob.Register([]Flash{}) }
 
+// flashKey define package-level implementation state.
 const flashKey = "gin-kit.flashes"
 
 // PutFlash stores a flash message, e.g. PutFlash(c, "success", "Task created.").

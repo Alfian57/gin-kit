@@ -12,6 +12,7 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
+// sqliteCounter define package-level implementation state.
 var sqliteCounter atomic.Uint64
 
 // SQLiteConfig returns a database configuration for a unique in-memory

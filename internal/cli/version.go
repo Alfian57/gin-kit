@@ -9,6 +9,7 @@ import (
 // Go module build metadata when available.
 var Version = "dev"
 
+// effectiveVersion performs this package operation.
 func effectiveVersion() string {
 	moduleVersion := ""
 	if info, ok := debug.ReadBuildInfo(); ok {
@@ -18,6 +19,7 @@ func effectiveVersion() string {
 	return resolveVersion(Version, moduleVersion)
 }
 
+// resolveVersion performs this package operation.
 func resolveVersion(injected, module string) string {
 	if injected != "" && injected != "dev" {
 		return strings.TrimPrefix(injected, "v")

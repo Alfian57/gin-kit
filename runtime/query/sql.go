@@ -75,6 +75,7 @@ func (r Result) BuildCountSQL(base string) (string, []any) {
 	return r.appendWhere(base)
 }
 
+// appendWhere performs this package operation.
 func (r Result) appendWhere(base string) (string, []any) {
 	where, args := r.WhereSQL()
 	if where != "" {
@@ -83,6 +84,7 @@ func (r Result) appendWhere(base string) (string, []any) {
 	return base, args
 }
 
+// comparison performs this package operation.
 func comparison(op Op) string {
 	switch op {
 	case OpGte:

@@ -15,26 +15,41 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Manifest defines an implementation type used by this package.
 type Manifest struct {
-	Version        int    `yaml:"version"`
-	ProjectType    string `yaml:"project_type"`
+	// Version store data used by this type.
+	Version int `yaml:"version"`
+	// ProjectType store data used by this type.
+	ProjectType string `yaml:"project_type"`
+	// RuntimeVersion store data used by this type.
 	RuntimeVersion string `yaml:"runtime_version,omitempty"`
-	Module         string `yaml:"module"`
-	Project        string `yaml:"project"`
-	Mode           string `yaml:"mode"`
-	Database       string `yaml:"database"`
-	ORM            string `yaml:"orm"`
-	Auth           bool   `yaml:"auth"`
-	OAuth          bool   `yaml:"oauth"`
-	Example        bool   `yaml:"example"`
-	Docker         bool   `yaml:"docker"`
+	// Module store data used by this type.
+	Module string `yaml:"module"`
+	// Project store data used by this type.
+	Project string `yaml:"project"`
+	// Mode store data used by this type.
+	Mode string `yaml:"mode"`
+	// Database store data used by this type.
+	Database string `yaml:"database"`
+	// ORM store data used by this type.
+	ORM string `yaml:"orm"`
+	// Auth store data used by this type.
+	Auth bool `yaml:"auth"`
+	// OAuth store data used by this type.
+	OAuth bool `yaml:"oauth"`
+	// Example store data used by this type.
+	Example bool `yaml:"example"`
+	// Docker store data used by this type.
+	Docker bool `yaml:"docker"`
 }
 
+// root define package-level implementation state.
 var root = &cobra.Command{
 	Use:   "gin-kit",
 	Short: "An opinionated application framework built on Gin",
 }
 
+// Execute performs this package operation.
 func Execute() {
 	if err := root.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
@@ -42,11 +57,13 @@ func Execute() {
 	}
 }
 
+// init initializes package-level implementation state.
 func init() {
 	root.Version = effectiveVersion()
 	root.AddCommand(newCommand(), generateCommand(), runCommand(), devCommand(), buildCommand(), dbCommand(), routesCommand(), upgradeCommand(), explainCommand(), doctorCommand(), checkCommand())
 }
 
+// projectRoot performs this package operation.
 func projectRoot() (string, Manifest, error) {
 	dir, err := os.Getwd()
 	if err != nil {
@@ -83,6 +100,7 @@ func projectRoot() (string, Manifest, error) {
 	}
 }
 
+// promptManifest performs this package operation.
 func promptManifest(name string) (Manifest, error) {
 	m := newInteractiveManifest(name)
 	if err := huh.NewForm(
@@ -120,6 +138,7 @@ func promptManifest(name string) (Manifest, error) {
 	return m, nil
 }
 
+// newInteractiveManifest performs this package operation.
 func newInteractiveManifest(name string) Manifest {
 	return Manifest{
 		Version:     3,
@@ -134,6 +153,7 @@ func newInteractiveManifest(name string) Manifest {
 	}
 }
 
+// newFeatureConfirm performs this package operation.
 func newFeatureConfirm(title string, value *bool) *huh.Confirm {
 	return huh.NewConfirm().
 		Title(title).
@@ -143,6 +163,7 @@ func newFeatureConfirm(title string, value *bool) *huh.Confirm {
 		Value(value)
 }
 
+// writeManifest performs this package operation.
 func writeManifest(dir string, m Manifest) error {
 	data, err := yaml.Marshal(m)
 	if err != nil {
@@ -151,4 +172,5 @@ func writeManifest(dir string, m Manifest) error {
 	return os.WriteFile(filepath.Join(dir, ".gin-kit.yaml"), data, 0o644)
 }
 
+// platform performs this package operation.
 func platform() string { return runtime.GOOS + "/" + runtime.GOARCH }

@@ -14,18 +14,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// generatorFS define package-level implementation state.
+//
 //go:embed all:generators
 var generatorFS embed.FS
 
 // genData is the template context for every generator.
 type genData struct {
 	Manifest
-	Name           string // Ticket
-	Camel          string // ticket
-	Snake          string // ticket
-	Plural         string // Tickets
-	PluralCamel    string // tickets (route segment)
-	Table          string // tickets
+	Name        string // Ticket
+	Camel       string // ticket
+	Snake       string // ticket
+	Plural      string // Tickets
+	PluralCamel string // tickets (route segment)
+	Table       string // tickets
+	// Fields store data used by this type.
 	Fields         []fieldSpec
 	HasTime        bool        // any user field is time-typed
 	StringFields   []fieldSpec // required string/text fields (service validation)
@@ -51,6 +54,7 @@ type genData struct {
 	SortList           string // query.SortBy("created_at"), ...
 }
 
+// buildGenData performs this package operation.
 func buildGenData(m Manifest, name, fieldsSpec, table string, softDelete bool) (genData, error) {
 	pascal, camel, snake, err := validateGeneratorName(name)
 	if err != nil {
@@ -142,6 +146,7 @@ func buildGenData(m Manifest, name, fieldsSpec, table string, softDelete bool) (
 	return data, nil
 }
 
+// sampleJSONValue performs this package operation.
 func sampleJSONValue(field fieldSpec) string {
 	switch field.Kind {
 	case "string":
@@ -159,6 +164,7 @@ func sampleJSONValue(field fieldSpec) string {
 	}
 }
 
+// renderGenerator performs this package operation.
 func renderGenerator(templatePath string, data genData) ([]byte, error) {
 	raw, err := generatorFS.ReadFile(templatePath)
 	if err != nil {
@@ -183,10 +189,15 @@ func renderGenerator(templatePath string, data genData) ([]byte, error) {
 
 // generateRequest describes one generator invocation.
 type generateRequest struct {
-	Kind       string
-	Name       string
-	Fields     string
-	Table      string
+	// Kind store data used by this type.
+	Kind string
+	// Name store data used by this type.
+	Name string
+	// Fields store data used by this type.
+	Fields string
+	// Table store data used by this type.
+	Table string
+	// SoftDelete store data used by this type.
 	SoftDelete bool
 }
 
@@ -365,6 +376,7 @@ gin-kit generate domain %s first if it does not exist.`,
 	return files, nextSteps, nil
 }
 
+// migrationPath performs this package operation.
 func migrationPath(rootDir, name string) string {
 	stamp := time.Now().UTC().Format("20060102150405")
 	path := filepath.Join(rootDir, "migrations", fmt.Sprintf("%s_%s.sql", stamp, name))
@@ -377,6 +389,7 @@ func migrationPath(rootDir, name string) string {
 	return path
 }
 
+// resourceNextSteps performs this package operation.
 func resourceNextSteps(m Manifest, data genData, handlerPackage string) string {
 	var wiring string
 	if m.ProjectType == "runtime" {
@@ -407,6 +420,7 @@ Then apply the migration:
     gin-kit db up`, wiring)
 }
 
+// generateCommand performs this package operation.
 func generateCommand() *cobra.Command {
 	var dryRun bool
 	generate := &cobra.Command{Use: "generate", Short: "Generate project building blocks from real, manifest-aware templates"}

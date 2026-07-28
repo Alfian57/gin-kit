@@ -9,6 +9,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// testRedisStore performs this package operation.
 func testRedisStore(t *testing.T, prefix string) (*Redis, *miniredis.Miniredis) {
 	t.Helper()
 	server := miniredis.RunT(t)

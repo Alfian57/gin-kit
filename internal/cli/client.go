@@ -1,3 +1,4 @@
+// Package cli provides gin-kit cli implementation support.
 package cli
 
 import (
@@ -16,6 +17,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// loadRuntimeOpenAPI performs this package operation.
 func loadRuntimeOpenAPI(root string) (*clientSpec, error) {
 	cmd := exec.Command("go", "run", "./cmd/server", "--openapi")
 	cmd.Dir = root
@@ -30,40 +32,73 @@ func loadRuntimeOpenAPI(root string) (*clientSpec, error) {
 	return parseClientSpec(output)
 }
 
+// clientSpec defines an implementation type used by this package.
 type clientSpec struct {
-	Paths      map[string]map[string]clientOp `json:"paths"`
-	Components *clientComponents              `json:"components,omitempty"`
-}
-type clientComponents struct {
-	Schemas map[string]clientSchema `json:"schemas"`
-}
-type clientOp struct {
-	OperationID string        `json:"operationId"`
-	Parameters  []clientParam `json:"parameters"`
-	RequestBody *clientBody   `json:"requestBody,omitempty"`
-}
-type clientParam struct {
-	Name     string       `json:"name"`
-	In       string       `json:"in"`
-	Required bool         `json:"required"`
-	Schema   clientSchema `json:"schema"`
-}
-type clientBody struct {
-	Required bool                     `json:"required"`
-	Content  map[string]clientContent `json:"content"`
-}
-type clientContent struct {
-	Schema clientSchema `json:"schema"`
-}
-type clientSchema struct {
-	Ref        string                  `json:"$ref"`
-	Type       string                  `json:"type"`
-	Nullable   bool                    `json:"nullable"`
-	Items      *clientSchema           `json:"items"`
-	Properties map[string]clientSchema `json:"properties"`
-	Enum       []string                `json:"enum"`
+	// Paths store data used by this type.
+	Paths map[string]map[string]clientOp `json:"paths"`
+	// Components store data used by this type.
+	Components *clientComponents `json:"components,omitempty"`
 }
 
+// clientComponents defines an implementation type used by this package.
+type clientComponents struct {
+	// Schemas store data used by this type.
+	Schemas map[string]clientSchema `json:"schemas"`
+}
+
+// clientOp defines an implementation type used by this package.
+type clientOp struct {
+	// OperationID store data used by this type.
+	OperationID string `json:"operationId"`
+	// Parameters store data used by this type.
+	Parameters []clientParam `json:"parameters"`
+	// RequestBody store data used by this type.
+	RequestBody *clientBody `json:"requestBody,omitempty"`
+}
+
+// clientParam defines an implementation type used by this package.
+type clientParam struct {
+	// Name store data used by this type.
+	Name string `json:"name"`
+	// In store data used by this type.
+	In string `json:"in"`
+	// Required store data used by this type.
+	Required bool `json:"required"`
+	// Schema store data used by this type.
+	Schema clientSchema `json:"schema"`
+}
+
+// clientBody defines an implementation type used by this package.
+type clientBody struct {
+	// Required store data used by this type.
+	Required bool `json:"required"`
+	// Content store data used by this type.
+	Content map[string]clientContent `json:"content"`
+}
+
+// clientContent defines an implementation type used by this package.
+type clientContent struct {
+	// Schema store data used by this type.
+	Schema clientSchema `json:"schema"`
+}
+
+// clientSchema defines an implementation type used by this package.
+type clientSchema struct {
+	// Ref store data used by this type.
+	Ref string `json:"$ref"`
+	// Type store data used by this type.
+	Type string `json:"type"`
+	// Nullable store data used by this type.
+	Nullable bool `json:"nullable"`
+	// Items store data used by this type.
+	Items *clientSchema `json:"items"`
+	// Properties store data used by this type.
+	Properties map[string]clientSchema `json:"properties"`
+	// Enum store data used by this type.
+	Enum []string `json:"enum"`
+}
+
+// parseClientSpec performs this package operation.
 func parseClientSpec(b []byte) (*clientSpec, error) {
 	if !json.Valid(b) {
 		var v any
@@ -86,6 +121,7 @@ func parseClientSpec(b []byte) (*clientSpec, error) {
 	return &s, nil
 }
 
+// loadClientSpec performs this package operation.
 func loadClientSpec(source string) (*clientSpec, error) {
 	var b []byte
 	var err error
@@ -107,6 +143,8 @@ func loadClientSpec(source string) (*clientSpec, error) {
 	}
 	return parseClientSpec(b)
 }
+
+// safeTSName performs this package operation.
 func safeTSName(s string) string {
 	var b strings.Builder
 	for i, r := range s {
@@ -121,6 +159,8 @@ func safeTSName(s string) string {
 	}
 	return b.String()
 }
+
+// methodName performs this package operation.
 func methodName(m, p string) string {
 	parts := strings.FieldsFunc(p, func(r rune) bool { return r == '/' || r == '{' || r == '}' || r == '-' || r == '_' })
 	var b strings.Builder
@@ -132,6 +172,8 @@ func methodName(m, p string) string {
 	}
 	return safeTSName(b.String())
 }
+
+// tsType performs this package operation.
 func tsType(s clientSchema) string {
 	if s.Ref != "" {
 		return safeTSName(filepath.Base(s.Ref))
@@ -172,6 +214,8 @@ func tsType(s clientSchema) string {
 	}
 	return "unknown"
 }
+
+// renderTSClient performs this package operation.
 func renderTSClient(s *clientSpec) []byte {
 	var b strings.Builder
 	b.WriteString("// Code generated by gin-kit. DO NOT EDIT.\n\nexport type ApiError = { code: string; message: string; details?: unknown; status: number };\nexport type TokenProvider = () => string | undefined;\n")
@@ -272,6 +316,8 @@ func renderTSClient(s *clientSpec) []byte {
 `)
 	return []byte(b.String())
 }
+
+// isHTTPMethod performs this package operation.
 func isHTTPMethod(s string) bool {
 	switch strings.ToLower(s) {
 	case "get", "post", "put", "patch", "delete", "head", "options", "trace":

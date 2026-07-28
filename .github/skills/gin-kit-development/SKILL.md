@@ -33,6 +33,7 @@ go test ./...
 go vet ./...
 go test -race ./...
 test -z "$(gofmt -l cmd runtime internal)"
+go run ./cmd/doccheck
 gin-kit new <name> --project-type runtime|standalone [--auth --example --docker]
 gin-kit run
 gin-kit generate resource <Name> --fields "title:string,done:bool"
@@ -77,6 +78,15 @@ Every behavior change updates its documentation in the same PR (matrix in
 when the CLI changes, and template AI-guidance updates when the generated
 workflow changes. Verify site changes with
 `cd website && npm run check && npm run build`.
+
+## Source documentation
+
+Every package-level declaration, struct field, and interface method in
+`cmd/`, `runtime/`, and `internal/` needs an English doc comment. Explain the
+actual behavior and important defaults, ownership, concurrency, errors, or
+security constraints rather than repeating the identifier. Test entry points
+are self-describing, but reusable test helpers and fixtures are documented.
+Run `go run ./cmd/doccheck`; CI and release checks enforce the same rule.
 
 ## Security and contracts
 

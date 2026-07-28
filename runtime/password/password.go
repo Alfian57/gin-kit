@@ -13,20 +13,33 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
+// Parameters defines an implementation type used by this package.
 type Parameters struct {
-	Memory      uint32
-	Iterations  uint32
+	// Memory store data used by this type.
+	Memory uint32
+	// Iterations store data used by this type.
+	Iterations uint32
+	// Parallelism store data used by this type.
 	Parallelism uint8
-	KeyLength   uint32
-	SaltLength  uint32
+	// KeyLength store data used by this type.
+	KeyLength uint32
+	// SaltLength store data used by this type.
+	SaltLength uint32
 }
 
+// DefaultParameters define package-level implementation state.
 var DefaultParameters = Parameters{Memory: 19 * 1024, Iterations: 2, Parallelism: 1, KeyLength: 32, SaltLength: 16}
 
+// Hash performs this package operation.
 func Hash(plain string) (string, error) { return New(DefaultParameters).Hash(plain) }
 
-type Hasher struct{ parameters Parameters }
+// Hasher hashes and verifies passwords with one immutable parameter set.
+type Hasher struct {
+	// parameters holds the Argon2id settings used for every operation.
+	parameters Parameters
+}
 
+// New performs this package operation.
 func New(parameters Parameters) Hasher {
 	if parameters.Memory == 0 {
 		parameters = DefaultParameters
@@ -40,6 +53,7 @@ func New(parameters Parameters) Hasher {
 	return Hasher{parameters: parameters}
 }
 
+// Hash performs this package operation.
 func (h Hasher) Hash(plain string) (string, error) {
 	salt := make([]byte, h.parameters.SaltLength)
 	if _, err := rand.Read(salt); err != nil {
@@ -51,6 +65,7 @@ func (h Hasher) Hash(plain string) (string, error) {
 		base64.RawStdEncoding.EncodeToString(salt), base64.RawStdEncoding.EncodeToString(sum)), nil
 }
 
+// Compare performs this package operation.
 func Compare(plain, encoded string) bool {
 	parameters, salt, expected, ok := parse(encoded)
 	if !ok {
@@ -60,6 +75,7 @@ func Compare(plain, encoded string) bool {
 	return subtle.ConstantTimeCompare(actual, expected) == 1
 }
 
+// NeedsRehash performs this package operation.
 func (h Hasher) NeedsRehash(encoded string) bool {
 	parameters, _, _, ok := parse(encoded)
 	if !ok {
@@ -69,6 +85,7 @@ func (h Hasher) NeedsRehash(encoded string) bool {
 		parameters.Parallelism != h.parameters.Parallelism || parameters.KeyLength != h.parameters.KeyLength
 }
 
+// parse performs this package operation.
 func parse(encoded string) (Parameters, []byte, []byte, bool) {
 	parts := strings.Split(encoded, "$")
 	if len(parts) != 6 || parts[1] != "argon2id" || parts[2] != "v=19" {
@@ -94,4 +111,5 @@ func parse(encoded string) (Parameters, []byte, []byte, bool) {
 	return Parameters{Memory: uint32(memory), Iterations: uint32(iterations), Parallelism: uint8(parallelism), KeyLength: uint32(len(expected)), SaltLength: uint32(len(salt))}, salt, expected, true
 }
 
+// ErrInvalidHash define package-level implementation state.
 var ErrInvalidHash = errors.New("invalid password hash")

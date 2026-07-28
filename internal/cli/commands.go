@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// runCommand performs this package operation.
 func runCommand() *cobra.Command {
 	return &cobra.Command{Use: "run", Short: "Run the server with hot reload", RunE: func(cmd *cobra.Command, args []string) error {
 		rootDir, _, err := projectRoot()
@@ -101,6 +102,7 @@ func runCommand() *cobra.Command {
 	}}
 }
 
+// buildCommand performs this package operation.
 func buildCommand() *cobra.Command {
 	return &cobra.Command{Use: "build", Short: "Build server, migration, and seed binaries", RunE: func(cmd *cobra.Command, args []string) error {
 		rootDir, _, err := projectRoot()
@@ -132,6 +134,7 @@ func runProjectCommand(rootDir string, extraEnv []string, args ...string) error 
 	return c.Run()
 }
 
+// seedUnavailable performs this package operation.
 func seedUnavailable(rootDir string) error {
 	if _, err := os.Stat(filepath.Join(rootDir, "cmd", "seed")); err != nil {
 		return diagnostic("seed_unavailable", "seed database", rootDir,
@@ -141,6 +144,7 @@ func seedUnavailable(rootDir string) error {
 	return nil
 }
 
+// dbCommand performs this package operation.
 func dbCommand() *cobra.Command {
 	db := &cobra.Command{Use: "db", Short: "Run database operations"}
 	for _, item := range []struct{ operation, short string }{
@@ -221,13 +225,16 @@ func dbCommand() *cobra.Command {
 	return db
 }
 
+// errDestructiveNotConfirmed define package-level implementation state.
 var errDestructiveNotConfirmed = fmt.Errorf("refusing to run a destructive database operation; re-run with --yes")
 
+// confirmDestructive performs this package operation.
 func confirmDestructive(cmd *cobra.Command) bool {
 	confirmed, _ := cmd.Flags().GetBool("yes")
 	return confirmed
 }
 
+// routesCommand performs this package operation.
 func routesCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "routes",
@@ -243,6 +250,7 @@ func routesCommand() *cobra.Command {
 	}
 }
 
+// addDirs performs this package operation.
 func addDirs(w *fsnotify.Watcher, root string) error {
 	return filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
 		if err != nil {
@@ -255,6 +263,7 @@ func addDirs(w *fsnotify.Watcher, root string) error {
 	})
 }
 
+// shouldRestart performs this package operation.
 func shouldRestart(path string) bool {
 	ext := filepath.Ext(path)
 	return ext == ".go" || ext == ".html" || ext == ".yaml" || ext == ".yml" || ext == ".css" || ext == ".js"

@@ -13,20 +13,29 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// fakeProvider defines an implementation type used by this package.
 type fakeProvider struct {
-	name     string
+	// name store data used by this type.
+	name string
+	// identity store data used by this type.
 	identity Identity
-	code     string
+	// code store data used by this type.
+	code string
+	// verifier store data used by this type.
 	verifier string
-	nonce    string
+	// nonce store data used by this type.
+	nonce string
 }
 
+// Name performs this package operation.
 func (p *fakeProvider) Name() string { return p.name }
 
+// AuthorizationURL performs this package operation.
 func (p *fakeProvider) AuthorizationURL(state, verifier, nonce string) string {
 	return "https://provider.example/authorize?state=" + url.QueryEscape(state) + "&challenge=" + url.QueryEscape(verifier) + "&nonce=" + url.QueryEscape(nonce)
 }
 
+// Identity performs this package operation.
 func (p *fakeProvider) Identity(_ context.Context, code, verifier, nonce string) (Identity, error) {
 	p.code, p.verifier, p.nonce = code, verifier, nonce
 	return p.identity, nil
