@@ -25,6 +25,7 @@ type Config struct {
 	DatabaseURL        string        // DATABASE_URL
 	JWTSecret          []byte        // JWT_SECRET, length is enforced by auth.New
 	SessionSecret      []byte        // SESSION_SECRET, length is enforced by session.Middleware
+	OAuth              OAuthConfig   // OAUTH_* provider credentials and browser redirects
 	TrustedProxyCIDRs  []string      // TRUSTED_PROXY_CIDRS, comma separated
 	CORSAllowedOrigins []string      // CORS_ALLOWED_ORIGINS, comma separated
 	RateLimitEnabled   bool          // RATE_LIMIT_ENABLED, defaults to true
@@ -74,15 +75,37 @@ type Config struct {
 	ShutdownTimeout    time.Duration // SHUTDOWN_TIMEOUT
 }
 
+// OAuthProviderConfig holds one provider's client credentials and exact
+// registered callback URL.
+type OAuthProviderConfig struct {
+	ClientID     string
+	ClientSecret string
+	RedirectURL  string
+}
+
+// OAuthConfig holds the generated application's supported social providers.
+type OAuthConfig struct {
+	Google          OAuthProviderConfig
+	GitHub          OAuthProviderConfig
+	SuccessRedirect string
+	FailureRedirect string
+}
+
 // Load reads the process environment, failing fast on malformed values and on
 // unsafe defaults outside development. Unset variables use safe defaults.
 func Load() (Config, error) {
 	cfg := Config{
-		Address:            normalizeAddress(stringValue("PORT", "8080")),
-		Environment:        stringValue("APP_ENV", "development"),
-		DatabaseURL:        os.Getenv("DATABASE_URL"),
-		JWTSecret:          []byte(os.Getenv("JWT_SECRET")),
-		SessionSecret:      []byte(os.Getenv("SESSION_SECRET")),
+		Address:       normalizeAddress(stringValue("PORT", "8080")),
+		Environment:   stringValue("APP_ENV", "development"),
+		DatabaseURL:   os.Getenv("DATABASE_URL"),
+		JWTSecret:     []byte(os.Getenv("JWT_SECRET")),
+		SessionSecret: []byte(os.Getenv("SESSION_SECRET")),
+		OAuth: OAuthConfig{
+			Google:          OAuthProviderConfig{ClientID: os.Getenv("OAUTH_GOOGLE_CLIENT_ID"), ClientSecret: os.Getenv("OAUTH_GOOGLE_CLIENT_SECRET"), RedirectURL: os.Getenv("OAUTH_GOOGLE_REDIRECT_URL")},
+			GitHub:          OAuthProviderConfig{ClientID: os.Getenv("OAUTH_GITHUB_CLIENT_ID"), ClientSecret: os.Getenv("OAUTH_GITHUB_CLIENT_SECRET"), RedirectURL: os.Getenv("OAUTH_GITHUB_REDIRECT_URL")},
+			SuccessRedirect: stringValue("OAUTH_SUCCESS_REDIRECT", "/"),
+			FailureRedirect: stringValue("OAUTH_FAILURE_REDIRECT", "/"),
+		},
 		TrustedProxyCIDRs:  splitCSV(os.Getenv("TRUSTED_PROXY_CIDRS")),
 		CORSAllowedOrigins: splitCSV(os.Getenv("CORS_ALLOWED_ORIGINS")),
 		CacheDriver:        stringValue("CACHE_DRIVER", "memory"),
@@ -191,6 +214,9 @@ func (c Config) validate() error {
 	if c.MaxBodyBytes <= 0 {
 		return errors.New("MAX_BODY_BYTES must be positive")
 	}
+	if err := c.OAuth.Validate(); err != nil {
+		return err
+	}
 	if c.RateLimitEnabled && c.RateLimitPerMinute <= 0 {
 		return errors.New("RATE_LIMIT_PER_MINUTE must be positive when rate limiting is enabled")
 	}
@@ -277,6 +303,26 @@ func (c Config) validate() error {
 		}
 	}
 	return nil
+}
+
+// Validate rejects partial provider credentials and unsafe browser redirects.
+func (c OAuthConfig) Validate() error {
+	for _, provider := range []OAuthProviderConfig{c.Google, c.GitHub} {
+		populated := provider.ClientID != "" || provider.ClientSecret != "" || provider.RedirectURL != ""
+		if populated && (provider.ClientID == "" || provider.ClientSecret == "" || provider.RedirectURL == "") {
+			return errors.New("each OAuth provider requires client ID, client secret, and redirect URL")
+		}
+	}
+	for _, path := range []string{c.SuccessRedirect, c.FailureRedirect} {
+		if !safeRedirectPath(path) {
+			return errors.New("OAUTH_SUCCESS_REDIRECT and OAUTH_FAILURE_REDIRECT must be relative paths")
+		}
+	}
+	return nil
+}
+
+func safeRedirectPath(path string) bool {
+	return strings.HasPrefix(path, "/") && !strings.HasPrefix(path, "//") && !strings.ContainsAny(path, "\r\n")
 }
 
 func (c Config) IsDevelopment() bool { return c.Environment == "development" }

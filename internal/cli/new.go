@@ -23,7 +23,7 @@ var templateFS embed.FS
 func newCommand() *cobra.Command {
 	var nonInteractive bool
 	var modulePath, projectType, mode, database, orm, runtimeVersion, runtimeReplace string
-	var auth, example, docker bool
+	var auth, oauth, example, docker bool
 	cmd := &cobra.Command{
 		Use:   "new <project>",
 		Short: "Create a new gin-kit project",
@@ -37,7 +37,7 @@ func newCommand() *cobra.Command {
 			if name == "." || name == string(filepath.Separator) || name == "" {
 				return diagnostic("target_invalid", "resolve project target", args[0], errors.New("target must name a project directory"), "Choose a path such as ./my-service.")
 			}
-			m := Manifest{Version: 3, ProjectType: projectType, Project: name, Module: modulePath, Mode: mode, Database: database, ORM: orm, Auth: auth, Example: example, Docker: docker}
+			m := Manifest{Version: 3, ProjectType: projectType, Project: name, Module: modulePath, Mode: mode, Database: database, ORM: orm, Auth: auth, OAuth: oauth, Example: example, Docker: docker}
 			if !nonInteractive {
 				m, err = promptManifest(name)
 				if err != nil {
@@ -82,6 +82,7 @@ func newCommand() *cobra.Command {
 	cmd.Flags().StringVar(&database, "database", "", "sqlite, postgres, mysql, or mariadb")
 	cmd.Flags().StringVar(&orm, "orm", "", "gorm or sqlx")
 	cmd.Flags().BoolVar(&auth, "auth", false, "include authentication")
+	cmd.Flags().BoolVar(&oauth, "oauth", false, "include Google and GitHub OAuth social login (requires --auth)")
 	cmd.Flags().BoolVar(&example, "example", false, "include tasks example")
 	cmd.Flags().BoolVar(&docker, "docker", false, "include Docker files")
 	cmd.Flags().StringVar(&runtimeVersion, "runtime-version", "", "gin-kit runtime version (defaults to the CLI release)")
@@ -223,13 +224,16 @@ func renderScaffoldTree(m Manifest, options scaffoldOptions, filter func(rel str
 		if rel == "package.json" && m.Mode != "ui" {
 			return nil
 		}
-		if strings.Contains(rel, "internal/platform/session") && m.Mode != "ui" {
+		if strings.Contains(rel, "internal/platform/session") && m.Mode != "ui" && !m.OAuth {
 			return nil
 		}
 		if strings.HasPrefix(rel, "e2e/") && m.Mode != "ui" {
 			return nil
 		}
 		if (strings.Contains(rel, "auth_") || strings.Contains(rel, "/auth/")) && !m.Auth {
+			return nil
+		}
+		if (strings.Contains(rel, "oauth_") || strings.Contains(rel, "/oauth/")) && !m.OAuth {
 			return nil
 		}
 		if strings.Contains(rel, "tasks_") && !m.Example {
@@ -324,6 +328,9 @@ func validateManifest(m Manifest) error {
 	}
 	if m.ORM != "gorm" && m.ORM != "sqlx" {
 		return fmt.Errorf("invalid ORM %q: use gorm or sqlx", m.ORM)
+	}
+	if m.OAuth && !m.Auth {
+		return diagnostic("oauth_auth_required", "validate manifest", ".gin-kit.yaml", errors.New("oauth requires authentication"), "Enable authentication with --auth before adding --oauth.")
 	}
 	return nil
 }

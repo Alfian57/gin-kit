@@ -1,0 +1,46 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"time"
+
+	"github.com/Alfian57/gin-kit/runtime/oauth"
+	"github.com/google/uuid"
+	"{{.Module}}/internal/domain"
+)
+
+// LoginOAuth resolves an existing provider identity or safely links a verified
+// provider email to one local account.
+func (s *AuthService) LoginOAuth(ctx context.Context, profile oauth.Identity) (domain.User, error) {
+	identity, err := s.identities.FindByProviderSubject(ctx, profile.Provider, profile.Subject)
+	if err == nil {
+		return s.users.FindByID(ctx, identity.UserID)
+	}
+	if !errors.Is(err, domain.ErrOAuthIdentityNotFound) {
+		return domain.User{}, err
+	}
+	user, err := s.users.FindByEmail(ctx, profile.Email)
+	if errors.Is(err, domain.ErrUserNotFound) {
+		now := time.Now().UTC()
+		user = domain.User{ID: uuid.NewString(), Email: profile.Email, CreatedAt: now, UpdatedAt: now}
+		if err = s.users.Create(ctx, &user); errors.Is(err, domain.ErrEmailTaken) {
+			user, err = s.users.FindByEmail(ctx, profile.Email)
+		}
+	}
+	if err != nil {
+		return domain.User{}, err
+	}
+	now := time.Now().UTC()
+	identity = domain.OAuthIdentity{ID: uuid.NewString(), UserID: user.ID, Provider: profile.Provider, ProviderSubject: profile.Subject, CreatedAt: now, UpdatedAt: now}
+	if err = s.identities.Create(ctx, &identity); errors.Is(err, domain.ErrOAuthIdentityTaken) {
+		identity, err = s.identities.FindByProviderSubject(ctx, profile.Provider, profile.Subject)
+		if err == nil {
+			return s.users.FindByID(ctx, identity.UserID)
+		}
+	}
+	if err != nil {
+		return domain.User{}, err
+	}
+	return user, nil
+}

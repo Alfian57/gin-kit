@@ -27,3 +27,15 @@ func RequireAuth(secret []byte) gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// RequireLogin accepts an OAuth browser session when present and otherwise
+// requires the same Bearer token as RequireAuth.
+func RequireLogin(secret []byte) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.GetString("user_id") != "" {
+			c.Next()
+			return
+		}
+		RequireAuth(secret)(c)
+	}
+}

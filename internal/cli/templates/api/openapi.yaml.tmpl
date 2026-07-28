@@ -22,7 +22,43 @@ paths:
                 properties:
                   data:
                     type: object
-{{if .Auth}}  /api/v1/auth/tokens:
+{{if .OAuth}}  /auth/oauth/{provider}:
+    get:
+      summary: Start OAuth sign-in
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema:
+            type: string
+            enum: [google, github]
+      responses:
+        "302":
+          description: Redirect to the selected OAuth provider or the configured failure path
+  /auth/oauth/{provider}/callback:
+    get:
+      summary: Complete OAuth sign-in
+      parameters:
+        - in: path
+          name: provider
+          required: true
+          schema:
+            type: string
+            enum: [google, github]
+      responses:
+        "302":
+          description: Redirect to the configured success or failure path
+  /api/v1/auth/csrf:
+    get:
+      summary: Issue a CSRF token for cookie-authenticated API requests
+      responses:
+        "204":
+          description: Token is returned in the X-CSRF-Token response header
+          headers:
+            X-CSRF-Token:
+              schema:
+                type: string
+{{end}}{{if .Auth}}  /api/v1/auth/tokens:
     get:
       summary: List personal API tokens
       security:

@@ -1,0 +1,32 @@
+package auth
+
+import (
+	"errors"
+	"strings"
+
+	"{{.Module}}/internal/platform/session"
+	"github.com/gin-gonic/gin"
+)
+
+const sessionUserKey = "gin-kit.auth.session_user_id"
+
+// SessionMiddleware restores an OAuth-authenticated user from the encrypted
+// browser session. Install it after session.Middleware.
+func SessionMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if userID, _ := session.Get(c, sessionUserKey).(string); userID != "" {
+			c.Set("user_id", userID)
+		}
+		c.Next()
+	}
+}
+
+// LoginSession records an OAuth-authenticated user in the encrypted session.
+func LoginSession(c *gin.Context, userID string) error {
+	if strings.TrimSpace(userID) == "" {
+		return errors.New("auth: session user ID is required")
+	}
+	return session.Set(c, sessionUserKey, userID)
+}
+
+func LogoutSession(c *gin.Context) error { return session.Forget(c, sessionUserKey) }

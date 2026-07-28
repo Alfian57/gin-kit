@@ -30,19 +30,20 @@ type TokenPair struct {
 type AuthService struct {
 	users      domain.UserRepository
 	refresh    domain.RefreshTokenRepository
-	secret     []byte
+{{if .OAuth}}	identities domain.OAuthIdentityRepository
+{{end}}	secret     []byte
 	accessTTL  time.Duration
 	refreshTTL time.Duration
 }
 
-func NewAuthService(users domain.UserRepository, refresh domain.RefreshTokenRepository, secret []byte, accessTTL, refreshTTL time.Duration) *AuthService {
+func NewAuthService(users domain.UserRepository, refresh domain.RefreshTokenRepository{{if .OAuth}}, identities domain.OAuthIdentityRepository{{end}}, secret []byte, accessTTL, refreshTTL time.Duration) *AuthService {
 	if accessTTL <= 0 {
 		accessTTL = 15 * time.Minute
 	}
 	if refreshTTL <= 0 {
 		refreshTTL = 30 * 24 * time.Hour
 	}
-	return &AuthService{users: users, refresh: refresh, secret: secret, accessTTL: accessTTL, refreshTTL: refreshTTL}
+	return &AuthService{users: users, refresh: refresh,{{if .OAuth}} identities: identities,{{end}} secret: secret, accessTTL: accessTTL, refreshTTL: refreshTTL}
 }
 
 // Register creates the account and signs the user in.
@@ -58,7 +59,7 @@ func (s *AuthService) Register(ctx context.Context, email, plainPassword string)
 		return domain.User{}, TokenPair{}, err
 	}
 	now := time.Now().UTC()
-	user := domain.User{ID: uuid.NewString(), Email: email, PasswordHash: hash, CreatedAt: now, UpdatedAt: now}
+	user := domain.User{ID: uuid.NewString(), Email: email, PasswordHash: &hash, CreatedAt: now, UpdatedAt: now}
 	if err := s.users.Create(ctx, &user); err != nil {
 		return domain.User{}, TokenPair{}, err
 	}
@@ -75,7 +76,7 @@ func (s *AuthService) Login(ctx context.Context, email, plainPassword string) (d
 	if err != nil {
 		return domain.User{}, TokenPair{}, err
 	}
-	if !password.Compare(plainPassword, user.PasswordHash) {
+	if user.PasswordHash == nil || !password.Compare(plainPassword, *user.PasswordHash) {
 		return domain.User{}, TokenPair{}, ErrInvalidCredentials
 	}
 	pair, err := s.issuePair(ctx, user.ID)

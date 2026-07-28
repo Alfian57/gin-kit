@@ -94,6 +94,16 @@ forwarded client IP headers without configuring `TRUSTED_PROXY_CIDRS`.
 Never put secrets in source files or migrations — configuration lives in
 `.env` (local) and the environment (deployed); update `.env.example` when
 you add a variable.
+{{if .OAuth}}
+## OAuth social sign-in
+
+Google and GitHub callback routes use encrypted sessions, one-time PKCE/state
+flows, and a Google OIDC nonce. Keep provider tokens out of models, logs, and
+responses. Only verified provider emails may link an identity to a local user;
+OAuth-created accounts are passwordless. Keep `OAUTH_SUCCESS_REDIRECT` and
+`OAUTH_FAILURE_REDIRECT` relative paths, and use `GET /api/v1/auth/csrf` plus
+the `X-CSRF-Token` header for state-changing cookie-authenticated API calls.
+{{end}}
 
 ## Troubleshooting
 

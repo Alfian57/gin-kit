@@ -6,10 +6,12 @@ import (
 	"path/filepath"
 {{if .Auth}}	authhandler "{{.Module}}/internal/handler/auth"
 	"{{.Module}}/internal/platform/config"
+{{if .OAuth}}	"{{.Module}}/internal/platform/oauth"
+{{end}}
 {{end}}{{if or .Auth .Example}}	"{{.Module}}/internal/platform/database"
 {{end}})
 
-func Register(r *gin.Engine{{if or .Auth .Example}}, db *database.Connection{{end}}{{if .Auth}}, cfg config.Config{{end}}) {
+func Register(r *gin.Engine{{if or .Auth .Example}}, db *database.Connection{{end}}{{if .Auth}}, cfg config.Config{{end}}{{if .OAuth}}, oauthManager *oauth.Manager, successRedirect, failureRedirect string{{end}}) {
 	if matches, _ := filepath.Glob("web/templates/*.html"); len(matches) > 0 {
 		r.LoadHTMLGlob("web/templates/*.html")
 	}
@@ -21,7 +23,10 @@ func Register(r *gin.Engine{{if or .Auth .Example}}, db *database.Connection{{en
 		}
 		c.HTML(200, "index.html", gin.H{"project": "{{.Project}}", "module": "{{.Module}}"})
 	})
-{{if .Auth}}	authhandler.Register(r, db, cfg)
+{{if .Auth}}{{if .OAuth}}	accounts := authhandler.Register(r, db, cfg)
+	authhandler.RegisterOAuth(r, accounts, oauthManager, successRedirect, failureRedirect)
+{{else}}	authhandler.Register(r, db, cfg)
+{{end}}
 {{end}}{{if .Example}}	registerTasks(r, db)
 {{end}}
 }

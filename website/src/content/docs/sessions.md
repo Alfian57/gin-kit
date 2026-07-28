@@ -46,3 +46,8 @@ c.HTML(http.StatusOK, "tasks.html", gin.H{
 JSON APIs under `/api/` are exempt by default (they authenticate with Bearer
 tokens, which browsers cannot send cross-site automatically); customize with
 `CSRFOptions.Skipper`.
+
+Projects generated with `--auth --oauth` also use the encrypted session for
+social sign-in in API mode. Once a browser is signed in, state-changing `/api/`
+requests require the `X-CSRF-Token` returned by `GET /api/v1/auth/csrf`.
+Bearer-token requests remain exempt. See [OAuth social sign-in](/gin-kit/oauth/).

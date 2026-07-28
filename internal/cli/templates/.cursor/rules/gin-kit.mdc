@@ -9,3 +9,7 @@ responses with `New<Name>Response` mappers; services take DTOs and return
 domain values; `context.Context` flows through every boundary; migrations are
 versioned SQL. Keep the OpenAPI description in sync when routes change. Run
 `gin-kit check` after changes.
+
+For OAuth-enabled projects, preserve PKCE/state/nonce validation,
+verified-email linking, and the rule that provider tokens never enter logs,
+models, or responses.

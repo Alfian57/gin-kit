@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Alfian57/gin-kit/runtime/session"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -116,4 +117,37 @@ func TestRequireAuthPanicsOnNilManager(t *testing.T) {
 		}
 	}()
 	RequireAuth(nil)
+}
+
+func TestRequireLoginAcceptsOAuthSession(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	manager, err := New([]byte(strings.Repeat("s", MinimumSecretLength)), "orders", time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sessionMiddleware, err := session.Middleware(session.Options{Secret: []byte(strings.Repeat("s", session.MinimumSecretLength))})
+	if err != nil {
+		t.Fatal(err)
+	}
+	router := gin.New()
+	router.Use(sessionMiddleware, SessionMiddleware())
+	router.GET("/login", func(c *gin.Context) {
+		if err := LoginSession(c, "oauth-user"); err != nil {
+			t.Fatal(err)
+		}
+		c.Status(http.StatusNoContent)
+	})
+	router.GET("/me", RequireLogin(manager), func(c *gin.Context) { c.String(http.StatusOK, UserID(c)) })
+
+	login := httptest.NewRecorder()
+	router.ServeHTTP(login, httptest.NewRequest(http.MethodGet, "/login", nil))
+	request := httptest.NewRequest(http.MethodGet, "/me", nil)
+	for _, cookie := range login.Result().Cookies() {
+		request.AddCookie(cookie)
+	}
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || response.Body.String() != "oauth-user" {
+		t.Fatalf("session login response: %d %s", response.Code, response.Body.String())
+	}
 }

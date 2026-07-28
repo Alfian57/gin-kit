@@ -13,7 +13,7 @@ import (
 )
 
 func registerTokenRoutes(r *gin.Engine, tokens *service.APITokenService, jwtSecret []byte) {
-	group := r.Group("/api/v1/auth/tokens", middleware.RequireAuth(jwtSecret))
+	group := r.Group("/api/v1/auth/tokens", middleware.RequireLogin(jwtSecret))
 	group.POST("", func(c *gin.Context) {
 		request, ok := httpx.BindJSON[dto.APITokenCreateRequest](c)
 		if !ok {

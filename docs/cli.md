@@ -29,8 +29,16 @@ domain/service/repository boundaries regardless of whether GORM or sqlx is
 selected.
 
 In the interactive form, authentication, the Tasks example, and Docker files
-start selected (`Yes`). With `--non-interactive`, opt into those features with
-`--auth`, `--example`, and `--docker`.
+start selected (`Yes`). OAuth social sign-in starts disabled and requires
+authentication. With `--non-interactive`, opt into features with `--auth`,
+`--oauth` (requires `--auth`), `--example`, and `--docker`.
+
+`--oauth` generates Google and GitHub browser sign-in routes, an encrypted
+session, PKCE/state handling, an `oauth_identities` migration, and the
+corresponding runtime or standalone code. Configure provider credentials in
+`.env` with `OAUTH_GOOGLE_*` and/or `OAUTH_GITHUB_*`; callback success and
+failure use the relative `OAUTH_SUCCESS_REDIRECT` and
+`OAUTH_FAILURE_REDIRECT` paths. See the site guide for the full setup.
 
 New projects write a version 3 `.gin-kit.yaml` manifest. Its project selector
 is `project_type: runtime|standalone`; Runtime projects also pin

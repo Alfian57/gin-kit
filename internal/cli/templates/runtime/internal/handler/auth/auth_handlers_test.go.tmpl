@@ -108,6 +108,8 @@ func TestAuthenticationFlow(t *testing.T) {
 	accounts := service.NewAuthService(
 		&fakeUsers{users: map[string]domain.User{}},
 		&fakeRefresh{tokens: map[string]domain.RefreshToken{}},
+		{{if .OAuth}}nil,
+		{{end}}
 		tokens,
 		time.Hour,
 	)

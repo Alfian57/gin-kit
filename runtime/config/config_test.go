@@ -12,6 +12,9 @@ func clearEnv(t *testing.T) {
 	t.Helper()
 	for _, key := range []string{
 		"PORT", "APP_ENV", "DATABASE_URL", "JWT_SECRET", "TRUSTED_PROXY_CIDRS",
+		"OAUTH_GOOGLE_CLIENT_ID", "OAUTH_GOOGLE_CLIENT_SECRET", "OAUTH_GOOGLE_REDIRECT_URL",
+		"OAUTH_GITHUB_CLIENT_ID", "OAUTH_GITHUB_CLIENT_SECRET", "OAUTH_GITHUB_REDIRECT_URL",
+		"OAUTH_SUCCESS_REDIRECT", "OAUTH_FAILURE_REDIRECT",
 		"CORS_ALLOWED_ORIGINS", "RATE_LIMIT_ENABLED", "RATE_LIMIT_PER_MINUTE",
 		"RATE_LIMIT_BURST", "MAX_BODY_BYTES", "METRICS_ENABLED", "PPROF_ENABLED",
 		"CACHE_DRIVER", "REDIS_URL", "QUEUE_DRIVER", "QUEUE_CONCURRENCY",
@@ -69,6 +72,33 @@ func TestLoadParsesAndNormalizes(t *testing.T) {
 	}
 	if cfg.RateLimitEnabled || cfg.ReadTimeout != 2*time.Second {
 		t.Fatalf("parsed values wrong: %+v", cfg)
+	}
+}
+
+func TestLoadOAuthConfiguration(t *testing.T) {
+	clearEnv(t)
+	t.Setenv("OAUTH_GOOGLE_CLIENT_ID", "google-client")
+	t.Setenv("OAUTH_GOOGLE_CLIENT_SECRET", "google-secret")
+	t.Setenv("OAUTH_GOOGLE_REDIRECT_URL", "https://app.example/auth/oauth/google/callback")
+	t.Setenv("OAUTH_SUCCESS_REDIRECT", "/account")
+	cfg, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.OAuth.Google.ClientID != "google-client" || cfg.OAuth.SuccessRedirect != "/account" || cfg.OAuth.FailureRedirect != "/" {
+		t.Fatalf("OAuth configuration was not loaded: %+v", cfg.OAuth)
+	}
+
+	clearEnv(t)
+	t.Setenv("OAUTH_GITHUB_CLIENT_ID", "github-client")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "each OAuth provider") {
+		t.Fatalf("partial OAuth provider configuration was accepted: %v", err)
+	}
+
+	clearEnv(t)
+	t.Setenv("OAUTH_SUCCESS_REDIRECT", "https://attacker.example")
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "OAUTH_SUCCESS_REDIRECT") {
+		t.Fatalf("external OAuth redirect was accepted: %v", err)
 	}
 }
 

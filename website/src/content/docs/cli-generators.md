@@ -24,7 +24,8 @@ gin-kit explain <topic>   # architecture | request-flow | database | auth | comm
 
 `new` defaults to `--project-type runtime`; use `--project-type standalone` for the
 standalone source-visible project type, `--auth` for the authentication vertical,
-`--example` for the tasks example, and `--docker` for compose files.
+`--oauth` (with `--auth`) for Google and GitHub social sign-in, `--example`
+for the tasks example, and `--docker` for compose files.
 Non-interactive creation requires `--module`, `--mode`, `--database`, and
 `--orm`.
 

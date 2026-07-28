@@ -1,0 +1,42 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/Alfian57/gin-kit/runtime/oauth"
+)
+
+func TestLoginOAuthLinksExistingEmailAndCreatesPasswordlessUser(t *testing.T) {
+	ctx := context.Background()
+	accounts, _ := testAuthService(t, time.Hour)
+	local, _, err := accounts.Register(ctx, "user@example.com", "super-secret-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	linked, err := accounts.LoginOAuth(ctx, oauth.Identity{Provider: "google", Subject: "google-user-1", Email: "user@example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if linked.ID != local.ID {
+		t.Fatalf("OAuth identity linked to %q, want %q", linked.ID, local.ID)
+	}
+	repeated, err := accounts.LoginOAuth(ctx, oauth.Identity{Provider: "google", Subject: "google-user-1", Email: "different@example.com"})
+	if err != nil || repeated.ID != local.ID {
+		t.Fatalf("existing identity was not reused: user=%+v err=%v", repeated, err)
+	}
+
+	passwordless, err := accounts.LoginOAuth(ctx, oauth.Identity{Provider: "github", Subject: "github-user-2", Email: "oauth@example.com"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if passwordless.PasswordHash != nil {
+		t.Fatal("OAuth-created user unexpectedly has a password hash")
+	}
+	if _, _, err := accounts.Login(ctx, passwordless.Email, "any-password"); !errors.Is(err, ErrInvalidCredentials) {
+		t.Fatalf("passwordless account accepted password login: %v", err)
+	}
+}

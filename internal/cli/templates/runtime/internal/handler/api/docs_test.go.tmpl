@@ -9,6 +9,8 @@ import (
 {{end}}
 	"github.com/Alfian57/gin-kit/runtime"
 {{if .Auth}}	jwtauth "github.com/Alfian57/gin-kit/runtime/auth"
+{{if .OAuth}}	socialoauth "github.com/Alfian57/gin-kit/runtime/oauth"
+{{end}}
 {{end}})
 
 // TestOpenAPIDocsServeGeneratedSpec proves the API documents itself: no
@@ -22,7 +24,11 @@ func TestOpenAPIDocsServeGeneratedSpec(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	Register(application.Router(), application.OpenAPI(), tokens, nil, nil)
+{{if .OAuth}}	oauthManager, err := socialoauth.NewManager()
+	if err != nil {
+		t.Fatal(err)
+	}
+{{end}}	Register(application.Router(), application.OpenAPI(), tokens, nil, nil{{if .OAuth}}, oauthManager, "", ""{{end}})
 {{else}}	Register(application.Router(), application.OpenAPI())
 {{end}}
 	spec := httptest.NewRecorder()
@@ -31,7 +37,7 @@ func TestOpenAPIDocsServeGeneratedSpec(t *testing.T) {
 		t.Fatalf("spec status = %d", spec.Code)
 	}
 	body := spec.Body.String()
-	for _, expected := range []string{`"/api/v1/ping"`, `"/health/live"`{{if .Auth}}, `"/api/v1/auth/login"`, "bearerAuth"{{end}}} {
+	for _, expected := range []string{`"/api/v1/ping"`, `"/health/live"`{{if .Auth}}, `"/api/v1/auth/login"`, "bearerAuth"{{end}}{{if .OAuth}}, `"/auth/oauth/{provider}"`, `"/api/v1/auth/csrf"`{{end}}} {
 		if !strings.Contains(body, expected) {
 			t.Fatalf("spec missing %s:\n%s", expected, body)
 		}

@@ -5,10 +5,12 @@ import (
 	"{{.Module}}/internal/platform/httpx"
 {{if .Auth}}	authhandler "{{.Module}}/internal/handler/auth"
 	"{{.Module}}/internal/platform/config"
+{{if .OAuth}}	"{{.Module}}/internal/platform/oauth"
+{{end}}
 {{end}}{{if or .Auth .Example}}	"{{.Module}}/internal/platform/database"
 {{end}})
 
-func Register(r *gin.Engine{{if or .Auth .Example}}, db *database.Connection{{end}}{{if .Auth}}, cfg config.Config{{end}}) {
+func Register(r *gin.Engine{{if or .Auth .Example}}, db *database.Connection{{end}}{{if .Auth}}, cfg config.Config{{end}}{{if .OAuth}}, oauthManager *oauth.Manager, successRedirect, failureRedirect string{{end}}) {
 	r.StaticFile("/openapi.yaml", "api/openapi.yaml")
 	r.GET("/docs", func(c *gin.Context) {
 		c.Data(200, "text/html; charset=utf-8", []byte(`<!doctype html><html><head><title>API Docs</title><link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css"></head><body><div id="swagger-ui"></div><script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script><script>window.onload=()=>SwaggerUIBundle({url:"/openapi.yaml",dom_id:"#swagger-ui"})</script></body></html>`))
@@ -17,7 +19,10 @@ func Register(r *gin.Engine{{if or .Auth .Example}}, db *database.Connection{{en
 	v1.GET("/ping", func(c *gin.Context) {
 		httpx.OK(c, gin.H{"message": "pong"})
 	})
-{{if .Auth}}	authhandler.Register(r, db, cfg)
+{{if .Auth}}{{if .OAuth}}	accounts := authhandler.Register(r, db, cfg)
+	authhandler.RegisterOAuth(r, accounts, oauthManager, successRedirect, failureRedirect)
+{{else}}	authhandler.Register(r, db, cfg)
+{{end}}
 {{end}}{{if .Example}}	registerTasks(v1, db)
 {{end}}
 }

@@ -9,8 +9,8 @@ import (
 
 func TestInteractiveManifestIncludesFeaturesByDefault(t *testing.T) {
 	m := newInteractiveManifest("payments")
-	if !m.Auth || !m.Example || !m.Docker {
-		t.Fatalf("interactive defaults = auth:%t example:%t docker:%t; want all enabled", m.Auth, m.Example, m.Docker)
+	if !m.Auth || !m.Example || !m.Docker || m.OAuth {
+		t.Fatalf("interactive defaults = auth:%t oauth:%t example:%t docker:%t; want auth/example/docker enabled and OAuth disabled", m.Auth, m.OAuth, m.Example, m.Docker)
 	}
 }
 
@@ -119,17 +119,56 @@ func TestScaffoldUIHasEnglishLandingPage(t *testing.T) {
 func TestValidateManifestRejectsInvalidSelections(t *testing.T) {
 	base := Manifest{Version: 3, ProjectType: "standalone", Project: "sample", Module: "example.com/sample", Mode: "api", Database: "sqlite", ORM: "gorm"}
 	for name, mutate := range map[string]func(*Manifest){
-		"mode":         func(m *Manifest) { m.Mode = "desktop" },
-		"database":     func(m *Manifest) { m.Database = "redis" },
-		"orm":          func(m *Manifest) { m.ORM = "raw" },
-		"project type": func(m *Manifest) { m.ProjectType = "framework" },
-		"project path": func(m *Manifest) { m.Project = "../escape" },
+		"mode":               func(m *Manifest) { m.Mode = "desktop" },
+		"database":           func(m *Manifest) { m.Database = "redis" },
+		"orm":                func(m *Manifest) { m.ORM = "raw" },
+		"project type":       func(m *Manifest) { m.ProjectType = "framework" },
+		"project path":       func(m *Manifest) { m.Project = "../escape" },
+		"oauth without auth": func(m *Manifest) { m.OAuth = true },
 	} {
 		t.Run(name, func(t *testing.T) {
 			m := base
 			mutate(&m)
 			if err := validateManifest(m); err == nil {
 				t.Fatal("expected invalid manifest to be rejected")
+			}
+		})
+	}
+}
+
+func TestOAuthScaffoldRequiresAuthAndEmitsBothEditionImplementations(t *testing.T) {
+	target := filepath.Join(t.TempDir(), "invalid")
+	cmd := newCommand()
+	cmd.SetArgs([]string{
+		target, "--non-interactive", "--project-type", "standalone",
+		"--module", "example.com/invalid", "--mode", "api", "--database", "sqlite", "--orm", "gorm", "--oauth",
+	})
+	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "oauth_auth_required") {
+		t.Fatalf("OAuth without auth was accepted: %v", err)
+	}
+
+	for _, projectType := range []string{"standalone", "runtime"} {
+		t.Run(projectType, func(t *testing.T) {
+			dir := filepath.Join(t.TempDir(), projectType)
+			m := Manifest{Version: 3, ProjectType: projectType, RuntimeVersion: "0.3.0", Project: projectType, Module: "example.com/" + projectType, Mode: "api", Database: "sqlite", ORM: "gorm", Auth: true, OAuth: true}
+			if err := scaffold(dir, m); err != nil {
+				t.Fatal(err)
+			}
+			for _, rel := range []string{"internal/domain/oauth_identity.go", "internal/repository/oauth_repository.go", "internal/service/oauth_service.go", "internal/handler/auth/oauth_handlers.go"} {
+				if _, err := os.Stat(filepath.Join(dir, rel)); err != nil {
+					t.Fatalf("OAuth scaffold missing %s: %v", rel, err)
+				}
+			}
+			appSource, err := os.ReadFile(filepath.Join(dir, "internal", "app", "app.go"))
+			if err != nil || !strings.Contains(string(appSource), "OAuth") {
+				t.Fatalf("OAuth app wiring missing: %v\n%s", err, appSource)
+			}
+			if projectType == "standalone" {
+				if _, err := os.Stat(filepath.Join(dir, "internal", "platform", "oauth", "oauth.go")); err != nil {
+					t.Fatalf("standalone OAuth runtime missing: %v", err)
+				}
+			} else if _, err := os.Stat(filepath.Join(dir, "migrations", "00004_oauth_identities.sql")); err != nil {
+				t.Fatalf("runtime OAuth migration missing: %v", err)
 			}
 		})
 	}

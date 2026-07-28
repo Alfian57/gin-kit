@@ -2,8 +2,9 @@ package app
 
 import (
 	"context"
-{{if eq .Mode "ui"}}	"crypto/rand"
+{{if or (eq .Mode "ui") .OAuth}}	"crypto/rand"
 	"errors"
+{{end}}{{if .OAuth}}	"strings"
 {{end}}	"net/http"
 	"time"
 
@@ -11,7 +12,11 @@ import (
 	"{{.Module}}/internal/middleware"
 	"{{.Module}}/internal/platform/config"
 	"{{.Module}}/internal/platform/database"
-{{if eq .Mode "ui"}}	"{{.Module}}/internal/platform/session"
+{{if .OAuth}}	platformauth "{{.Module}}/internal/platform/auth"
+	"{{.Module}}/internal/platform/oauth"
+{{end}}{{if or (eq .Mode "ui") .OAuth}}	"{{.Module}}/internal/platform/session"
+
+{{end}}{{if eq .Mode "ui"}}
 	"{{.Module}}/internal/handler/web"
 {{else}}	"{{.Module}}/internal/handler/api"
 {{end}}
@@ -41,7 +46,7 @@ func New() (*gin.Engine, func(), error) {
 		limiter := middleware.NewRateLimiter(cfg.RateLimits.GeneralPerMinute, cfg.RateLimits.AuthPerMinute, cfg.RateLimits.ExpensivePerMinute)
 		r.Use(limiter.Middleware(middleware.RateGeneral))
 	}
-{{if eq .Mode "ui"}}	sessionSecret := cfg.SessionSecret
+{{if or (eq .Mode "ui") .OAuth}}	sessionSecret := cfg.SessionSecret
 	if len(sessionSecret) == 0 {
 		if !cfg.IsDevelopment() {
 			dbCleanup()
@@ -61,7 +66,11 @@ func New() (*gin.Engine, func(), error) {
 		dbCleanup()
 		return nil, nil, err
 	}
-	r.Use(sessionMiddleware, session.CSRF(session.CSRFOptions{}))
+	{{if .OAuth}}r.Use(sessionMiddleware, platformauth.SessionMiddleware(), session.CSRF(session.CSRFOptions{Skipper: func(c *gin.Context) bool {
+		return strings.HasPrefix(c.Request.URL.Path, "/api/") && (c.GetString("user_id") == "" || c.GetHeader("Authorization") != "")
+	}}))
+	{{else}}r.Use(sessionMiddleware, session.CSRF(session.CSRFOptions{}))
+	{{end}}
 {{end}}
 	r.GET("/health/live", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
 	r.GET("/health/ready", func(c *gin.Context) {
@@ -73,8 +82,22 @@ func New() (*gin.Engine, func(), error) {
 		}
 		c.JSON(http.StatusOK, gin.H{"status": "ready"})
 	})
-{{if eq .Mode "ui"}}	web.Register(r{{if or .Auth .Example}}, db{{end}}{{if .Auth}}, cfg{{end}})
-{{else}}	api.Register(r{{if or .Auth .Example}}, db{{end}}{{if .Auth}}, cfg{{end}})
+{{if .OAuth}}	providers := []oauth.Provider{}
+	if cfg.OAuth.Google.ClientID != "" {
+		provider, err := oauth.NewGoogle(context.Background(), oauth.Config{ClientID: cfg.OAuth.Google.ClientID, ClientSecret: cfg.OAuth.Google.ClientSecret, RedirectURL: cfg.OAuth.Google.RedirectURL})
+		if err != nil { dbCleanup(); return nil, nil, err }
+		providers = append(providers, provider)
+	}
+	if cfg.OAuth.GitHub.ClientID != "" {
+		provider, err := oauth.NewGitHub(oauth.Config{ClientID: cfg.OAuth.GitHub.ClientID, ClientSecret: cfg.OAuth.GitHub.ClientSecret, RedirectURL: cfg.OAuth.GitHub.RedirectURL})
+		if err != nil { dbCleanup(); return nil, nil, err }
+		providers = append(providers, provider)
+	}
+	oauthManager, err := oauth.NewManager(providers...)
+	if err != nil { dbCleanup(); return nil, nil, err }
+{{end}}
+{{if eq .Mode "ui"}}	web.Register(r{{if or .Auth .Example}}, db{{end}}{{if .Auth}}, cfg{{end}}{{if .OAuth}}, oauthManager, cfg.OAuth.SuccessRedirect, cfg.OAuth.FailureRedirect{{end}})
+{{else}}	api.Register(r{{if or .Auth .Example}}, db{{end}}{{if .Auth}}, cfg{{end}}{{if .OAuth}}, oauthManager, cfg.OAuth.SuccessRedirect, cfg.OAuth.FailureRedirect{{end}})
 {{end}}
 	cleanup := func() { dbCleanup() }
 	return r, cleanup, nil

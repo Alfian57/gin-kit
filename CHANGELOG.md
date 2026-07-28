@@ -7,6 +7,14 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Opt-in OAuth social sign-in for newly generated Runtime and Standalone
+  projects. `gin-kit new --auth --oauth` adds explicit Google OIDC and GitHub
+  OAuth routes, encrypted browser sessions, PKCE/state/nonce verification,
+  CSRF handling for cookie-authenticated APIs, verified-email identity linking,
+  passwordless OAuth users, and versioned `oauth_identities` migrations.
+
 ### Breaking
 
 - Project selection is now **Runtime** or **Standalone**. New projects write
