@@ -7,6 +7,8 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-29
+
 ### Changed
 
 - Generated `.env.example` files now separate related settings with blank
