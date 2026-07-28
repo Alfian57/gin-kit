@@ -10,8 +10,10 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// testSecret define package-level implementation state.
 var testSecret = []byte(strings.Repeat("s", MinimumSecretLength))
 
+// sessionRouter performs this package operation.
 func sessionRouter(t *testing.T) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)

@@ -19,8 +19,10 @@ import (
 
 const (
 	// DefaultFlowTTL limits how long a browser may complete an OAuth flow.
-	DefaultFlowTTL  = 10 * time.Minute
+	DefaultFlowTTL = 10 * time.Minute
+	// maxPendingFlows define package-level implementation state.
 	maxPendingFlows = 5
+	// flowsSessionKey define package-level implementation state.
 	flowsSessionKey = "gin-kit.oauth.flows"
 )
 
@@ -38,27 +40,38 @@ var (
 // Identity is the verified profile returned by a social provider. Provider
 // tokens intentionally do not leave this package or enter application storage.
 type Identity struct {
-	Provider  string `json:"provider"`
-	Subject   string `json:"subject"`
-	Email     string `json:"email"`
-	Name      string `json:"name"`
+	// Provider store data used by this type.
+	Provider string `json:"provider"`
+	// Subject store data used by this type.
+	Subject string `json:"subject"`
+	// Email store data used by this type.
+	Email string `json:"email"`
+	// Name store data used by this type.
+	Name string `json:"name"`
+	// AvatarURL store data used by this type.
 	AvatarURL string `json:"avatar_url"`
 }
 
 // Provider is an explicit OAuth provider implementation. Applications may add
 // a provider without global registration or reflection.
 type Provider interface {
+	// Name define an operation required by this interface.
 	Name() string
+	// AuthorizationURL define an operation required by this interface.
 	AuthorizationURL(state, verifier, nonce string) string
+	// Identity define an operation required by this interface.
 	Identity(ctx context.Context, code, verifier, nonce string) (Identity, error)
 }
 
 // Manager owns a fixed provider registry and the browser flow state stored in
 // the application's encrypted session cookie.
 type Manager struct {
+	// providers store data used by this type.
 	providers map[string]Provider
-	flowTTL   time.Duration
-	now       func() time.Time
+	// flowTTL store data used by this type.
+	flowTTL time.Duration
+	// now store data used by this type.
+	now func() time.Time
 }
 
 // NewManager creates an explicit OAuth provider registry.
@@ -160,23 +173,32 @@ func (m *Manager) Complete(c *gin.Context, providerName, code, state string) (Id
 // Denied reports whether an OAuth provider returned an authorization error.
 func Denied(c *gin.Context) bool { return strings.TrimSpace(c.Query("error")) != "" }
 
+// flow defines an implementation type used by this package.
 type flow struct {
-	Provider  string    `json:"provider"`
-	State     string    `json:"state"`
-	Nonce     string    `json:"nonce"`
-	Verifier  string    `json:"verifier"`
+	// Provider store data used by this type.
+	Provider string `json:"provider"`
+	// State store data used by this type.
+	State string `json:"state"`
+	// Nonce store data used by this type.
+	Nonce string `json:"nonce"`
+	// Verifier store data used by this type.
+	Verifier string `json:"verifier"`
+	// ExpiresAt store data used by this type.
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
+// provider performs this package operation.
 func (m *Manager) provider(name string) (Provider, string) {
 	name = normalizeProvider(name)
 	return m.providers[name], name
 }
 
+// normalizeProvider performs this package operation.
 func normalizeProvider(name string) string {
 	return strings.ToLower(strings.TrimSpace(name))
 }
 
+// readFlows performs this package operation.
 func readFlows(c *gin.Context) (map[string]flow, error) {
 	encoded, _ := session.Get(c, flowsSessionKey).(string)
 	if encoded == "" {
@@ -189,6 +211,7 @@ func readFlows(c *gin.Context) (map[string]flow, error) {
 	return flows, nil
 }
 
+// writeFlows performs this package operation.
 func writeFlows(c *gin.Context, flows map[string]flow) error {
 	encoded, err := json.Marshal(flows)
 	if err != nil {
@@ -200,6 +223,7 @@ func writeFlows(c *gin.Context, flows map[string]flow) error {
 	return nil
 }
 
+// randomURLValue performs this package operation.
 func randomURLValue(bytes int) (string, error) {
 	raw := make([]byte, bytes)
 	if _, err := rand.Read(raw); err != nil {

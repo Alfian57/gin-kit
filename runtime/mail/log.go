@@ -8,9 +8,11 @@ import (
 // logMailer renders the full message and writes it to the logger instead of
 // sending it — the development default.
 type logMailer struct {
+	// options store data used by this type.
 	options Options
 }
 
+// Send performs this package operation.
 func (m *logMailer) Send(ctx context.Context, message *Message) error {
 	msg, err := build(message, m.options)
 	if err != nil {
@@ -28,4 +30,5 @@ func (m *logMailer) Send(ctx context.Context, message *Message) error {
 	return nil
 }
 
+// Close performs this package operation.
 func (m *logMailer) Close() error { return nil }

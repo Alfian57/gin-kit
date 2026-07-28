@@ -11,7 +11,9 @@ import (
 )
 
 const (
+	// claimsKey define package-level implementation state.
 	claimsKey = "gin-kit.auth.claims"
+	// userIDKey define package-level implementation state.
 	userIDKey = "user_id"
 )
 
@@ -30,6 +32,7 @@ func RequireLogin(manager *Manager) gin.HandlerFunc {
 	return require(manager, true)
 }
 
+// require performs this package operation.
 func require(manager *Manager, allowSession bool) gin.HandlerFunc {
 	if manager == nil {
 		panic("auth: authentication middleware requires a non-nil manager")

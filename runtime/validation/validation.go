@@ -1,3 +1,4 @@
+// Package validation provides gin-kit validation implementation support.
 package validation
 
 import (
@@ -11,16 +12,21 @@ import (
 
 // FieldError describes one failed validation rule without exposing the submitted value.
 type FieldError struct {
-	Rule       string            `json:"rule"`
-	Message    string            `json:"message"`
+	// Rule store data used by this type.
+	Rule string `json:"rule"`
+	// Message store data used by this type.
+	Message string `json:"message"`
+	// Parameters store data used by this type.
 	Parameters map[string]string `json:"parameters"`
 }
 
 // Errors groups failures by their JSON field path.
 type Errors struct {
+	// Fields store data used by this type.
 	Fields map[string][]FieldError `json:"fields"`
 }
 
+// Error performs this package operation.
 func (e *Errors) Error() string {
 	if e == nil {
 		return "validation failed"
@@ -30,8 +36,11 @@ func (e *Errors) Error() string {
 
 // Context is supplied to message translators.
 type Context struct {
-	Field     string
-	Rule      string
+	// Field store data used by this type.
+	Field string
+	// Rule store data used by this type.
+	Rule string
+	// Parameter store data used by this type.
 	Parameter string
 }
 
@@ -40,8 +49,11 @@ type Translator func(Context) string
 
 // Validator is an explicit wrapper around go-playground/validator.
 type Validator struct {
-	engine    *validator.Validate
-	messages  map[string]string
+	// engine store data used by this type.
+	engine *validator.Validate
+	// messages store data used by this type.
+	messages map[string]string
+	// translate store data used by this type.
 	translate Translator
 }
 
@@ -129,6 +141,7 @@ func (v *Validator) Struct(value any) error {
 	return result
 }
 
+// fieldPath performs this package operation.
 func fieldPath(namespace string) string {
 	parts := strings.Split(namespace, ".")
 	if len(parts) > 1 {
@@ -137,6 +150,7 @@ func fieldPath(namespace string) string {
 	return strings.Join(parts, ".")
 }
 
+// parameterName performs this package operation.
 func parameterName(rule string) string {
 	switch rule {
 	case "min":
@@ -170,6 +184,7 @@ func parameterName(rule string) string {
 	}
 }
 
+// englishMessage performs this package operation.
 func englishMessage(c Context) string {
 	switch c.Rule {
 	case "required":

@@ -13,14 +13,23 @@ import (
 // stubMailer succeeds every send without touching a transport.
 type stubMailer struct{}
 
+// Send performs this package operation.
 func (stubMailer) Send(context.Context, *mail.Message) error { return nil }
-func (stubMailer) Close() error                              { return nil }
+
+// Close performs this package operation.
+func (stubMailer) Close() error { return nil }
 
 // failingMailer fails every send with a fixed error.
-type failingMailer struct{ err error }
+type failingMailer struct {
+	// err is returned by each Send call.
+	err error
+}
 
+// Send performs this package operation.
 func (m failingMailer) Send(context.Context, *mail.Message) error { return m.err }
-func (failingMailer) Close() error                                { return nil }
+
+// Close performs this package operation.
+func (failingMailer) Close() error { return nil }
 
 func TestWrapMailerRecordsSentMessages(t *testing.T) {
 	d := New(Options{})

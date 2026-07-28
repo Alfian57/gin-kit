@@ -13,12 +13,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// cursorOptions performs this package operation.
 func cursorOptions() Options {
 	options := taskOptions()
 	options.CursorSort = "created_at"
 	return options
 }
 
+// cursorResult performs this package operation.
 func cursorResult(desc bool, cursor *Cursor) Result {
 	return Result{
 		CursorMode: true,

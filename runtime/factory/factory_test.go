@@ -7,12 +7,17 @@ import (
 	"testing"
 )
 
+// user defines an implementation type used by this package.
 type user struct {
-	ID    int
+	// ID store data used by this type.
+	ID int
+	// Email store data used by this type.
 	Email string
-	Name  string
+	// Name store data used by this type.
+	Name string
 }
 
+// userFactory performs this package operation.
 func userFactory() *Factory[user] {
 	return Define(func(f *F) user {
 		return user{ID: f.Seq(), Email: f.Seqf("user-%d@example.com"), Name: f.Name()}

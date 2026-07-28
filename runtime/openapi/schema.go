@@ -7,6 +7,7 @@ import (
 	"time"
 )
 
+// timeType define package-level implementation state.
 var timeType = reflect.TypeOf(time.Time{})
 
 // schemaFor converts a Go value's type into a Schema, registering named
@@ -21,6 +22,7 @@ func schemaFor(value any, defs map[string]*Schema) *Schema {
 	return schemaForType(reflect.TypeOf(value), defs, map[reflect.Type]string{})
 }
 
+// schemaForType performs this package operation.
 func schemaForType(t reflect.Type, defs map[string]*Schema, seen map[reflect.Type]string) *Schema {
 	switch t.Kind() {
 	case reflect.Pointer:
@@ -98,6 +100,7 @@ func componentName(t reflect.Type, defs map[string]*Schema) string {
 	}
 }
 
+// exportedName performs this package operation.
 func exportedName(pkg string) string {
 	cleaned := strings.NewReplacer("-", "", "_", "", ".", "").Replace(pkg)
 	if cleaned == "" {
@@ -106,12 +109,14 @@ func exportedName(pkg string) string {
 	return strings.ToUpper(cleaned[:1]) + cleaned[1:]
 }
 
+// structSchema performs this package operation.
 func structSchema(t reflect.Type, defs map[string]*Schema, seen map[reflect.Type]string) *Schema {
 	schema := &Schema{Type: "object", Properties: map[string]*Schema{}}
 	addStructFields(t, schema, defs, seen)
 	return schema
 }
 
+// addStructFields performs this package operation.
 func addStructFields(t reflect.Type, schema *Schema, defs map[string]*Schema, seen map[reflect.Type]string) {
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)

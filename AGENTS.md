@@ -36,6 +36,7 @@ go test ./...
 go test -race ./...
 go vet ./...
 test -z "$(gofmt -l cmd runtime internal)"
+go run ./cmd/doccheck
 gofmt -w cmd runtime internal
 go run ./cmd/gin-kit new /tmp/gin-kit-sample --non-interactive --project-type standalone --module example.com/sample --mode api --database sqlite --orm gorm
 cd website && npm ci && npm run check && npm run build
@@ -44,6 +45,10 @@ cd website && npm ci && npm run check && npm run build
 ## Engineering rules
 
 - Keep source, README files, CLI messages, and generated documentation in English.
+- Document every package-level declaration, struct field, and interface method
+  in `cmd/`, `runtime/`, and `internal/`. Test entry points are self-describing;
+  document reusable test helpers and fixtures. Run `go run ./cmd/doccheck` to
+  enforce this rule before review.
 - Generators must produce explicit, wired-by-hand code. Do not introduce
   reflection-based dependency injection, service locators, or implicit
   application wiring; generators print exact wiring snippets instead of

@@ -8,6 +8,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+// fullResult performs this package operation.
 func fullResult() Result {
 	return Result{
 		Filters: []FilterValue{

@@ -8,10 +8,11 @@ import (
 // fieldSpec is one parsed --fields entry with everything the generator
 // templates need precomputed.
 type fieldSpec struct {
-	Name       string // snake_case column and JSON name
-	Pascal     string // Go field name
-	GoType     string // string, *time.Time, ...
-	Kind       string // string|text|int|int64|float64|bool|time
+	Name   string // snake_case column and JSON name
+	Pascal string // Go field name
+	GoType string // string, *time.Time, ...
+	Kind   string // string|text|int|int64|float64|bool|time
+	// Nullable store data used by this type.
 	Nullable   bool
 	SQLType    string // full column definition tail, e.g. "VARCHAR(255) NOT NULL"
 	StructTag  string // complete struct tag including backticks
@@ -21,8 +22,10 @@ type fieldSpec struct {
 	Sensitive  bool   // credential-like fields stay out of response DTOs
 }
 
+// fieldsGrammar define package-level implementation state.
 const fieldsGrammar = `--fields "name:type,other:type?" with types string, text, int, int64, float64, bool, time (aliases: float, datetime, timestamp); a trailing ? makes the field nullable`
 
+// reservedFieldNames define package-level implementation state.
 var reservedFieldNames = map[string]bool{"id": true, "created_at": true, "updated_at": true, "deleted_at": true}
 
 // parseFields parses the --fields DSL for the manifest's database dialect.
@@ -151,6 +154,7 @@ func isSensitiveField(name string) bool {
 	return false
 }
 
+// isSnakeIdentifier performs this package operation.
 func isSnakeIdentifier(name string) bool {
 	if name == "" || !(name[0] >= 'a' && name[0] <= 'z') {
 		return false
@@ -163,6 +167,7 @@ func isSnakeIdentifier(name string) bool {
 	return true
 }
 
+// buildField performs this package operation.
 func buildField(name, kind string, nullable bool, database string) (fieldSpec, error) {
 	switch kind {
 	case "float":

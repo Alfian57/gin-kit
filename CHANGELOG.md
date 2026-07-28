@@ -7,6 +7,13 @@ and versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Generated `.env.example` files now separate related settings with blank
+  lines, runtime API documentation has a package map, and the repository
+  enforces complete source documentation for framework and CLI declarations
+  through the new `doccheck` CI and release gate.
+
 ### Added
 
 - Runtime projects can now send approved WhatsApp Business templates through

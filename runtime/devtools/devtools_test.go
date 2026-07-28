@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// newTestRouter performs this package operation.
 func newTestRouter(t *testing.T, d *DevTools) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
@@ -24,6 +25,7 @@ func newTestRouter(t *testing.T, d *DevTools) *gin.Engine {
 	return router
 }
 
+// getJSON performs this package operation.
 func getJSON(t *testing.T, router *gin.Engine, path string) (*httptest.ResponseRecorder, map[string]any) {
 	t.Helper()
 	recorder := httptest.NewRecorder()

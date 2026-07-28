@@ -19,14 +19,19 @@ import (
 )
 
 const (
+	// defaultClientBuffer define package-level implementation state.
 	defaultClientBuffer = 16
-	pingInterval        = 25 * time.Second
-	readLimit           = 4096
+	// pingInterval define package-level implementation state.
+	pingInterval = 25 * time.Second
+	// readLimit define package-level implementation state.
+	readLimit = 4096
 )
 
 var (
+	// ErrUnknownChannel define package-level implementation state.
 	ErrUnknownChannel = errors.New("realtime: unknown channel")
-	ErrForbidden      = errors.New("realtime: channel subscription forbidden")
+	// ErrForbidden define package-level implementation state.
+	ErrForbidden = errors.New("realtime: channel subscription forbidden")
 )
 
 // AuthFunc decides whether the current HTTP request may subscribe to a
@@ -37,26 +42,40 @@ type AuthFunc func(*gin.Context) error
 // OriginPatterns are passed to coder/websocket and match origin hosts, not
 // full URLs. The request host remains allowed by the WebSocket library.
 type Options struct {
-	ClientBuffer   int
+	// ClientBuffer store data used by this type.
+	ClientBuffer int
+	// OriginPatterns store data used by this type.
 	OriginPatterns []string
 }
 
+// channel defines an implementation type used by this package.
 type channel struct {
+	// private store data used by this type.
 	private bool
-	auth    AuthFunc
+	// auth store data used by this type.
+	auth AuthFunc
+	// clients store data used by this type.
 	clients map[*client]struct{}
 }
 
 // Hub owns named public and private channels and their current subscribers.
 // Register channels during application setup, before accepting connections.
 type Hub struct {
-	mu        sync.RWMutex
-	channels  map[string]*channel
-	clients   map[*client]struct{}
-	buffer    int
-	origins   []string
-	closed    bool
-	done      chan struct{}
+	// mu store data used by this type.
+	mu sync.RWMutex
+	// channels store data used by this type.
+	channels map[string]*channel
+	// clients store data used by this type.
+	clients map[*client]struct{}
+	// buffer store data used by this type.
+	buffer int
+	// origins store data used by this type.
+	origins []string
+	// closed store data used by this type.
+	closed bool
+	// done store data used by this type.
+	done chan struct{}
+	// closeOnce store data used by this type.
 	closeOnce sync.Once
 }
 
@@ -95,6 +114,7 @@ func (h *Hub) Private(name string, auth AuthFunc) error {
 	return h.register(name, true, auth)
 }
 
+// register performs this package operation.
 func (h *Hub) register(name string, private bool, auth AuthFunc) error {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -318,16 +338,19 @@ func Forward[T any](bus *events.Bus, hub *Hub, channel, event string, transform 
 	})
 }
 
+// originPatterns performs this package operation.
 func (h *Hub) originPatterns() []string {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return append([]string(nil), h.origins...)
 }
 
+// newClient performs this package operation.
 func (h *Hub) newClient() *client {
 	return &client{send: make(chan []byte, h.buffer), done: make(chan struct{})}
 }
 
+// add performs this package operation.
 func (h *Hub) add(client *client) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -338,6 +361,7 @@ func (h *Hub) add(client *client) bool {
 	return true
 }
 
+// subscribe performs this package operation.
 func (h *Hub) subscribe(request *gin.Context, client *client, name string) error {
 	name = strings.TrimSpace(name)
 	h.mu.RLock()
@@ -363,6 +387,7 @@ func (h *Hub) subscribe(request *gin.Context, client *client, name string) error
 	return nil
 }
 
+// unsubscribe performs this package operation.
 func (h *Hub) unsubscribe(client *client, name string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -371,6 +396,7 @@ func (h *Hub) unsubscribe(client *client, name string) {
 	}
 }
 
+// remove performs this package operation.
 func (h *Hub) remove(client *client) {
 	client.once.Do(func() {
 		h.mu.Lock()
@@ -383,6 +409,7 @@ func (h *Hub) remove(client *client) {
 	})
 }
 
+// writeWebSocket performs this package operation.
 func (h *Hub) writeWebSocket(ctx context.Context, connection *websocket.Conn, client *client) {
 	for {
 		select {
@@ -401,6 +428,7 @@ func (h *Hub) writeWebSocket(ctx context.Context, connection *websocket.Conn, cl
 	}
 }
 
+// ping performs this package operation.
 func (h *Hub) ping(ctx context.Context, connection *websocket.Conn, client *client) {
 	ticker := time.NewTicker(pingInterval)
 	defer ticker.Stop()
@@ -422,12 +450,17 @@ func (h *Hub) ping(ctx context.Context, connection *websocket.Conn, client *clie
 	}
 }
 
+// client defines an implementation type used by this package.
 type client struct {
+	// send store data used by this type.
 	send chan []byte
+	// done store data used by this type.
 	done chan struct{}
+	// once store data used by this type.
 	once sync.Once
 }
 
+// enqueue performs this package operation.
 func (c *client) enqueue(payload []byte) bool {
 	select {
 	case <-c.done:
@@ -442,14 +475,17 @@ func (c *client) enqueue(payload []byte) bool {
 	}
 }
 
+// ack performs this package operation.
 func (c *client) ack(event, channel string) bool {
 	return c.enqueue(mustJSON(message{Event: event, Channel: channel}))
 }
 
+// error performs this package operation.
 func (c *client) error(code, text string) bool {
 	return c.enqueue(mustJSON(message{Event: "error", Error: &protocolError{Code: code, Message: text}}))
 }
 
+// subscriptionError performs this package operation.
 func (c *client) subscriptionError(err error) bool {
 	code := "subscription_failed"
 	message := "subscription failed"
@@ -462,6 +498,7 @@ func (c *client) subscriptionError(err error) bool {
 	return c.error(code, message)
 }
 
+// mustJSON performs this package operation.
 func mustJSON(value any) []byte {
 	encoded, err := json.Marshal(value)
 	if err != nil {
@@ -470,23 +507,35 @@ func mustJSON(value any) []byte {
 	return encoded
 }
 
+// subscriptionRequest defines an implementation type used by this package.
 type subscriptionRequest struct {
-	Action  string `json:"action"`
+	// Action store data used by this type.
+	Action string `json:"action"`
+	// Channel store data used by this type.
 	Channel string `json:"channel"`
 }
 
+// message defines an implementation type used by this package.
 type message struct {
-	Channel string         `json:"channel,omitempty"`
-	Event   string         `json:"event"`
-	Data    any            `json:"data,omitempty"`
-	Error   *protocolError `json:"error,omitempty"`
+	// Channel store data used by this type.
+	Channel string `json:"channel,omitempty"`
+	// Event store data used by this type.
+	Event string `json:"event"`
+	// Data store data used by this type.
+	Data any `json:"data,omitempty"`
+	// Error store data used by this type.
+	Error *protocolError `json:"error,omitempty"`
 }
 
+// protocolError defines an implementation type used by this package.
 type protocolError struct {
-	Code    string `json:"code"`
+	// Code store data used by this type.
+	Code string `json:"code"`
+	// Message store data used by this type.
 	Message string `json:"message"`
 }
 
+// requestedChannels performs this package operation.
 func requestedChannels(c *gin.Context) []string {
 	var result []string
 	for _, raw := range c.QueryArray("channel") {

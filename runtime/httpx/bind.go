@@ -1,3 +1,4 @@
+// Package httpx provides gin-kit httpx implementation support.
 package httpx
 
 import (
@@ -74,6 +75,7 @@ func validateBound(c *gin.Context, value any, validators []*validation.Validator
 	return true
 }
 
+// contextValidator performs this package operation.
 func contextValidator(c *gin.Context) *validation.Validator {
 	if value, exists := c.Get(ValidatorKey); exists {
 		if v, ok := value.(*validation.Validator); ok && v != nil {
@@ -83,6 +85,7 @@ func contextValidator(c *gin.Context) *validation.Validator {
 	return nil
 }
 
+// invalidJSON performs this package operation.
 func invalidJSON(cause error) *Error {
 	var tooLarge *http.MaxBytesError
 	if errors.As(cause, &tooLarge) {

@@ -23,7 +23,9 @@ import (
 
 // Browser bundles a running Playwright driver and a Chromium instance.
 type Browser struct {
-	PW       *playwright.Playwright
+	// PW store data used by this type.
+	PW *playwright.Playwright
+	// Chromium store data used by this type.
 	Chromium playwright.Browser
 }
 

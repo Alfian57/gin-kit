@@ -13,6 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// Options defines an implementation type used by this package.
 type Options struct {
 	// Registry receives the HTTP collectors. When nil, a new registry with the
 	// standard Go and process collectors is created.
@@ -23,13 +24,19 @@ type Options struct {
 	Buckets []float64
 }
 
+// Metrics defines an implementation type used by this package.
 type Metrics struct {
+	// registry store data used by this type.
 	registry *prometheus.Registry
+	// requests store data used by this type.
 	requests *prometheus.CounterVec
+	// duration store data used by this type.
 	duration *prometheus.HistogramVec
+	// inFlight store data used by this type.
 	inFlight prometheus.Gauge
 }
 
+// New performs this package operation.
 func New(options Options) (*Metrics, error) {
 	registry := options.Registry
 	if registry == nil {

@@ -16,13 +16,16 @@ import (
 )
 
 const (
-	forbiddenCode    = "forbidden"
+	// forbiddenCode define package-level implementation state.
+	forbiddenCode = "forbidden"
+	// forbiddenMessage define package-level implementation state.
 	forbiddenMessage = "You are not allowed to perform this action."
 )
 
 // Decision is the outcome of a policy check. The zero value denies, so a
 // forgotten rule fails closed.
 type Decision struct {
+	// Allowed store data used by this type.
 	Allowed bool
 	Reason  string // internal; logged, never serialized
 }
@@ -57,6 +60,7 @@ func Authorize(c *gin.Context, d Decision) bool {
 	return false
 }
 
+// denyReason performs this package operation.
 func (d Decision) denyReason() string {
 	if d.Reason == "" {
 		return "denied"

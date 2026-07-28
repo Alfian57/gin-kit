@@ -41,6 +41,7 @@ func splitWords(name string) []string {
 	return words
 }
 
+// snakeCase performs this package operation.
 func snakeCase(name string) string {
 	words := splitWords(name)
 	for index, word := range words {
@@ -49,6 +50,7 @@ func snakeCase(name string) string {
 	return strings.Join(words, "_")
 }
 
+// pascalCase performs this package operation.
 func pascalCase(name string) string {
 	words := splitWords(name)
 	for index, word := range words {
@@ -58,6 +60,7 @@ func pascalCase(name string) string {
 	return strings.Join(words, "")
 }
 
+// camelCase performs this package operation.
 func camelCase(name string) string {
 	pascal := pascalCase(name)
 	if pascal == "" {
@@ -82,8 +85,10 @@ func pluralize(word string) string {
 	}
 }
 
+// isVowel performs this package operation.
 func isVowel(r rune) bool { return strings.ContainsRune("aeiou", r) }
 
+// goKeywords define package-level implementation state.
 var goKeywords = map[string]bool{
 	"break": true, "case": true, "chan": true, "const": true, "continue": true,
 	"default": true, "defer": true, "else": true, "fallthrough": true, "for": true,
@@ -92,6 +97,7 @@ var goKeywords = map[string]bool{
 	"select": true, "struct": true, "switch": true, "type": true, "var": true,
 }
 
+// pascalIdentifier define package-level implementation state.
 var pascalIdentifier = regexp.MustCompile(`^[A-Z][A-Za-z0-9]*$`)
 
 // validateGeneratorName normalizes a user-supplied name and rejects anything

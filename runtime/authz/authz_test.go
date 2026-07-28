@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// init initializes package-level implementation state.
 func init() { gin.SetMode(gin.TestMode) }
 
 func TestAuthorizeAllowWritesNothing(t *testing.T) {

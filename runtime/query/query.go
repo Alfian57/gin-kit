@@ -29,21 +29,33 @@ import (
 type Op string
 
 const (
-	OpEq   Op = "eq"
+	// OpEq define package-level implementation state.
+	OpEq Op = "eq"
+	// OpLike define package-level implementation state.
 	OpLike Op = "like"
-	OpIn   Op = "in"
-	OpGte  Op = "gte"
-	OpLte  Op = "lte"
-	OpGt   Op = "gt"
-	OpLt   Op = "lt"
+	// OpIn define package-level implementation state.
+	OpIn Op = "in"
+	// OpGte define package-level implementation state.
+	OpGte Op = "gte"
+	// OpLte define package-level implementation state.
+	OpLte Op = "lte"
+	// OpGt define package-level implementation state.
+	OpGt Op = "gt"
+	// OpLt define package-level implementation state.
+	OpLt Op = "lt"
 )
 
+// filterKind defines an implementation type used by this package.
 type filterKind int
 
 const (
+	// kindExact define package-level implementation state.
 	kindExact filterKind = iota
+	// kindPartial define package-level implementation state.
 	kindPartial
+	// kindIn define package-level implementation state.
 	kindIn
+	// kindCompare define package-level implementation state.
 	kindCompare
 )
 
@@ -52,9 +64,13 @@ const maxInValues = 100
 
 // Filter declares one allowed filter parameter.
 type Filter struct {
-	name      string
-	column    string
-	kind      filterKind
+	// name store data used by this type.
+	name string
+	// column store data used by this type.
+	column string
+	// kind store data used by this type.
+	kind filterKind
+	// boolValue store data used by this type.
 	boolValue bool
 }
 
@@ -87,7 +103,9 @@ func (f Filter) Bool() Filter {
 
 // Sort declares one allowed sort field.
 type Sort struct {
-	name   string
+	// name store data used by this type.
+	name string
+	// column store data used by this type.
 	column string
 }
 
@@ -102,8 +120,10 @@ func (s Sort) Column(column string) Sort {
 
 // Options declares what a list endpoint accepts.
 type Options struct {
+	// AllowedFilters store data used by this type.
 	AllowedFilters []Filter
-	AllowedSorts   []Sort
+	// AllowedSorts store data used by this type.
+	AllowedSorts []Sort
 	// DefaultSort is applied when the request has no sort parameter, e.g.
 	// "-created_at". It must reference an allowed sort.
 	DefaultSort string
@@ -121,9 +141,13 @@ type Options struct {
 
 // FilterValue is one accepted filter with its bound values.
 type FilterValue struct {
-	Name   string
+	// Name store data used by this type.
+	Name string
+	// Column store data used by this type.
 	Column string
-	Op     Op
+	// Op store data used by this type.
+	Op Op
+	// Values store data used by this type.
 	Values []string
 	// Bool marks values that bind as native booleans.
 	Bool bool
@@ -140,15 +164,21 @@ func (f FilterValue) arg(value string) any {
 
 // SortValue is one accepted sort field.
 type SortValue struct {
+	// Column store data used by this type.
 	Column string
-	Desc   bool
+	// Desc store data used by this type.
+	Desc bool
 }
 
 // Result is a validated, normalized query ready to apply to a data source.
 type Result struct {
+	// Filters store data used by this type.
 	Filters []FilterValue
-	Sorts   []SortValue
-	Page    int
+	// Sorts store data used by this type.
+	Sorts []SortValue
+	// Page store data used by this type.
+	Page int
+	// PerPage store data used by this type.
 	PerPage int
 	// CursorMode reports that the endpoint uses cursor (keyset) pagination.
 	CursorMode bool
@@ -161,9 +191,13 @@ func (r Result) Offset() int { return (r.Page - 1) * r.PerPage }
 
 // Meta is the standard pagination metadata for httpx.List.
 type Meta struct {
-	Page       int   `json:"page"`
-	PerPage    int   `json:"per_page"`
-	Total      int64 `json:"total"`
+	// Page store data used by this type.
+	Page int `json:"page"`
+	// PerPage store data used by this type.
+	PerPage int `json:"per_page"`
+	// Total store data used by this type.
+	Total int64 `json:"total"`
+	// TotalPages store data used by this type.
 	TotalPages int64 `json:"total_pages"`
 }
 
@@ -177,8 +211,10 @@ func (r Result) Meta(total int64) Meta {
 }
 
 var (
+	// identifierPattern define package-level implementation state.
 	identifierPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.]*$`)
-	filterKeyPattern  = regexp.MustCompile(`^filter\[([^\[\]]+)\](?:\[([^\[\]]+)\])?$`)
+	// filterKeyPattern define package-level implementation state.
+	filterKeyPattern = regexp.MustCompile(`^filter\[([^\[\]]+)\](?:\[([^\[\]]+)\])?$`)
 )
 
 // Parse validates the request's filter, sort, page, and per_page parameters
@@ -310,6 +346,7 @@ func Parse(c *gin.Context, options Options) (Result, error) {
 	return result, nil
 }
 
+// buildFilterValue performs this package operation.
 func buildFilterValue(filter Filter, operator, value string) (FilterValue, error) {
 	filterValue := FilterValue{Name: filter.name, Column: filter.column, Bool: filter.boolValue}
 	switch filter.kind {
@@ -354,10 +391,12 @@ func buildFilterValue(filter Filter, operator, value string) (FilterValue, error
 	return filterValue, nil
 }
 
+// configError performs this package operation.
 func configError(message string) *httpx.Error {
 	return httpx.NewError(http.StatusInternalServerError, "query_configuration_invalid", "The endpoint's query configuration is invalid: "+message)
 }
 
+// splitNonEmpty performs this package operation.
 func splitNonEmpty(value string) []string {
 	var items []string
 	for _, item := range strings.Split(value, ",") {

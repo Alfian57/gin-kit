@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// generatedProject performs this package operation.
 func generatedProject(t *testing.T, m Manifest) string {
 	t.Helper()
 	dir := filepath.Join(t.TempDir(), m.Project)
@@ -16,6 +17,7 @@ func generatedProject(t *testing.T, m Manifest) string {
 	return dir
 }
 
+// fileContent performs this package operation.
 func fileContent(t *testing.T, files map[string][]byte, suffix string) string {
 	t.Helper()
 	for path, content := range files {

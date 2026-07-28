@@ -13,6 +13,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// dashboardHTML define package-level implementation state.
+//
 //go:embed dashboard.html
 var dashboardHTML []byte
 
@@ -27,11 +29,13 @@ const dashboardCSP = "default-src 'self'; script-src 'self' 'unsafe-inline'; sty
 // application origin.
 const mailPreviewCSP = "sandbox; default-src 'none'; img-src data: https:; style-src 'unsafe-inline'"
 
+// dashboard performs this package operation.
 func (d *DevTools) dashboard(c *gin.Context) {
 	c.Header("Content-Security-Policy", dashboardCSP)
 	c.Data(http.StatusOK, "text/html; charset=utf-8", dashboardHTML)
 }
 
+// apiRequests performs this package operation.
 func (d *DevTools) apiRequests(c *gin.Context) {
 	httpx.OK(c, d.requests.Snapshot())
 }
@@ -72,11 +76,15 @@ func (d *DevTools) apiMailHTML(c *gin.Context) {
 
 // RouteEntry is one registered route in the devtools route list.
 type RouteEntry struct {
-	Method  string `json:"method"`
-	Path    string `json:"path"`
+	// Method store data used by this type.
+	Method string `json:"method"`
+	// Path store data used by this type.
+	Path string `json:"path"`
+	// Handler store data used by this type.
 	Handler string `json:"handler"`
 }
 
+// apiRoutes performs this package operation.
 func (d *DevTools) apiRoutes(routes func() gin.RoutesInfo) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		list := make([]RouteEntry, 0)
@@ -95,10 +103,12 @@ func (d *DevTools) apiRoutes(routes func() gin.RoutesInfo) gin.HandlerFunc {
 	}
 }
 
+// apiConfig performs this package operation.
 func (d *DevTools) apiConfig(c *gin.Context) {
 	httpx.OK(c, configReport())
 }
 
+// apiQueue performs this package operation.
 func (d *DevTools) apiQueue(queueStats func(context.Context) (queue.Stats, error)) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if queueStats == nil {

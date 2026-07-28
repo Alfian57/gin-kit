@@ -10,14 +10,18 @@ import (
 // the last row on the previous page. Both bind as strings, like Compare
 // filter values.
 type Cursor struct {
+	// Value store data used by this type.
 	Value string
-	ID    string
+	// ID store data used by this type.
+	ID string
 }
 
 // cursorPayload is the JSON wire shape of a cursor token.
 type cursorPayload struct {
+	// Value store data used by this type.
 	Value string `json:"v"`
-	ID    string `json:"id"`
+	// ID store data used by this type.
+	ID string `json:"id"`
 }
 
 // EncodeCursor renders the cursor as an opaque, unpadded base64url token.
@@ -42,8 +46,10 @@ func DecodeCursor(raw string) (Cursor, error) {
 // CursorMeta is the pagination metadata for cursor mode. NextCursor is null
 // on the last page.
 type CursorMeta struct {
+	// NextCursor store data used by this type.
 	NextCursor *string `json:"next_cursor"`
-	PerPage    int     `json:"per_page"`
+	// PerPage store data used by this type.
+	PerPage int `json:"per_page"`
 }
 
 // CursorMeta builds cursor pagination metadata for httpx.List; next == ""

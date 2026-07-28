@@ -9,6 +9,7 @@ import (
 	"testing"
 )
 
+// scaffoldStandaloneForUpgrade performs this package operation.
 func scaffoldStandaloneForUpgrade(t *testing.T, mode string) (string, Manifest) {
 	t.Helper()
 	dir := filepath.Join(t.TempDir(), "app")
@@ -22,6 +23,7 @@ func scaffoldStandaloneForUpgrade(t *testing.T, mode string) (string, Manifest) 
 	return dir, m
 }
 
+// planByPath performs this package operation.
 func planByPath(t *testing.T, rootDir string, m Manifest) map[string]upgradeEntry {
 	t.Helper()
 	entries, err := upgradePlan(rootDir, m)
@@ -35,6 +37,7 @@ func planByPath(t *testing.T, rootDir string, m Manifest) map[string]upgradeEntr
 	return byPath
 }
 
+// mutatePlatformFile performs this package operation.
 func mutatePlatformFile(t *testing.T, rootDir, rel string) {
 	t.Helper()
 	path := filepath.Join(rootDir, filepath.FromSlash(rel))

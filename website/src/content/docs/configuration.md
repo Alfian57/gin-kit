@@ -8,6 +8,11 @@ Required database credentials, CORS origins, and authentication secrets are
 validated before the server starts — malformed values are startup errors, not
 runtime surprises.
 
+Both generated `.env.example` files use blank lines to separate related
+settings. Keep that grouping when adding a variable so local configuration
+stays scannable; this reference remains the authoritative explanation of each
+setting.
+
 Runtime applications use the `runtime/config` package:
 
 ```go

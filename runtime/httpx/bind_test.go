@@ -10,12 +10,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// searchQuery defines an implementation type used by this package.
 type searchQuery struct {
+	// Term store data used by this type.
 	Term string `form:"term" validate:"required,min=3"`
-	Age  int    `form:"age"`
+	// Age store data used by this type.
+	Age int `form:"age"`
 }
 
+// taskPath defines an implementation type used by this package.
 type taskPath struct {
+	// ID store data used by this type.
 	ID int `uri:"id" json:"id" validate:"required,min=1"`
 }
 

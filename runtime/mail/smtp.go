@@ -9,10 +9,13 @@ import (
 
 // smtpMailer sends messages through an SMTP server via wneessen/go-mail.
 type smtpMailer struct {
-	client  *gomail.Client
+	// client store data used by this type.
+	client *gomail.Client
+	// options store data used by this type.
 	options Options
 }
 
+// newSMTPMailer performs this package operation.
 func newSMTPMailer(options Options) (*smtpMailer, error) {
 	clientOptions := []gomail.Option{
 		gomail.WithPort(options.Port),
@@ -42,6 +45,7 @@ func newSMTPMailer(options Options) (*smtpMailer, error) {
 	return &smtpMailer{client: client, options: options}, nil
 }
 
+// Send performs this package operation.
 func (m *smtpMailer) Send(ctx context.Context, message *Message) error {
 	msg, err := build(message, m.options)
 	if err != nil {
@@ -50,4 +54,5 @@ func (m *smtpMailer) Send(ctx context.Context, message *Message) error {
 	return m.client.DialAndSendWithContext(ctx, msg)
 }
 
+// Close performs this package operation.
 func (m *smtpMailer) Close() error { return nil }

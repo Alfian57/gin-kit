@@ -27,25 +27,39 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// Check reports whether one required runtime dependency is ready to serve
+// traffic. Readiness checks run with a short deadline and never affect liveness.
 type Check func(context.Context) error
 
+// HTTPOptions controls the server, request policy, and browser-facing behavior.
 type HTTPOptions struct {
-	Address         string
-	ReadTimeout     time.Duration
-	WriteTimeout    time.Duration
-	IdleTimeout     time.Duration
+	// Address is the HTTP listen address, defaulting to :8080.
+	Address string
+	// ReadTimeout limits time spent reading an entire request.
+	ReadTimeout time.Duration
+	// WriteTimeout limits time spent writing one response.
+	WriteTimeout time.Duration
+	// IdleTimeout limits how long an idle keep-alive connection is retained.
+	IdleTimeout time.Duration
+	// ShutdownTimeout bounds graceful HTTP and runner shutdown.
 	ShutdownTimeout time.Duration
-	MaxBodyBytes    int64
-	UI              bool
-	CORSOrigins     []string
-	RateLimit       RateLimitOptions
+	// MaxBodyBytes rejects larger request bodies with body_too_large.
+	MaxBodyBytes int64
+	// UI enables session- and template-oriented browser defaults.
+	UI bool
+	// CORSOrigins is the explicit allowlist for cross-origin browser requests.
+	CORSOrigins []string
+	// RateLimit configures the per-client request limiter.
+	RateLimit RateLimitOptions
 	// TrustedProxies lists proxy IPs or CIDRs whose forwarded headers
 	// (X-Forwarded-For) are honored when resolving client addresses. When
 	// empty, no proxy is trusted and the socket peer address is used.
 	TrustedProxies []string
 }
 
+// MetricsOptions controls opt-in Prometheus HTTP instrumentation.
 type MetricsOptions struct {
+	// Enabled mounts the metrics endpoint and records HTTP collectors.
 	Enabled bool
 	// Path is the scrape endpoint, defaulting to /metrics.
 	Path string
@@ -54,6 +68,7 @@ type MetricsOptions struct {
 	Registry *prometheus.Registry
 }
 
+// DocsOptions controls the generated OpenAPI document and Swagger UI routes.
 type DocsOptions struct {
 	// Enabled serves the OpenAPI spec and Swagger UI.
 	Enabled bool
@@ -64,16 +79,19 @@ type DocsOptions struct {
 	// Title defaults to "API".
 	Title string
 	// Version defaults to "0.1.0".
-	Version     string
+	Version string
+	// Description is the optional human-readable OpenAPI description.
 	Description string
 	// Servers lists the base URLs shown in the spec.
 	Servers []string
 	// BasicAuthUsername and BasicAuthPassword, when both set, protect the
 	// docs and spec endpoints with HTTP basic auth.
 	BasicAuthUsername string
+	// BasicAuthPassword pairs with BasicAuthUsername to protect both docs routes.
 	BasicAuthPassword string
 }
 
+// QueueOptions configures the runtime-managed job queue.
 type QueueOptions struct {
 	// Driver selects the job backend: "sync" (default, inline execution) or
 	// "redis" (asynq worker supervised by Run).
@@ -84,6 +102,7 @@ type QueueOptions struct {
 	Concurrency int
 }
 
+// CacheOptions configures the cache store shared by application code.
 type CacheOptions struct {
 	// Driver selects the cache store: "memory" (default) or "redis".
 	Driver string
@@ -93,13 +112,16 @@ type CacheOptions struct {
 	RedisURL string
 }
 
+// PProfOptions controls opt-in Go profiling routes.
 type PProfOptions struct {
+	// Enabled mounts profiling routes only when the application explicitly opts in.
 	Enabled bool
 	// Prefix is the mount point, defaulting to /debug/pprof. The endpoints
 	// expose process internals and must never be reachable publicly.
 	Prefix string
 }
 
+// DevToolsOptions controls the development-only diagnostics dashboard.
 type DevToolsOptions struct {
 	// Enabled serves the development dashboard. The runtime refuses to
 	// start when devtools are enabled outside the development environment.
@@ -108,50 +130,88 @@ type DevToolsOptions struct {
 	Path string
 }
 
+// Options assembles the runtime's explicit dependencies and safety policy.
 type Options struct {
+	// Environment selects development or production safety behavior.
 	Environment string
-	Logger      *slog.Logger
-	HTTP        HTTPOptions
-	Validator   *validation.Validator
+	// Logger receives runtime and request-scoped structured logs.
+	Logger *slog.Logger
+	// HTTP supplies server and middleware configuration.
+	HTTP HTTPOptions
+	// Validator replaces the default validator used by request binders.
+	Validator *validation.Validator
+	// ErrorMapper converts application errors into the canonical HTTP envelope.
 	ErrorMapper httpx.Mapper
-	Readiness   map[string]Check
-	Database    *runtimedb.Config
-	Metrics     MetricsOptions
-	PProf       PProfOptions
-	Cache       CacheOptions
-	Queue       QueueOptions
-	Docs        DocsOptions
-	DevTools    DevToolsOptions
+	// Readiness maps dependency names to checks exposed by the readiness route.
+	Readiness map[string]Check
+	// Database opens an owned database connection when non-nil.
+	Database *runtimedb.Config
+	// Metrics configures Prometheus instrumentation.
+	Metrics MetricsOptions
+	// PProf configures profiling routes.
+	PProf PProfOptions
+	// Cache configures the cache store returned by Application.Cache.
+	Cache CacheOptions
+	// Queue configures the queue returned by Application.Queue.
+	Queue QueueOptions
+	// Docs configures generated API documentation routes.
+	Docs DocsOptions
+	// DevTools configures the development-only diagnostics dashboard.
+	DevTools DevToolsOptions
 }
 
+// Application owns the Gin engine, managed infrastructure, and graceful
+// lifecycle hooks created by New.
 type Application struct {
-	router          *gin.Engine
-	server          *http.Server
-	logger          *slog.Logger
-	mapper          httpx.Mapper
-	validator       *validation.Validator
-	readiness       map[string]Check
-	database        *runtimedb.Connection
-	metrics         *metrics.Metrics
-	cache           cache.Store
-	queue           *queue.Queue
-	docs            *openapi.Registry
-	devtools        *devtools.DevTools
+	// router is the Gin engine exposed for explicit route registration.
+	router *gin.Engine
+	// server serves router and is shut down with the application lifecycle.
+	server *http.Server
+	// logger is the base structured logger shared by runtime components.
+	logger *slog.Logger
+	// mapper translates handler errors into public HTTP errors.
+	mapper httpx.Mapper
+	// validator is injected into request binders through Gin context.
+	validator *validation.Validator
+	// readiness holds named checks for the readiness endpoint.
+	readiness map[string]Check
+	// database is the optional owned application connection.
+	database *runtimedb.Connection
+	// metrics owns the optional HTTP collector registry.
+	metrics *metrics.Metrics
+	// cache is the configured store exposed to application code.
+	cache cache.Store
+	// queue is the configured queue and its supervised worker.
+	queue *queue.Queue
+	// docs records explicit operation descriptions before the first spec request.
+	docs *openapi.Registry
+	// devtools records development diagnostics when explicitly enabled.
+	devtools *devtools.DevTools
+	// shutdownTimeout bounds all graceful shutdown work.
 	shutdownTimeout time.Duration
-	hooksMu         sync.Mutex
-	shutdownHooks   []func(context.Context) error
-	hooksRan        bool
-	runnersMu       sync.Mutex
-	runners         []runner
-	started         bool
+	// hooksMu serializes registration and one-time execution of shutdown hooks.
+	hooksMu sync.Mutex
+	// shutdownHooks run in reverse registration order during shutdown.
+	shutdownHooks []func(context.Context) error
+	// hooksRan prevents shutdown hooks from running more than once.
+	hooksRan bool
+	// runnersMu serializes background-runner registration and startup.
+	runnersMu sync.Mutex
+	// runners are long-lived operations supervised by Run.
+	runners []runner
+	// started prevents runners from being registered after Run begins.
+	started bool
 }
 
 // runner is a named long-running goroutine supervised by Run.
 type runner struct {
+	// name identifies the runner in lifecycle errors and logs.
 	name string
-	run  func(context.Context) error
+	// run blocks until its work completes or the context is canceled.
+	run func(context.Context) error
 }
 
+// New performs this package operation.
 func New(options Options) (*Application, error) {
 	applyDefaults(&options)
 	if options.HTTP.MaxBodyBytes < 1 {
@@ -377,6 +437,7 @@ func (a *Application) installQueue(options Options, jobs *queue.Queue) error {
 	return nil
 }
 
+// applyDefaults performs this package operation.
 func applyDefaults(options *Options) {
 	if options.Environment == "" {
 		options.Environment = "development"
@@ -431,6 +492,7 @@ func applyDefaults(options *Options) {
 	}
 }
 
+// Router performs this package operation.
 func (a *Application) Router() *gin.Engine { return a.router }
 
 // Use installs application middleware after gin-kit's safety middleware and
@@ -439,6 +501,7 @@ func (a *Application) Use(middleware ...gin.HandlerFunc) {
 	a.router.Use(middleware...)
 }
 
+// Validator performs this package operation.
 func (a *Application) Validator() *validation.Validator { return a.validator }
 
 // Database returns the selected SQL/GORM/sqlx connection, when configured.
@@ -502,6 +565,7 @@ func (a *Application) Go(name string, run func(context.Context) error) {
 	a.runners = append(a.runners, runner{name: name, run: run})
 }
 
+// OnShutdown performs this package operation.
 func (a *Application) OnShutdown(hook func(context.Context) error) {
 	if hook == nil {
 		return
@@ -559,6 +623,7 @@ func runRunner(ctx context.Context, run func(context.Context) error) (err error)
 	return run(ctx)
 }
 
+// waitForGroup performs this package operation.
 func waitForGroup(ctx context.Context, group *errgroup.Group) error {
 	done := make(chan error, 1)
 	go func() { done <- group.Wait() }()
@@ -577,6 +642,7 @@ func (a *Application) Close(ctx context.Context) error {
 	return a.runShutdownHooks(ctx)
 }
 
+// runShutdownHooks performs this package operation.
 func (a *Application) runShutdownHooks(ctx context.Context) error {
 	a.hooksMu.Lock()
 	if a.hooksRan {
@@ -593,6 +659,7 @@ func (a *Application) runShutdownHooks(ctx context.Context) error {
 	return result
 }
 
+// registerHealthRoutes performs this package operation.
 func (a *Application) registerHealthRoutes() {
 	a.docs.Describe(
 		openapi.Operation{
@@ -638,6 +705,7 @@ func (a *Application) registerHealthRoutes() {
 	})
 }
 
+// String performs this package operation.
 func (a *Application) String() string {
 	return fmt.Sprintf("gin-kit application listening on %s", a.server.Addr)
 }

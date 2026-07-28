@@ -9,12 +9,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// tokenStore defines an implementation type used by this package.
 type tokenStore struct {
-	token   *APIToken
+	// token store data used by this type.
+	token *APIToken
+	// touched store data used by this type.
 	touched bool
 }
 
+// FindByTokenHash performs this package operation.
 func (s *tokenStore) FindByTokenHash(context.Context, string) (*APIToken, error) { return s.token, nil }
+
+// TouchLastUsed performs this package operation.
 func (s *tokenStore) TouchLastUsed(context.Context, string, time.Time) error {
 	s.touched = true
 	return nil

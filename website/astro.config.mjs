@@ -80,6 +80,7 @@ export default defineConfig({
             { label: 'Devtools dashboard', slug: 'devtools' },
             { label: 'CLI and generators', slug: 'cli-generators' },
             { label: 'Customizing the runtime', slug: 'customization' },
+            { label: 'Runtime API map', slug: 'runtime-api' },
             { label: 'UI mode', slug: 'ui-mode' },
             { label: 'Sessions and CSRF', slug: 'sessions' },
             { label: 'Testing', slug: 'testing' },

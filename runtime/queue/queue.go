@@ -14,6 +14,7 @@ import (
 // HandlerFunc processes one job payload.
 type HandlerFunc func(ctx context.Context, payload []byte) error
 
+// Options defines an implementation type used by this package.
 type Options struct {
 	// Driver selects the backend: "sync" (default, executes jobs inline) or
 	// "redis" (asynq worker with retries and graceful drain).
@@ -26,12 +27,17 @@ type Options struct {
 	Queues map[string]int
 	// ShutdownTimeout bounds the in-flight drain on stop, defaulting to 8s.
 	ShutdownTimeout time.Duration
-	Logger          *slog.Logger
+	// Logger store data used by this type.
+	Logger *slog.Logger
 }
 
+// jobOptions defines an implementation type used by this package.
 type jobOptions struct {
-	delay    time.Duration
-	queue    string
+	// delay store data used by this type.
+	delay time.Duration
+	// queue store data used by this type.
+	queue string
+	// maxRetry store data used by this type.
 	maxRetry *int
 }
 
@@ -47,38 +53,56 @@ func OnQueue(name string) Option { return func(o *jobOptions) { o.queue = name }
 // MaxRetry caps redis-driver retries for the job. Ignored by the sync driver.
 func MaxRetry(n int) Option { return func(o *jobOptions) { o.maxRetry = &n } }
 
+// driver defines an implementation type used by this package.
 type driver interface {
+	// enqueue define an operation required by this interface.
 	enqueue(ctx context.Context, name string, payload []byte, options jobOptions) error
+	// run define an operation required by this interface.
 	run(ctx context.Context, handlers map[string]HandlerFunc) error
+	// stats define an operation required by this interface.
 	stats(ctx context.Context) (Stats, error)
+	// close define an operation required by this interface.
 	close() error
 }
 
 // QueueStats reports the task counts of one named queue.
 type QueueStats struct {
-	Name      string `json:"name"`
-	Pending   int    `json:"pending"`
-	Active    int    `json:"active"`
-	Scheduled int    `json:"scheduled"`
-	Retry     int    `json:"retry"`
-	Archived  int    `json:"archived"`
-	Completed int    `json:"completed"`
+	// Name store data used by this type.
+	Name string `json:"name"`
+	// Pending store data used by this type.
+	Pending int `json:"pending"`
+	// Active store data used by this type.
+	Active int `json:"active"`
+	// Scheduled store data used by this type.
+	Scheduled int `json:"scheduled"`
+	// Retry store data used by this type.
+	Retry int `json:"retry"`
+	// Archived store data used by this type.
+	Archived int `json:"archived"`
+	// Completed store data used by this type.
+	Completed int `json:"completed"`
 }
 
 // Stats reports the driver backing the queue and per-queue task counts. The
 // sync driver executes jobs inline, so it reports no queues.
 type Stats struct {
-	Driver string       `json:"driver"`
+	// Driver store data used by this type.
+	Driver string `json:"driver"`
+	// Queues store data used by this type.
 	Queues []QueueStats `json:"queues,omitempty"`
 }
 
 // Queue dispatches and processes background jobs.
 type Queue struct {
-	driver   driver
+	// driver store data used by this type.
+	driver driver
+	// handlers store data used by this type.
 	handlers map[string]HandlerFunc
-	logger   *slog.Logger
+	// logger store data used by this type.
+	logger *slog.Logger
 }
 
+// New performs this package operation.
 func New(options Options) (*Queue, error) {
 	if options.Logger == nil {
 		options.Logger = slog.Default()

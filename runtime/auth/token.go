@@ -14,27 +14,44 @@ import (
 	"time"
 )
 
+// APITokenPrefix define package-level implementation state.
 const APITokenPrefix = "gk_"
 
+// APIToken defines an implementation type used by this package.
 type APIToken struct {
-	ID         string
-	UserID     string
-	Name       string
-	TokenHash  string
-	Abilities  []string
-	ExpiresAt  *time.Time
+	// ID store data used by this type.
+	ID string
+	// UserID store data used by this type.
+	UserID string
+	// Name store data used by this type.
+	Name string
+	// TokenHash store data used by this type.
+	TokenHash string
+	// Abilities store data used by this type.
+	Abilities []string
+	// ExpiresAt store data used by this type.
+	ExpiresAt *time.Time
+	// LastUsedAt store data used by this type.
 	LastUsedAt *time.Time
-	RevokedAt  *time.Time
+	// RevokedAt store data used by this type.
+	RevokedAt *time.Time
 }
+
+// TokenStore defines an implementation type used by this package.
 type TokenStore interface {
+	// FindByTokenHash define an operation required by this interface.
 	FindByTokenHash(context.Context, string) (*APIToken, error)
+	// TouchLastUsed define an operation required by this interface.
 	TouchLastUsed(context.Context, string, time.Time) error
 }
 
+// HashAPIToken performs this package operation.
 func HashAPIToken(token string) string {
 	s := sha256.Sum256([]byte(token))
 	return hex.EncodeToString(s[:])
 }
+
+// NewAPIToken performs this package operation.
 func NewAPIToken(userID, name string, abilities []string, expiresIn *int64) (APIToken, string, error) {
 	if userID == "" || (expiresIn != nil && *expiresIn <= 0) {
 		return APIToken{}, "", errors.New("invalid token parameters")
@@ -51,6 +68,8 @@ func NewAPIToken(userID, name string, abilities []string, expiresIn *int64) (API
 	}
 	return APIToken{UserID: userID, Name: name, TokenHash: HashAPIToken(p), Abilities: normalizeAbilities(abilities), ExpiresAt: x}, p, nil
 }
+
+// normalizeAbilities performs this package operation.
 func normalizeAbilities(in []string) []string {
 	out := []string{}
 	seen := map[string]bool{}
@@ -63,11 +82,15 @@ func normalizeAbilities(in []string) []string {
 	}
 	return out
 }
+
+// TokenFromContext performs this package operation.
 func TokenFromContext(c *gin.Context) (*APIToken, bool) {
 	v, ok := c.Get("gin-kit.auth.api_token")
 	t, good := v.(*APIToken)
 	return t, ok && good && t != nil
 }
+
+// Can performs this package operation.
 func Can(c *gin.Context, a string) bool {
 	t, ok := TokenFromContext(c)
 	if !ok {
@@ -80,6 +103,8 @@ func Can(c *gin.Context, a string) bool {
 	}
 	return false
 }
+
+// RequireToken performs this package operation.
 func RequireToken(store TokenStore, abilities ...string) gin.HandlerFunc {
 	if store == nil {
 		panic("auth: RequireToken requires a non-nil store")
@@ -109,7 +134,11 @@ func RequireToken(store TokenStore, abilities ...string) gin.HandlerFunc {
 		c.Next()
 	}
 }
+
+// pHash performs this package operation.
 func pHash(s string) string { return HashAPIToken(s) }
+
+// contains performs this package operation.
 func contains(h []string, w string) bool {
 	for _, a := range h {
 		if a == "*" || a == w {

@@ -18,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Options defines an implementation type used by this package.
 type Options struct {
 	// Path is the dashboard mount point, defaulting to /_ginkit.
 	Path string
@@ -35,13 +36,19 @@ type Options struct {
 
 // DevTools records requests and mail and serves the dashboard over them.
 type DevTools struct {
-	path     string
-	logger   *slog.Logger
-	mapper   httpx.Mapper
+	// path store data used by this type.
+	path string
+	// logger store data used by this type.
+	logger *slog.Logger
+	// mapper store data used by this type.
+	mapper httpx.Mapper
+	// requests store data used by this type.
 	requests *requestRing
-	outbox   *mailRing
+	// outbox store data used by this type.
+	outbox *mailRing
 }
 
+// New performs this package operation.
 func New(options Options) *DevTools {
 	options.Path = strings.TrimRight(options.Path, "/")
 	if options.Path == "" {

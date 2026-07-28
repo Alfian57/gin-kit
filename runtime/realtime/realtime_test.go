@@ -249,16 +249,19 @@ func TestChannelRegistrationAndPublishErrors(t *testing.T) {
 	}
 }
 
+// webSocketRouter performs this package operation.
 func webSocketRouter(hub *Hub) *gin.Engine {
 	router := gin.New()
 	router.GET("/ws", hub.Handler())
 	return router
 }
 
+// dial performs this package operation.
 func dial(t *testing.T, serverURL string) *websocket.Conn {
 	return dialWithOptions(t, serverURL, nil)
 }
 
+// dialWithOptions performs this package operation.
 func dialWithOptions(t *testing.T, serverURL string, options *websocket.DialOptions) *websocket.Conn {
 	t.Helper()
 	address, err := url.Parse(serverURL)
@@ -273,6 +276,7 @@ func dialWithOptions(t *testing.T, serverURL string, options *websocket.DialOpti
 	return connection
 }
 
+// writeJSON performs this package operation.
 func writeJSON(t *testing.T, connection *websocket.Conn, value any) {
 	t.Helper()
 	payload, err := json.Marshal(value)
@@ -284,13 +288,19 @@ func writeJSON(t *testing.T, connection *websocket.Conn, value any) {
 	}
 }
 
+// wireMessage defines an implementation type used by this package.
 type wireMessage struct {
-	Channel string          `json:"channel"`
-	Event   string          `json:"event"`
-	Data    json.RawMessage `json:"data"`
-	Error   *protocolError  `json:"error"`
+	// Channel store data used by this type.
+	Channel string `json:"channel"`
+	// Event store data used by this type.
+	Event string `json:"event"`
+	// Data store data used by this type.
+	Data json.RawMessage `json:"data"`
+	// Error store data used by this type.
+	Error *protocolError `json:"error"`
 }
 
+// readMessage performs this package operation.
 func readMessage(t *testing.T, connection *websocket.Conn) wireMessage {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -306,6 +316,7 @@ func readMessage(t *testing.T, connection *websocket.Conn) wireMessage {
 	return message
 }
 
+// readSSE performs this package operation.
 func readSSE(t *testing.T, reader *bufio.Reader) wireMessage {
 	t.Helper()
 	var data string

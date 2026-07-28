@@ -16,8 +16,11 @@ import (
 )
 
 var (
-	ErrNoRecipients  = errors.New("mail: message has no recipients")
-	ErrNoBody        = errors.New("mail: message has no body")
+	// ErrNoRecipients define package-level implementation state.
+	ErrNoRecipients = errors.New("mail: message has no recipients")
+	// ErrNoBody define package-level implementation state.
+	ErrNoBody = errors.New("mail: message has no body")
+	// ErrUnknownDriver define package-level implementation state.
 	ErrUnknownDriver = errors.New("mail: unknown driver")
 )
 
@@ -25,30 +28,40 @@ var (
 type Encryption string
 
 const (
-	EncryptionNone     Encryption = "none"     // plain, port 25
-	EncryptionTLS      Encryption = "tls"      // implicit TLS, port 465
+	// EncryptionNone define package-level implementation state.
+	EncryptionNone Encryption = "none" // plain, port 25
+	// EncryptionTLS define package-level implementation state.
+	EncryptionTLS Encryption = "tls" // implicit TLS, port 465
+	// EncryptionSTARTTLS define package-level implementation state.
 	EncryptionSTARTTLS Encryption = "starttls" // mandatory STARTTLS, port 587
 )
 
+// Options defines an implementation type used by this package.
 type Options struct {
 	// Driver selects the transport: "log" (default, renders messages into
 	// the logger) or "smtp".
-	Driver     string
-	Host       string
-	Port       int // defaults per encryption: 587 starttls, 465 tls, 25 none
-	Username   string
+	Driver string
+	// Host store data used by this type.
+	Host string
+	Port int // defaults per encryption: 587 starttls, 465 tls, 25 none
+	// Username store data used by this type.
+	Username string
+	// Password store data used by this type.
 	Password   string
 	Encryption Encryption // defaults to starttls
 	// FromAddress is the default sender, required for the smtp driver.
 	FromAddress string
-	FromName    string
-	Timeout     time.Duration // dial and send, defaults to 15s
-	Logger      *slog.Logger  // log driver sink, defaults to slog.Default()
+	// FromName store data used by this type.
+	FromName string
+	Timeout  time.Duration // dial and send, defaults to 15s
+	Logger   *slog.Logger  // log driver sink, defaults to slog.Default()
 }
 
 // Mailer sends messages.
 type Mailer interface {
+	// Send define an operation required by this interface.
 	Send(ctx context.Context, message *Message) error
+	// Close define an operation required by this interface.
 	Close() error
 }
 
@@ -71,6 +84,7 @@ func New(options Options) (Mailer, error) {
 	}
 }
 
+// applyOptionDefaults performs this package operation.
 func applyOptionDefaults(options *Options) {
 	if options.Driver == "" {
 		options.Driver = "log"
@@ -96,28 +110,44 @@ func applyOptionDefaults(options *Options) {
 	}
 }
 
+// attachment defines an implementation type used by this package.
 type attachment struct {
-	filename    string
+	// filename store data used by this type.
+	filename string
+	// contentType store data used by this type.
 	contentType string
-	content     []byte
+	// content store data used by this type.
+	content []byte
 }
 
 // Message is a fluent mail builder. Builder errors (bad template, failed
 // attachment read) are deferred and surface at Send.
 type Message struct {
+	// fromAddress store data used by this type.
 	fromAddress string
-	fromName    string
-	to          []string
-	cc          []string
-	bcc         []string
-	replyTo     string
-	subject     string
-	text        string
-	html        string
+	// fromName store data used by this type.
+	fromName string
+	// to store data used by this type.
+	to []string
+	// cc store data used by this type.
+	cc []string
+	// bcc store data used by this type.
+	bcc []string
+	// replyTo store data used by this type.
+	replyTo string
+	// subject store data used by this type.
+	subject string
+	// text store data used by this type.
+	text string
+	// html store data used by this type.
+	html string
+	// attachments store data used by this type.
 	attachments []attachment
-	err         error
+	// err store data used by this type.
+	err error
 }
 
+// NewMessage performs this package operation.
 func NewMessage() *Message { return &Message{} }
 
 // From overrides the mailer's default sender for this message.
@@ -126,36 +156,43 @@ func (m *Message) From(address, name string) *Message {
 	return m
 }
 
+// To performs this package operation.
 func (m *Message) To(addresses ...string) *Message {
 	m.to = append(m.to, addresses...)
 	return m
 }
 
+// Cc performs this package operation.
 func (m *Message) Cc(addresses ...string) *Message {
 	m.cc = append(m.cc, addresses...)
 	return m
 }
 
+// Bcc performs this package operation.
 func (m *Message) Bcc(addresses ...string) *Message {
 	m.bcc = append(m.bcc, addresses...)
 	return m
 }
 
+// ReplyTo performs this package operation.
 func (m *Message) ReplyTo(address string) *Message {
 	m.replyTo = address
 	return m
 }
 
+// Subject performs this package operation.
 func (m *Message) Subject(subject string) *Message {
 	m.subject = subject
 	return m
 }
 
+// Text performs this package operation.
 func (m *Message) Text(body string) *Message {
 	m.text = body
 	return m
 }
 
+// HTML performs this package operation.
 func (m *Message) HTML(body string) *Message {
 	m.html = body
 	return m
@@ -185,24 +222,37 @@ func (m *Message) Attach(filename, contentType string, r io.Reader) *Message {
 
 // AttachmentInfo describes an attachment without exposing its content.
 type AttachmentInfo struct {
-	Filename    string `json:"filename"`
+	// Filename store data used by this type.
+	Filename string `json:"filename"`
+	// ContentType store data used by this type.
 	ContentType string `json:"content_type"`
-	Size        int    `json:"size"`
+	// Size store data used by this type.
+	Size int `json:"size"`
 }
 
 // Envelope is a read-only snapshot of a message for inspection tooling such
 // as the devtools mail outbox. Attachment content is never exposed, only its
 // metadata.
 type Envelope struct {
-	From        string           `json:"from,omitempty"`
-	FromName    string           `json:"from_name,omitempty"`
-	To          []string         `json:"to,omitempty"`
-	Cc          []string         `json:"cc,omitempty"`
-	Bcc         []string         `json:"bcc,omitempty"`
-	ReplyTo     string           `json:"reply_to,omitempty"`
-	Subject     string           `json:"subject"`
-	Text        string           `json:"text,omitempty"`
-	HTML        string           `json:"html,omitempty"`
+	// From store data used by this type.
+	From string `json:"from,omitempty"`
+	// FromName store data used by this type.
+	FromName string `json:"from_name,omitempty"`
+	// To store data used by this type.
+	To []string `json:"to,omitempty"`
+	// Cc store data used by this type.
+	Cc []string `json:"cc,omitempty"`
+	// Bcc store data used by this type.
+	Bcc []string `json:"bcc,omitempty"`
+	// ReplyTo store data used by this type.
+	ReplyTo string `json:"reply_to,omitempty"`
+	// Subject store data used by this type.
+	Subject string `json:"subject"`
+	// Text store data used by this type.
+	Text string `json:"text,omitempty"`
+	// HTML store data used by this type.
+	HTML string `json:"html,omitempty"`
+	// Attachments store data used by this type.
 	Attachments []AttachmentInfo `json:"attachments,omitempty"`
 }
 

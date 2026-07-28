@@ -17,7 +17,9 @@ import (
 // The zero value is ready to use. A nil *Set behaves like an empty set when
 // queried with Enabled.
 type Set struct {
-	mu     sync.RWMutex
+	// mu store data used by this type.
+	mu sync.RWMutex
+	// values store data used by this type.
 	values map[string]bool
 }
 

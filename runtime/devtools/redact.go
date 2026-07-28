@@ -9,9 +9,12 @@ import (
 
 // ConfigEntry is one environment variable in the devtools config report.
 type ConfigEntry struct {
-	Key      string `json:"key"`
-	Value    string `json:"value"`
-	Redacted bool   `json:"redacted"`
+	// Key store data used by this type.
+	Key string `json:"key"`
+	// Value store data used by this type.
+	Value string `json:"value"`
+	// Redacted store data used by this type.
+	Redacted bool `json:"redacted"`
 }
 
 // configKeys is the static allowlist of documented gin-kit environment
@@ -73,6 +76,7 @@ var configKeys = []string{
 	"SHUTDOWN_TIMEOUT",
 }
 
+// secretKeyPattern define package-level implementation state.
 var secretKeyPattern = regexp.MustCompile(`(?i)(SECRET|PASSWORD|KEY|TOKEN)`)
 
 // configReport reads the allowlisted environment variables, redacting

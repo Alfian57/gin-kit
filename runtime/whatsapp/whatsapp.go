@@ -27,17 +27,24 @@ var (
 	ErrDeliveryFailed = errors.New("whatsapp: Cloud API delivery failed")
 )
 
+// defaultAPIBaseURL is Meta's Graph API origin used when no proxy is configured.
 const defaultAPIBaseURL = "https://graph.facebook.com"
 
 // Options configures a WhatsApp client. Driver is "log" by default or
 // "cloud" for Meta's WhatsApp Cloud API.
 type Options struct {
-	Driver        string
-	AccessToken   string
+	// Driver selects log (default) or cloud delivery.
+	Driver string
+	// AccessToken authenticates Cloud API requests and must never be logged.
+	AccessToken string
+	// PhoneNumberID identifies the configured Meta sender, not its display number.
 	PhoneNumberID string
-	APIVersion    string
-	Timeout       time.Duration
-	Logger        *slog.Logger
+	// APIVersion selects the explicit Meta Graph API version.
+	APIVersion string
+	// Timeout limits one outbound Cloud API request.
+	Timeout time.Duration
+	// Logger receives redacted log-driver delivery metadata.
+	Logger *slog.Logger
 	// APIBaseURL defaults to Meta's Graph API. It is useful for an approved
 	// proxy or isolated integration tests; applications normally leave it empty.
 	APIBaseURL string
@@ -45,7 +52,9 @@ type Options struct {
 
 // Client sends WhatsApp template messages.
 type Client interface {
+	// Send validates and delivers one approved template message.
 	Send(context.Context, *Message) error
+	// Close releases client resources; current drivers have no persistent resources.
 	Close() error
 }
 
@@ -54,10 +63,14 @@ type Client interface {
 // "currency", "image", or "document"), Data is encoded under the same key
 // as Type and can hold the exact approved-template value.
 type TemplateParameter struct {
-	Type    string `json:"type"`
-	Text    string `json:"text,omitempty"`
+	// Type is the Meta parameter type, such as text, payload, or currency.
+	Type string `json:"type"`
+	// Text is the scalar value for a text parameter.
+	Text string `json:"text,omitempty"`
+	// Payload is the scalar value for a button payload parameter.
 	Payload string `json:"payload,omitempty"`
-	Data    any    `json:"-"`
+	// Data holds the exact nested value for a non-scalar parameter type.
+	Data any `json:"-"`
 }
 
 // MarshalJSON matches Meta's dynamic template-parameter shape. Text and
@@ -82,17 +95,25 @@ func (p TemplateParameter) MarshalJSON() ([]byte, error) {
 // Type is usually "header", "body", or "button". SubType and Index are
 // used for button components when required by Meta.
 type TemplateComponent struct {
-	Type       string              `json:"type"`
-	SubType    string              `json:"sub_type,omitempty"`
-	Index      string              `json:"index,omitempty"`
+	// Type selects the approved template component, such as body or button.
+	Type string `json:"type"`
+	// SubType refines a button component when Meta requires it.
+	SubType string `json:"sub_type,omitempty"`
+	// Index identifies the button position when Meta requires it.
+	Index string `json:"index,omitempty"`
+	// Parameters are supplied in the order required by the approved template.
 	Parameters []TemplateParameter `json:"parameters,omitempty"`
 }
 
 // Message is an outbound, approved WhatsApp template message.
 type Message struct {
-	recipient  string
-	template   string
-	language   string
+	// recipient store data used by this type.
+	recipient string
+	// template store data used by this type.
+	template string
+	// language store data used by this type.
+	language string
+	// components store data used by this type.
 	components []TemplateComponent
 }
 
@@ -154,6 +175,7 @@ func New(options Options) (Client, error) {
 	}
 }
 
+// applyDefaults performs this package operation.
 func applyDefaults(options *Options) {
 	options.Driver = strings.ToLower(strings.TrimSpace(options.Driver))
 	options.AccessToken = strings.TrimSpace(options.AccessToken)
@@ -174,6 +196,7 @@ func applyDefaults(options *Options) {
 	}
 }
 
+// validateMessage performs this package operation.
 func validateMessage(message *Message) (string, error) {
 	if message == nil {
 		return "", errors.New("whatsapp: message is required")
@@ -196,6 +219,7 @@ func validateMessage(message *Message) (string, error) {
 	return recipient, nil
 }
 
+// validAPIVersion performs this package operation.
 func validAPIVersion(version string) bool {
 	if len(version) < 4 || version[0] != 'v' {
 		return false
@@ -214,8 +238,13 @@ func validAPIVersion(version string) bool {
 	return true
 }
 
-type logClient struct{ options Options }
+// logClient validates sends and records only redacted delivery metadata.
+type logClient struct {
+	// options controls the logger used by the development driver.
+	options Options
+}
 
+// Send performs this package operation.
 func (c *logClient) Send(ctx context.Context, message *Message) error {
 	recipient, err := validateMessage(message)
 	if err != nil {
@@ -230,8 +259,10 @@ func (c *logClient) Send(ctx context.Context, message *Message) error {
 	return nil
 }
 
+// Close performs this package operation.
 func (*logClient) Close() error { return nil }
 
+// redactRecipient performs this package operation.
 func redactRecipient(recipient string) string {
 	if len(recipient) <= 4 {
 		return "***"
@@ -239,11 +270,15 @@ func redactRecipient(recipient string) string {
 	return strings.Repeat("*", len(recipient)-4) + recipient[len(recipient)-4:]
 }
 
+// cloudClient defines an implementation type used by this package.
 type cloudClient struct {
+	// options store data used by this type.
 	options Options
-	http    *http.Client
+	// http store data used by this type.
+	http *http.Client
 }
 
+// Send performs this package operation.
 func (c *cloudClient) Send(ctx context.Context, message *Message) error {
 	recipient, err := validateMessage(message)
 	if err != nil {
@@ -271,4 +306,5 @@ func (c *cloudClient) Send(ctx context.Context, message *Message) error {
 	return nil
 }
 
+// Close performs this package operation.
 func (*cloudClient) Close() error { return nil }

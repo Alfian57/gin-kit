@@ -14,6 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// requestID performs this package operation.
 func requestID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.GetHeader("X-Request-ID")
@@ -31,6 +32,7 @@ func requestID() gin.HandlerFunc {
 	}
 }
 
+// accessLog performs this package operation.
 func accessLog(logger *slog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		started := time.Now()
@@ -45,6 +47,7 @@ func accessLog(logger *slog.Logger) gin.HandlerFunc {
 	}
 }
 
+// recovery performs this package operation.
 func recovery(logger *slog.Logger, mapper httpx.Mapper) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		defer func() {
@@ -65,6 +68,7 @@ func recovery(logger *slog.Logger, mapper httpx.Mapper) gin.HandlerFunc {
 	}
 }
 
+// errorHandler performs this package operation.
 func errorHandler(logger *slog.Logger, mapper httpx.Mapper) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
@@ -83,6 +87,7 @@ func errorHandler(logger *slog.Logger, mapper httpx.Mapper) gin.HandlerFunc {
 	}
 }
 
+// securityHeaders performs this package operation.
 func securityHeaders(ui bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("X-Content-Type-Options", "nosniff")
@@ -96,6 +101,7 @@ func securityHeaders(ui bool) gin.HandlerFunc {
 	}
 }
 
+// bodyLimit performs this package operation.
 func bodyLimit(maxBytes int64) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, maxBytes)
@@ -103,6 +109,7 @@ func bodyLimit(maxBytes int64) gin.HandlerFunc {
 	}
 }
 
+// cors performs this package operation.
 func cors(origins []string) gin.HandlerFunc {
 	allowed := make(map[string]struct{}, len(origins))
 	for _, origin := range origins {

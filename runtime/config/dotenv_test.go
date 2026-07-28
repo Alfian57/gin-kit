@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// writeDotenv performs this package operation.
 func writeDotenv(t *testing.T, content string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), ".env")

@@ -17,16 +17,21 @@ import (
 )
 
 const (
+	// googleIssuer define package-level implementation state.
 	googleIssuer = "https://accounts.google.com"
+	// githubAPIURL define package-level implementation state.
 	githubAPIURL = "https://api.github.com"
 )
 
 // Config contains the credentials and exact callback URL registered with an
 // OAuth provider.
 type Config struct {
-	ClientID     string
+	// ClientID store data used by this type.
+	ClientID string
+	// ClientSecret store data used by this type.
 	ClientSecret string
-	RedirectURL  string
+	// RedirectURL store data used by this type.
+	RedirectURL string
 }
 
 // Validate rejects incomplete provider credentials and callback URLs.
@@ -81,14 +86,20 @@ func NewOIDC(ctx context.Context, name, issuer string, config Config) (Provider,
 	}, nil
 }
 
+// oidcProvider defines an implementation type used by this package.
 type oidcProvider struct {
-	name     string
-	config   oauth2.Config
+	// name store data used by this type.
+	name string
+	// config store data used by this type.
+	config oauth2.Config
+	// verifier store data used by this type.
 	verifier *oidc.IDTokenVerifier
 }
 
+// Name performs this package operation.
 func (p *oidcProvider) Name() string { return p.name }
 
+// AuthorizationURL performs this package operation.
 func (p *oidcProvider) AuthorizationURL(state, verifier, nonce string) string {
 	return p.config.AuthCodeURL(
 		state,
@@ -97,6 +108,7 @@ func (p *oidcProvider) AuthorizationURL(state, verifier, nonce string) string {
 	)
 }
 
+// Identity performs this package operation.
 func (p *oidcProvider) Identity(ctx context.Context, code, verifier, nonce string) (Identity, error) {
 	ctx, cancel := oauthHTTPContext(ctx)
 	defer cancel()
@@ -140,6 +152,7 @@ func NewGitHub(config Config) (Provider, error) {
 	return newGitHub(config, githubAPIURL), nil
 }
 
+// newGitHub performs this package operation.
 func newGitHub(config Config, apiURL string) Provider {
 	return &githubProvider{config: oauth2.Config{
 		ClientID:     config.ClientID,
@@ -150,17 +163,23 @@ func newGitHub(config Config, apiURL string) Provider {
 	}, apiURL: strings.TrimRight(apiURL, "/")}
 }
 
+// githubProvider defines an implementation type used by this package.
 type githubProvider struct {
+	// config store data used by this type.
 	config oauth2.Config
+	// apiURL store data used by this type.
 	apiURL string
 }
 
+// Name performs this package operation.
 func (*githubProvider) Name() string { return "github" }
 
+// AuthorizationURL performs this package operation.
 func (p *githubProvider) AuthorizationURL(state, verifier, _ string) string {
 	return p.config.AuthCodeURL(state, oauth2.S256ChallengeOption(verifier))
 }
 
+// Identity performs this package operation.
 func (p *githubProvider) Identity(ctx context.Context, code, verifier, _ string) (Identity, error) {
 	ctx, cancel := oauthHTTPContext(ctx)
 	defer cancel()
@@ -197,12 +216,14 @@ func (p *githubProvider) Identity(ctx context.Context, code, verifier, _ string)
 	return Identity{}, ErrEmailUnverified
 }
 
+// oauthHTTPContext performs this package operation.
 func oauthHTTPContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	client := &http.Client{Timeout: 10 * time.Second}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	return context.WithValue(ctx, oauth2.HTTPClient, client), cancel
 }
 
+// getJSON performs this package operation.
 func getJSON(client *http.Client, url string, target any) error {
 	request, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -223,6 +244,7 @@ func getJSON(client *http.Client, url string, target any) error {
 	return nil
 }
 
+// firstNonEmpty performs this package operation.
 func firstNonEmpty(values ...string) string {
 	for _, value := range values {
 		if value = strings.TrimSpace(value); value != "" {

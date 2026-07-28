@@ -8,11 +8,15 @@ import (
 	"testing"
 )
 
+// userRegistered defines an implementation type used by this package.
 type userRegistered struct {
+	// Email store data used by this type.
 	Email string
 }
 
+// orderPlaced defines an implementation type used by this package.
 type orderPlaced struct {
+	// ID store data used by this type.
 	ID string
 }
 

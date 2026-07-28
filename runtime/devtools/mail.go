@@ -12,25 +12,33 @@ import (
 // not. The embedded envelope carries metadata and bodies; attachment content
 // is never captured.
 type MailEntry struct {
-	ID     int64     `json:"id"`
+	// ID store data used by this type.
+	ID int64 `json:"id"`
+	// Time store data used by this type.
 	Time   time.Time `json:"time"`
 	Status string    `json:"status"` // "sent" or "failed"
-	Error  string    `json:"error,omitempty"`
+	// Error store data used by this type.
+	Error string `json:"error,omitempty"`
 	mail.Envelope
 }
 
 // mailRing is a fixed-capacity concurrent outbox that keeps the newest
 // entries and assigns each one a monotonically increasing ID.
 type mailRing struct {
-	mu      sync.RWMutex
+	// mu store data used by this type.
+	mu sync.RWMutex
+	// entries store data used by this type.
 	entries []MailEntry
-	next    int64
+	// next store data used by this type.
+	next int64
 }
 
+// newMailRing performs this package operation.
 func newMailRing(capacity int) *mailRing {
 	return &mailRing{entries: make([]MailEntry, capacity)}
 }
 
+// Add performs this package operation.
 func (r *mailRing) Add(entry MailEntry) {
 	r.mu.Lock()
 	r.next++
@@ -65,10 +73,13 @@ func (r *mailRing) Find(id int64) (MailEntry, bool) {
 // failure alike — into the devtools outbox before returning the underlying
 // result unchanged.
 type recordingMailer struct {
-	next   mail.Mailer
+	// next store data used by this type.
+	next mail.Mailer
+	// outbox store data used by this type.
 	outbox *mailRing
 }
 
+// Send performs this package operation.
 func (m *recordingMailer) Send(ctx context.Context, message *mail.Message) error {
 	err := m.next.Send(ctx, message)
 	entry := MailEntry{Time: time.Now(), Status: "sent", Envelope: message.Envelope()}
@@ -80,4 +91,5 @@ func (m *recordingMailer) Send(ctx context.Context, message *mail.Message) error
 	return err
 }
 
+// Close performs this package operation.
 func (m *recordingMailer) Close() error { return m.next.Close() }

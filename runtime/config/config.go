@@ -84,16 +84,23 @@ type Config struct {
 // OAuthProviderConfig holds one provider's client credentials and exact
 // registered callback URL.
 type OAuthProviderConfig struct {
-	ClientID     string
+	// ClientID is the provider-issued OAuth client identifier.
+	ClientID string
+	// ClientSecret is the provider-issued credential and must remain secret.
 	ClientSecret string
-	RedirectURL  string
+	// RedirectURL is the exact callback URL registered with the provider.
+	RedirectURL string
 }
 
 // OAuthConfig holds the generated application's supported social providers.
 type OAuthConfig struct {
-	Google          OAuthProviderConfig
-	GitHub          OAuthProviderConfig
+	// Google contains Google OIDC credentials and callback configuration.
+	Google OAuthProviderConfig
+	// GitHub contains GitHub OAuth credentials and callback configuration.
+	GitHub OAuthProviderConfig
+	// SuccessRedirect is the relative browser path used after a successful flow.
 	SuccessRedirect string
+	// FailureRedirect is the relative browser path used after a failed flow.
 	FailureRedirect string
 }
 
@@ -210,6 +217,7 @@ func Load() (Config, error) {
 	return cfg, nil
 }
 
+// validate performs this package operation.
 func (c Config) validate() error {
 	if c.Environment != "development" {
 		if c.DatabaseURL == "" {
@@ -337,10 +345,12 @@ func (c OAuthConfig) Validate() error {
 	return nil
 }
 
+// safeRedirectPath performs this package operation.
 func safeRedirectPath(path string) bool {
 	return strings.HasPrefix(path, "/") && !strings.HasPrefix(path, "//") && !strings.ContainsAny(path, "\r\n")
 }
 
+// IsDevelopment performs this package operation.
 func (c Config) IsDevelopment() bool { return c.Environment == "development" }
 
 // Options converts the configuration into runtime options. Set code-level
@@ -441,6 +451,7 @@ func (c Config) StorageOptions() storage.Options {
 	}
 }
 
+// stringValue performs this package operation.
 func stringValue(key, fallback string) string {
 	if value := strings.TrimSpace(os.Getenv(key)); value != "" {
 		return value
@@ -448,6 +459,7 @@ func stringValue(key, fallback string) string {
 	return fallback
 }
 
+// normalizeAddress performs this package operation.
 func normalizeAddress(port string) string {
 	if strings.HasPrefix(port, ":") {
 		return port
@@ -455,6 +467,7 @@ func normalizeAddress(port string) string {
 	return ":" + port
 }
 
+// splitCSV performs this package operation.
 func splitCSV(value string) []string {
 	var items []string
 	for _, item := range strings.Split(value, ",") {
@@ -465,6 +478,7 @@ func splitCSV(value string) []string {
 	return items
 }
 
+// boolValue performs this package operation.
 func boolValue(key string, fallback bool) (bool, error) {
 	raw := strings.ToLower(strings.TrimSpace(os.Getenv(key)))
 	switch raw {
@@ -482,6 +496,7 @@ func boolValue(key string, fallback bool) (bool, error) {
 	return value, nil
 }
 
+// intValue performs this package operation.
 func intValue(key string, fallback int) (int, error) {
 	raw := strings.TrimSpace(os.Getenv(key))
 	if raw == "" {
@@ -494,6 +509,7 @@ func intValue(key string, fallback int) (int, error) {
 	return value, nil
 }
 
+// durationValue performs this package operation.
 func durationValue(key string, fallback time.Duration) (time.Duration, error) {
 	raw := strings.TrimSpace(os.Getenv(key))
 	if raw == "" {
