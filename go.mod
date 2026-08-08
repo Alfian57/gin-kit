@@ -18,7 +18,7 @@ require (
 	github.com/hibiken/asynq v0.26.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/jmoiron/sqlx v1.4.0
-	github.com/mattn/go-sqlite3 v1.14.48
+	github.com/mattn/go-sqlite3 v1.14.49
 	github.com/minio/minio-go/v7 v7.1.0
 	github.com/playwright-community/playwright-go v0.5200.1
 	github.com/pressly/goose/v3 v3.27.3
